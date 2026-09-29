@@ -1,13 +1,16 @@
-// Workflow Engine — OpenCode V2 local plugin (Plan 7 Phase 4, T7a)
+// Workflow Engine — OpenCode V2 local plugin (Plan 7 Phase 4, T7a + T7b)
 //
 // Purpose: Planner-driven Task DAG workflows on the shared runtime/tasks.db.
 // T7a implements the planning half: workflow_plan (Planner scoped session →
 // deterministic parse/validate → materialization into Task Bus tasks),
-// workflow_get and workflow_list (pure DB reads). workflow_run /
-// workflow_execute are registered as explicit NOT_IMPLEMENTED_YET placeholders
-// so the tool surface is exactly five tools (§33) from day one; the automatic
-// scheduler, parallel waves, Reviewer PASS/FIX/REWORK loop and the
-// plan+run combo land in T7b.
+// workflow_get and workflow_list (pure DB reads). T7b adds the execution
+// half: workflow_run (automatic DAG scheduler with parallel waves per
+// workflow.yaml parallel_policy, safe retry per retry policy, and the
+// Reviewer PASS/FIX/REWORK closed loop — ./scheduler.ts + ./review.ts) and
+// workflow_execute (workflow_plan + workflow_run combo, §69). A 6th tool
+// workflow_test_hook is registered ONLY when the marker file
+// runtime/.workflow-test-hooks exists at plugin load (§84/§85, test-only;
+// production surface stays at exactly five tools, §33).
 //
 // §34/§67: workflow_plan ONLY does Planner → DAG → validate → materialize.
 // It NEVER starts execution — a successfully planned workflow stays READY
@@ -52,6 +55,9 @@ import { createRuntimeRegistryCore } from "../../lib/runtime-registry-core.ts"
 import { createTaskBusCore } from "../../lib/task-bus-core.ts"
 import { validateWorkflowPlan, extractJsonObject } from "./dag.ts"
 import { buildPlannerPrompt, buildRepairPrompt } from "./planning.ts"
+import { createScheduler } from "./scheduler.ts"
+import { createReviewer } from "./review.ts"
+import { createWorkflowTestHooks, testHooksEnabled, HOOK_VERDICTS } from "./hooks.ts"
 
 const LIST_DEFAULT_LIMIT = 20 // §71: default 20
 const LIST_MAX_LIMIT = 100 // §71: max 100 — never unbounded
@@ -146,6 +152,16 @@ export default {
       }
       return B.YAML.parse(fs.readFileSync(path.join(core.root, "framework-config", "workflow.yaml"), "utf8"))
     }
+
+    // --- T7b (§84/§85): marker-gated test hooks + reviewer loop + scheduler.
+    // The marker file runtime/.workflow-test-hooks is checked ONCE at plugin
+    // load; without it, hooks stay null (scheduler/reviewer consume nothing)
+    // and the workflow_test_hook tool is never registered. A marker file
+    // appearing later requires a plugin reload to take effect. ---
+    const hooksEnabled = testHooksEnabled(core.root)
+    const hooks = hooksEnabled ? createWorkflowTestHooks() : null
+    const reviewer = createReviewer({ core, bus, hooks, loadWorkflowConfig })
+    const scheduler = createScheduler({ core, bus, hooks, reviewer, loadWorkflowConfig })
 
     function rowToWorkflow(row: any) {
       return {
@@ -587,16 +603,120 @@ export default {
     }
 
     // ===================================================================
-    // §33: exactly five tools, namespace `workflow` — no more, no less.
+    // §69: workflow_execute — workflow_plan + workflow_run combined, the
+    // Global Orchestrator standard entry point. If planning fails, nothing
+    // runs; if planning succeeds (READY), the scheduler loop starts.
+    // ===================================================================
+    async function workflowExecute(input: any) {
+      const planned: any = await workflowPlan(input)
+      if (!planned?.ok) return { ...planned, stage: "plan" }
+      const workflowId = planned?.workflow?.workflow_id
+      const run: any = await scheduler.runWorkflow(workflowId)
+      return {
+        ok: !!run?.ok,
+        status: run?.status ?? "ERROR",
+        ...(run?.code ? { code: run.code } : {}),
+        ...(run?.detail ? { detail: run.detail } : {}),
+        stage: "execute",
+        workflow: run?.workflow ?? planned.workflow,
+        nodes: run?.nodes ?? [],
+        waves: run?.waves ?? [],
+        rework_cycle: run?.rework_cycle ?? 0,
+        verdicts: run?.verdicts ?? [],
+        retries: run?.retries ?? [],
+        reworks: run?.reworks ?? [],
+        archived_sessions: run?.archived_sessions ?? [],
+        notes: run?.notes ?? [],
+        plan: {
+          workflow_id: workflowId,
+          planner_task_id: planned.planner_task_id ?? null,
+          planner_session_id: planned.planner_session_id ?? null,
+          repair_attempts_used: planned.repair_attempts_used ?? 0,
+          materialized_nodes: planned.nodes ?? [],
+        },
+        note: "workflow_execute = workflow_plan + workflow_run (§69)",
+      }
+    }
+
+    // ===================================================================
+    // §84/§85: workflow_test_hook handler — TEST-ONLY, marker-gated.
+    // In-memory quotas consumed by scheduler.ts (forceFailure) and
+    // review.ts (forceVerdict) before any real dispatch; zero model calls.
+    // ===================================================================
+    function handleTestHook(input: any) {
+      if (!hooks) {
+        return failure(
+          "HOOK_NOT_ENABLED",
+          "test hooks are disabled: the marker file runtime/.workflow-test-hooks was absent at plugin load",
+        )
+      }
+      const action = input?.action
+      if (action === "force_verdict") {
+        if (typeof input?.workflow_id !== "string" || !input.workflow_id) {
+          return failure("INVALID_INPUT", "workflow_id is required")
+        }
+        const verdicts = input?.verdicts
+        if (!Array.isArray(verdicts) || verdicts.length === 0 || verdicts.some((v: any) => !HOOK_VERDICTS.includes(v))) {
+          return failure("INVALID_INPUT", "verdicts must be a non-empty array of PASS/FIX/REWORK")
+        }
+        hooks.forceVerdict(input.workflow_id, verdicts)
+        return {
+          ok: true,
+          status: "OK",
+          action,
+          workflow_id: input.workflow_id,
+          verdicts,
+          note: "each review round consumes one verdict (FIFO); hook state is in-memory only (cleared on plugin reload)",
+        }
+      }
+      if (action === "force_failure") {
+        if (typeof input?.workflow_id !== "string" || !input.workflow_id) return failure("INVALID_INPUT", "workflow_id is required")
+        if (typeof input?.node_id !== "string" || !input.node_id) return failure("INVALID_INPUT", "node_id is required")
+        if (typeof input?.code !== "string" || !input.code.trim()) {
+          return failure("INVALID_INPUT", "code is required (an execution-class error code, e.g. EXECUTION_FAILED / WAIT_TIMEOUT)")
+        }
+        let times = 1
+        if (input?.times !== undefined && input?.times !== null) {
+          const n = Number(input.times)
+          if (!Number.isInteger(n) || n < 1) return failure("INVALID_INPUT", "times must be an integer >= 1")
+          times = n
+        }
+        hooks.forceFailure(input.workflow_id, input.node_id, input.code.trim(), times)
+        return {
+          ok: true,
+          status: "OK",
+          action,
+          workflow_id: input.workflow_id,
+          node_id: input.node_id,
+          code: input.code.trim(),
+          times,
+          note: "the next N execution(s) of this node fail directly with this code (zero model calls); hook state is in-memory only",
+        }
+      }
+      if (action === "clear") {
+        const res: any = hooks.clear(typeof input?.workflow_id === "string" && input.workflow_id ? input.workflow_id : null)
+        return { ok: true, status: "OK", action, ...res }
+      }
+      if (action === "list") {
+        return { ok: true, status: "OK", action, hooks: hooks.list() }
+      }
+      return failure("INVALID_INPUT", `unknown action '${String(action ?? "")}' (expected force_verdict | force_failure | clear | list)`)
+    }
+
+    // ===================================================================
+    // §33: exactly five tools, namespace `workflow` — plus the TEST-ONLY
+    // workflow_test_hook as a 6th tool if and only if the marker file
+    // runtime/.workflow-test-hooks existed at plugin load (§84/§85).
     // ===================================================================
     await ctx.tool.transform((editor: any) => {
       editor.namespace({
         name: "workflow",
         description:
-          "Workflow Engine (Plan 7 Phase 4, T7a): Planner-driven Task DAG workflows on the shared runtime/tasks.db. " +
+          "Workflow Engine (Plan 7 Phase 4, T7a+T7b): Planner-driven Task DAG workflows on the shared runtime/tasks.db. " +
           "workflow_plan plans + deterministically validates + materializes node tasks (never auto-runs, §67); " +
-          "workflow_get / workflow_list are pure DB reads; workflow_run / workflow_execute (automatic scheduler + " +
-          "reviewer loop) land in T7b and currently return NOT_IMPLEMENTED_YET.",
+          "workflow_run is the automatic DAG scheduler (parallel waves, reviewer PASS/FIX/REWORK loop, safe retry, " +
+          "rework cycles until terminal); workflow_execute = plan + run (§69, Global Orchestrator standard entry); " +
+          "workflow_get / workflow_list are pure DB reads.",
       })
 
       const planInputProperties = {
@@ -648,9 +768,19 @@ export default {
       editor.add({
         name: "workflow_run",
         description:
-          "Automatic DAG scheduler for an existing READY workflow (parallel waves, reviewer PASS/FIX/REWORK loop, " +
-          "rework cycles until terminal). NOT IMPLEMENTED in T7a — lands in T7b (Plan 7 Phase 4+); currently " +
-          "returns NOT_IMPLEMENTED_YET without touching anything.",
+          "Automatic DAG scheduler for an existing workflow (§39-§44/§50-§62/§68): repeatedly finds dependency-ready " +
+          "nodes, groups them into parallel waves per framework-config/workflow.yaml (safe_routes concurrent, " +
+          "project_serial_routes serialized per project via project:<pid>:write lock, global_serial_routes serialized " +
+          "via global:<family> lock, unknown routes conservative; Promise.allSettled capped at scheduler.max_parallel), " +
+          "executes code_change/api_code_change nodes in the workflow-scoped feature-executor session and all other " +
+          "routes via the Task Bus, applies execution-class safe retry (retry.safe_routes, max_retries, never-retry " +
+          "list wins), runs the Reviewer PASS/FIX/REWORK loop (fresh reviewer session per round, deterministic " +
+          "subgraph replay, rework_cycle capped at review.max_rework_cycles) and stops at a terminal state " +
+          "(COMPLETED/FAILED/REWORK_LIMIT) or resumable BLOCKED. Resumable states: READY/RUNNING/BLOCKED/REVIEWING/" +
+          "REWORKING; PLANNING → WORKFLOW_NOT_READY; terminal → current state without re-running; an active loop for " +
+          "the same workflow → WORKFLOW_ALREADY_RUNNING. Returns the final workflow, node overview, per-wave execution " +
+          "summary (node ids, parallelism, per-node start/end timestamps), retries, reworks, verdict history and " +
+          "archived scoped sessions.",
         input: {
           type: "object",
           properties: {
@@ -660,17 +790,17 @@ export default {
           additionalProperties: false,
         },
         options: { namespace: "workflow" },
-        execute: async () => ({
-          content: JSON.stringify({ ok: false, code: "NOT_IMPLEMENTED_YET", detail: "scheduler lands in T7b" }),
-        }),
+        execute: async (input: any) => ({ content: JSON.stringify(await scheduler.runWorkflow(input?.workflow_id)) }),
       })
 
       editor.add({
         name: "workflow_execute",
         description:
-          "Global Orchestrator standard entry point: workflow_plan + workflow_run combined. NOT IMPLEMENTED in " +
-          "T7a — lands in T7b (Plan 7 Phase 4+); currently returns NOT_IMPLEMENTED_YET without touching " +
-          "anything. Use workflow_plan alone in the meantime (it never auto-runs).",
+          "Global Orchestrator standard entry point (§69): workflow_plan + (on successful READY materialization) " +
+          "workflow_run combined in one call. If planning fails (PLAN_INVALID / MODEL_UNASSIGNED / MATERIALIZE_FAILED " +
+          "...) nothing is executed and the planning failure is returned with stage='plan'. Otherwise the scheduler " +
+          "loop runs to a terminal state and the merged result carries both the planning summary (planner task/" +
+          "session, materialized nodes) and the run summary (final status, waves, retries, reworks, verdicts).",
         input: {
           type: "object",
           properties: planInputProperties,
@@ -678,9 +808,7 @@ export default {
           additionalProperties: false,
         },
         options: { namespace: "workflow" },
-        execute: async () => ({
-          content: JSON.stringify({ ok: false, code: "NOT_IMPLEMENTED_YET", detail: "scheduler lands in T7b" }),
-        }),
+        execute: async (input: any) => ({ content: JSON.stringify(await workflowExecute(input)) }),
       })
 
       editor.add({
@@ -727,11 +855,56 @@ export default {
         options: { namespace: "workflow" },
         execute: async (input: any) => ({ content: JSON.stringify(workflowList(input)) }),
       })
+
+      // --- §84/§85: TEST-ONLY 6th tool, registered ONLY when the marker file
+      // runtime/.workflow-test-hooks existed at plugin load. Production loads
+      // expose exactly the five §33 tools; a marker file appearing later
+      // requires a plugin reload (see README). ---
+      if (hooks) {
+        editor.add({
+          name: "workflow_test_hook",
+          description:
+            "TEST-ONLY workflow hook (§84/§85) — registered ONLY because the marker file runtime/.workflow-test-hooks " +
+            "existed at plugin load time; production loads never expose this tool. Actions: force_verdict (queue " +
+            "synthetic reviewer verdicts PASS/FIX/REWORK for a workflow; each review round consumes one FIFO entry " +
+            "and NO real reviewer is dispatched — zero model calls), force_failure (the node's next N executions are " +
+            "persisted FAILED directly with the given execution-class error code — zero model calls; participates in " +
+            "the normal safe-retry decision), clear (drop one workflow's quotas or all), list (show current in-memory " +
+            "state). Hook state lives in memory only and is cleared on plugin reload.",
+          input: {
+            type: "object",
+            properties: {
+              action: {
+                type: "string",
+                enum: ["force_verdict", "force_failure", "clear", "list"],
+                description: "Hook action to perform",
+              },
+              workflow_id: { type: "string", description: "Target workflow_id (required for force_verdict/force_failure)" },
+              node_id: { type: "string", description: "Target node_id (required for force_failure)" },
+              verdicts: {
+                type: "array",
+                items: { type: "string", enum: ["PASS", "FIX", "REWORK"] },
+                description: "force_verdict: FIFO verdict queue, one entry consumed per review round",
+              },
+              code: {
+                type: "string",
+                description: "force_failure: execution-class error code (e.g. EXECUTION_FAILED, WAIT_TIMEOUT)",
+              },
+              times: { type: "integer", description: "force_failure: number of executions to fail (default 1)" },
+            },
+            required: ["action"],
+            additionalProperties: false,
+          },
+          options: { namespace: "workflow" },
+          execute: async (input: any) => ({ content: JSON.stringify(handleTestHook(input)) }),
+        })
+      }
     })
 
     console.log(
       `[workflow-engine] loaded root=${core.root} db=${core.db ? "ok" : "unavailable:" + core.dbError} ` +
-        `schema=${schemaError ? "failed:" + schemaError : "ok"} config=${core.configReady}`,
+        `schema=${schemaError ? "failed:" + schemaError : "ok"} config=${core.configReady} ` +
+        `test-hooks=${hooksEnabled ? "ENABLED (marker runtime/.workflow-test-hooks present; workflow_test_hook registered)" : "disabled (5 tools)"}`,
     )
 
     return () => {
