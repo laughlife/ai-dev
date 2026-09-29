@@ -154,7 +154,7 @@ Commits:
 - 9e26e0e  DAG parallel scheduler + Reviewer rework loop
 - 2062007  orchestrator/project-main automatic workflow entry
 - 97575e0  reviewer-pass dry-run test hook
-- (final) acceptance documentation
+- 389ffc6  acceptance documentation
 
 Scope:
 - Planner DAG contract
