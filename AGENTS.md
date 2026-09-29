@@ -147,7 +147,9 @@ Task / Result / Checkpoint and other reusable templates.
 
 `framework-config/`
 
-Future machine-readable framework configuration.
+Machine-readable derived mirror of the architecture.
+
+The drawio remains the Architecture Source of Truth.
 
 `runtime/`
 
@@ -260,8 +262,10 @@ synchronize Agent definitions
 validate
 ```
 
-The synchronization mechanism is NOT implemented yet.
+Current state:
 
-Until it exists:
+- `drawio → framework-config`: implemented manually
+- `framework-config → executable OpenCode agents`: not implemented yet
+- automatic synchronization: not implemented yet
 
-do not claim that editing drawio automatically changes running Agents.
+Do not claim that editing drawio automatically changes running Agents.

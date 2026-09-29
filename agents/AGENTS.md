@@ -52,12 +52,19 @@ Do not split one role into multiple roles without updating the architecture diag
 
 ## Synchronization Direction
 
-Target future architecture:
+Current state:
 
 drawio
 → framework-config
-→ Agent definitions
+implemented manually
 
-This synchronization is not implemented yet.
+framework-config
+→ executable OpenCode Agent definitions
+not implemented yet
 
-Until then, manually verify Agent definitions against the diagram.
+automatic synchronization
+not implemented yet
+
+drawio remains the Architecture Source of Truth.
+
+Until automatic synchronization exists, manually verify Agent definitions against the diagram.
