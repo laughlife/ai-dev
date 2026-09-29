@@ -26,4 +26,6 @@ permissions:
 - 不得写入 Mem0
 - 不得创建子代理（subagent 已被禁用）
 
-说明：当前 Profile 本身不能实现长期 Reader Session 复用；长期复用将在 Runtime Registry 阶段实现，不得声称已经实现。
+说明：长期 Reader Session 复用已经由 runtime-registry plugin 实现。
+正式项目读取优先由 Task Bus / Runtime Registry 路由到该项目当前 registered Project Reader Session。
+Profile 本身只定义 Agent 行为；Session persistence 由 Runtime Registry 提供。

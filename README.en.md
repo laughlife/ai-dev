@@ -108,9 +108,10 @@ Plan 2: completed
 Plan 3: completed
 Plan 4: completed
 Plan 5: completed
+Plan 6: in progress
 
 Next planned stage:
-Task Bus runtime and structured task dispatch
+DAG scheduling and automatic orchestration (deferred from Plan 6)
 ```
 
 Not implemented yet:

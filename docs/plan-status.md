@@ -85,7 +85,7 @@ Commits:
 - c60c9bb  project-main runtime role
 - dbfa15c  SQLite runtime session registry plugin
 - ab2741e  orchestrator persistent session routing
-- (this commit)  acceptance documentation
+- 1e1ef93  acceptance documentation
 
 Scope:
 - Project Main runtime role normalization
@@ -103,6 +103,27 @@ Deferred to Plan 6:
 - automatic Reviewer loop
 - automatic lifecycle rotation
 
+## Plan 6
+
+Status: IN_PROGRESS
+
+Scope:
+- structured Task Envelope
+- structured Result Envelope
+- Task Bus Core
+- route-based dispatch
+- persistent-session dispatch integration
+- ephemeral-agent dispatch
+- dependency readiness guard
+- task state persistence
+
+Deferred:
+- DAG automatic scheduler
+- parallel batch dispatch
+- automatic reviewer loop
+- automatic retry
+- automatic lifecycle rotation
+
 ## History Note
 
 Commit messages were rewritten to Chinese on 2026-09-29. Hashes after e0bc30c differ from the original plan documents.
@@ -110,8 +131,7 @@ Commit messages were rewritten to Chinese on 2026-09-29. Hashes after e0bc30c di
 ## Deferred
 
 - persistent Session Registry: implemented in Plan 5
-- full Task Bus runtime: Plan 6 (not issued yet)
-- SQLite runtime registry
+- full Task Bus runtime: Plan 6 (in progress)
 - automatic lifecycle actions
 - automatic drawio parser
 - automatic drawio → framework-config sync

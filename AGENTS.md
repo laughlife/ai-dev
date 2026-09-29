@@ -265,8 +265,10 @@ validate
 Current state:
 
 - `drawio → framework-config`: implemented manually
-- `framework-config → executable OpenCode agents`: not implemented yet
-- automatic synchronization: not implemented yet
+- `framework-config → executable OpenCode agents`: implemented manually
+- runtime persistent Project Main / Project Reader: implemented in Plan 5
+- automatic `drawio → framework-config` synchronization: not implemented
+- automatic `framework-config → Agent generation`: not implemented
 
 Do not claim that editing drawio automatically changes running Agents.
 
