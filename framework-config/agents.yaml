@@ -163,10 +163,13 @@ agents:
     role: executor
     instance_scope: per-project-per-feature
 
+    # runtime_id null = the role binds no global model; Task Bus dispatch resolves
+    # it per project from project_sessions.<project>.model.runtime_id (Plan 7).
     model:
       display_name: null
       reasoning: null
       runtime_id: null
+      source: project_sessions
 
     lifecycle:
       type: feature-scoped

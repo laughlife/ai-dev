@@ -29,7 +29,13 @@
 // automatic DAG scheduler, parallel batch dispatch, automatic retry,
 // automatic reviewer dispatch / PASS-FIX-REWORK loop, automatic lifecycle
 // rotation, automatic checkpointing, cancel tool (CANCELLED is protocol-
-// reserved only), Feature Executor model inference.
+// reserved only).
+//
+// Plan 7 Phase 1 (§8-§13) IS implemented here: project-level Feature Executor
+// model routing. The feature-executor model is resolved per project from
+// agents.yaml project_sessions.<project>.model.runtime_id — never inherited
+// from the Orchestrator, never guessed; a project without a configured model
+// (e.g. xxl-job) stays MODEL_UNASSIGNED -> BLOCKED with no fallback.
 //
 // Runtime facts verified on this machine (desktop 2.0.19): Bun 1.4.2,
 // bun:sqlite (SQLite 3.53.2, json_extract available), Bun.YAML.parse.
@@ -133,13 +139,46 @@ export default {
       return { error: null, target, requires }
     }
 
-    // --- §25: ephemeral model resolution from agents.yaml (id == target_role) ---
+    // --- §25: agents.yaml role model lookup (agents[id=role].model.runtime_id);
+    // used by resolveTaskRoleModel for every role without a special source ---
     function findAgentModel(agentsCfg: any, role: string): string | null {
       const list = agentsCfg?.agents
       if (!Array.isArray(list)) return null
       const agent = list.find((a: any) => a?.id === role)
       const rid = agent?.model?.runtime_id
       return typeof rid === "string" && rid ? rid : null
+    }
+
+    // --- Plan 7 Phase 1 (§10): unified task-role model resolution. Rules
+    // (all values come from framework-config; nothing is hardcoded here):
+    //   project-main      -> agents.yaml project_sessions.<project>.model.runtime_id
+    //   project-reader    -> agents.yaml agents[id='project-reader'].model.runtime_id
+    //   feature-executor  -> agents.yaml project_sessions.<project>.model.runtime_id
+    //   any other role    -> agents.yaml agents[id=role].model.runtime_id
+    // project-main / project-reader delegate to core.resolveRoleModel so the
+    // semantics are EXACTLY the ones used by the runtime core ensure(); the
+    // feature-executor branch reads project_sessions with the same accessor as
+    // the core (drawio: per-project model + Feature Child Session). Returns
+    // null when nothing is configured — callers must BLOCK, never inherit /
+    // guess / default. ---
+    function resolveTaskRoleModel(cfg: any, projectId: string, role: string): string | null {
+      if (role === "project-main" || role === "project-reader") {
+        return core.resolveRoleModel(cfg, projectId, role)
+      }
+      if (role === "feature-executor") {
+        const rid = cfg?.agents?.project_sessions?.[projectId]?.model?.runtime_id
+        return typeof rid === "string" && rid ? rid : null
+      }
+      return findAgentModel(cfg.agents, role)
+    }
+
+    // --- Plan 7 §10: where a role's runtime_id is configured; used in
+    // MODEL_UNASSIGNED details so the caller sees the resolution source ---
+    function taskRoleModelSource(projectId: string, role: string): string {
+      if (role === "project-main" || role === "feature-executor") {
+        return `framework-config/agents.yaml project_sessions.${projectId}.model.runtime_id`
+      }
+      return `framework-config/agents.yaml agents[id='${role}'].model.runtime_id`
     }
 
     function rowToTask(row: any) {
@@ -726,21 +765,29 @@ export default {
       }
 
       // --- gate 8: model gate BEFORE any session work (§25/§29: model
-      // problems => BLOCKED, never inherit / guess / default) ---
-      let runtimeId: string | null = null
+      // problems => BLOCKED, never inherit / guess / default).
+      // Plan 7 §10: ephemeral AND persistent roles resolve uniformly via
+      // resolveTaskRoleModel(project_id, target_role). For project-main /
+      // project-reader this yields exactly the previous core.resolveRoleModel
+      // result, for the other ephemeral roles exactly the previous agents.yaml
+      // lookup — only feature-executor changes (per-project source). ---
+      const runtimeId: string | null = resolveTaskRoleModel(cfg, envelope.project_id, targetRole)
+      if (!runtimeId) {
+        return persistBlocked(
+          row,
+          envelope,
+          targetRole,
+          "MODEL_UNASSIGNED",
+          `${taskRoleModelSource(envelope.project_id, targetRole)} is null/missing for role '${targetRole}' ` +
+            `of project '${envelope.project_id}'; refusing to create a session, inherit the orchestrator ` +
+            "model, guess a model or use a default model",
+        )
+      }
       let model: { providerID: string; id: string; variant?: string } | null = null
       if (isEphemeral) {
-        runtimeId = findAgentModel(cfg.agents, targetRole)
-        if (!runtimeId) {
-          return persistBlocked(
-            row,
-            envelope,
-            targetRole,
-            "MODEL_UNASSIGNED",
-            `framework-config/agents.yaml '${targetRole}'.model.runtime_id is null/missing; refusing to create a ` +
-              "session, inherit the orchestrator model, guess a model or use a default model",
-          )
-        }
+        // ephemeral sessions switch the model themselves -> parse it here;
+        // persistent sessions keep delegating the parse to core.ensure()
+        // (existing RUNTIME_ID_UNPARSEABLE behavior unchanged)
         model = core.parseRuntimeId(runtimeId)
         if (!model) {
           return persistBlocked(
@@ -749,18 +796,6 @@ export default {
             targetRole,
             "RUNTIME_ID_UNPARSEABLE",
             `cannot parse runtime_id '${runtimeId}' of role '${targetRole}'`,
-          )
-        }
-      } else {
-        runtimeId = core.resolveRoleModel(cfg, envelope.project_id, targetRole)
-        if (!runtimeId) {
-          return persistBlocked(
-            row,
-            envelope,
-            targetRole,
-            "MODEL_UNASSIGNED",
-            `no runtime_id configured for persistent role '${targetRole}' of project '${envelope.project_id}' ` +
-              "(agents.yaml project_sessions / project-reader); refusing to guess a model",
           )
         }
       }
