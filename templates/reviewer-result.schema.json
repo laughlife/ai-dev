@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-dev.local/templates/reviewer-result.schema.json",
+  "title": "Reviewer Result v1",
+  "description": "Stable Reviewer output contract of the Workflow Engine (Plan 7). The Reviewer's final reply must be exactly one JSON object matching this schema and nothing else: no Markdown fences, no explanations before or after the JSON. The Workflow Engine parses this JSON from Result Envelope.output_text and strictly validates the verdict; if a second fresh Reviewer session still produces an invalid result, the workflow becomes FAILED (REVIEW_RESULT_INVALID). Verdict semantics: PASS = accepted; FIX = target basically correct but local repairs needed; REWORK = structural rework needed, the original acceptance criteria must be re-checked (not a local patch).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "verdict",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": {
+      "description": "Result schema version. Fixed to 1 for Reviewer Result v1. Any breaking schema change must bump this value (see templates/AGENTS.md).",
+      "const": 1,
+      "type": "integer"
+    },
+    "verdict": {
+      "description": "Final review verdict. PASS = accepted; FIX = target basically correct, local repair required; REWORK = structural rework required. Drives the Workflow Engine review loop: PASS advances the workflow, FIX/REWORK replay the review target node and its affected descendants up to max_rework_cycles.",
+      "enum": [
+        "PASS",
+        "FIX",
+        "REWORK"
+      ]
+    },
+    "summary": {
+      "description": "Short human-readable summary of this review round.",
+      "type": "string"
+    },
+    "findings": {
+      "description": "Review findings. Defaults to an empty array (typical for a clean PASS). Each finding must state severity, file (nullable), reason and required_fix; the findings are appended to the rework task objective sent back to the executor.",
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "severity",
+          "file",
+          "reason",
+          "required_fix"
+        ],
+        "properties": {
+          "severity": {
+            "description": "Severity of the finding.",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "file": {
+            "description": "File the finding refers to (path). Null when the finding is not tied to a specific file.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "description": "Why this is a problem, judged against the original requirement and acceptance criteria.",
+            "type": "string"
+          },
+          "required_fix": {
+            "description": "The fix the executor must apply to resolve this finding.",
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-dev.local/templates/workflow-plan.schema.json",
+  "title": "Workflow Plan v1",
+  "description": "Stable Planner output contract of the Workflow Engine (Plan 7). The Planner must return strict JSON matching this schema (no Markdown fences, no surrounding explanations). The Workflow Engine validates the plan deterministically (schema validation, unique node_id, registered project_id and route, cycle detection via Kahn or an equivalent algorithm, review gate validation) - never by LLM judgment - persists it in workflows.plan_json, and then materializes each node into a Runtime Task Bus Task Envelope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "workflow_objective",
+    "nodes"
+  ],
+  "properties": {
+    "schema_version": {
+      "description": "Plan schema version. Fixed to 1 for Workflow Plan v1. Any breaking schema change must bump this value (see templates/AGENTS.md).",
+      "const": 1,
+      "type": "integer"
+    },
+    "workflow_objective": {
+      "description": "Final goal of the whole workflow. Copied into every Reviewer objective together with the workflow-level acceptance_criteria.",
+      "type": "string",
+      "minLength": 1
+    },
+    "constraints": {
+      "description": "Workflow-level constraints that every node executor must respect (e.g. scope limits, forbidden operations). Supplied by the workflow_plan caller.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acceptance_criteria": {
+      "description": "Workflow-level conditions that define when the whole workflow is considered done. The Workflow Engine must include them in every Reviewer objective so each review round validates against them.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "project_scope": {
+      "description": "Business projects involved in this workflow (project_id values that must exist in framework-config/projects.yaml). Supplied by the workflow_plan caller.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "nodes": {
+      "description": "DAG nodes of the workflow. Each node is materialized into one Runtime Task Bus Task Envelope; the node route determines the target Agent role via framework-config/routing.yaml. The plan must not specify Agents directly, must not invent dependencies between parallelizable nodes, and must schedule a build/test or equivalent validation node after every code change node.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "node_id",
+          "project_id",
+          "route",
+          "objective",
+          "depends_on"
+        ],
+        "properties": {
+          "node_id": {
+            "description": "Unique node identifier within this workflow plan. Used by depends_on and review.target_node_id references. Converted to a real task_id only during workflow materialization.",
+            "type": "string",
+            "minLength": 1
+          },
+          "project_id": {
+            "description": "Target business project identifier for this node. Must exist in framework-config/projects.yaml.",
+            "type": "string",
+            "minLength": 1
+          },
+          "route": {
+            "description": "Task route name for this node. Must come from framework-config/routing.yaml routes (e.g. code_read, project_analysis, project_coordination, code_change, database_read, database_write, database_ddl, database_backup, api_code_change, api_runtime_call, api_regression, build_and_test, independent_review, session_lifecycle, documentation_update, long_term_memory_write). The Task Bus resolves the target role from the route; the Planner must not specify the target Agent directly.",
+            "type": "string",
+            "minLength": 1
+          },
+          "objective": {
+            "description": "The final goal of this node, expressed as a string.",
+            "type": "string",
+            "minLength": 1
+          },
+          "depends_on": {
+            "description": "Nodes that must complete before this node can run. Elements are node_id values of this workflow plan, NOT task_id values; they are converted into real task dependencies (arrays of task_id) only during materialization. Self-dependencies are forbidden and the resulting graph must be acyclic.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "constraints": {
+            "description": "List of constraints the node executor must respect (e.g. scope limits, forbidden operations).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expected_output": {
+            "description": "List describing the content the caller expects to receive back from this node.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "acceptance_criteria": {
+            "description": "List of conditions that define when this node is considered done.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "review": {
+            "description": "Review gate of this node. Validation rules (enforced by the Workflow Engine with deterministic DAG algorithms, never by LLM judgment): when required=true, target_node_id must exist in the plan, must not equal the current node_id, and must be an ancestor of the current review gate node, so the Reviewer can never be pointed at an unrelated node. Typical pattern: an implementation node (e.g. implement-backend) followed by a build/test validation node carrying review.required=true with target_node_id pointing at the implementation node, so the Reviewer executes after implementation plus testing. Do NOT force the Reviewer between a code change node and its test node.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "required": {
+                "description": "Whether this node is a review gate that triggers an automatic Reviewer round (route independent_review, fresh Reviewer session) once the node task is COMPLETED.",
+                "type": "boolean",
+                "default": false
+              },
+              "target_node_id": {
+                "description": "node_id of the implementation node to re-execute when the Reviewer verdict is FIX (local repair) or REWORK (structural rework). Null or omitted when review is not required.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "metadata": {
+            "description": "Reserved extension object for additional non-standard fields. Must not contain credentials of any kind (passwords, API keys, database credentials, tokens, secrets).",
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

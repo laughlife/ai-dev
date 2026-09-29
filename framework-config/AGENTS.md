@@ -21,6 +21,7 @@ Current content:
 - lifecycle.yaml
 - sync-state.yaml
 - task-bus.yaml
+- workflow.yaml
 
 These files describe:
 
@@ -32,6 +33,7 @@ These files describe:
 - project registry
 - tool permissions
 - Task Bus protocol, dispatch mode, roles, state machine and feature flags (task-bus.yaml)
+- Workflow Engine protocol, scheduling and parallel policy, review and retry policy (workflow.yaml)
 
 ## Important
 

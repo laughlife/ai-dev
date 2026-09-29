@@ -18,6 +18,7 @@ generated_files:
   - routing.yaml
   - lifecycle.yaml
   - task-bus.yaml
+  - workflow.yaml
 
 automatic_sync:
   implemented: false

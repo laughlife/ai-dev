@@ -6,11 +6,18 @@ Current content:
 
 - task-envelope.schema.json
 - result-envelope.schema.json
+- workflow-plan.schema.json
+- reviewer-result.schema.json
 
 These two schema files define the stable JSON contract of the Runtime Task Bus:
 
 - `task-envelope.schema.json` is the standard input contract (Task Envelope v1).
 - `result-envelope.schema.json` is the standard output contract (Result Envelope v1).
+
+These two schema files define the stable JSON contract of the Workflow Engine (Plan 7):
+
+- `workflow-plan.schema.json` is the Planner output contract (Workflow Plan v1).
+- `reviewer-result.schema.json` is the Reviewer output contract (Reviewer Result v1).
 
 Templates are structure definitions only. They never store active task data;
 runtime task state lives in `runtime/tasks.db`, not here.
@@ -19,13 +26,12 @@ Any breaking schema change must:
 
 1. modify the drawio (if the change belongs to architecture semantics)
 2. bump `schema_version`
-3. update the Task Bus
+3. update the Task Bus / Workflow Engine
 4. update the documentation
 
 Future examples:
 
 - Checkpoint
-- Reviewer Result
 - Agent Handoff
 - Project Session State
 - Reader Checkpoint

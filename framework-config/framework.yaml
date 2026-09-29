@@ -44,6 +44,15 @@ task_bus:
   automatic_dag_scheduler: false
   parallel_batch_dispatch: false
 
+workflow_engine:
+  implementation: opencode-plugin
+  plugin: ../.opencode/plugins/workflow-engine
+  database: ../runtime/tasks.db
+  protocol: ../framework-config/workflow.yaml
+  automatic_scheduler: true
+  automatic_reviewer_loop: true
+  automatic_lifecycle_rotation: false
+
 runtime:
   directory: ../runtime
   persistent_in_git: false

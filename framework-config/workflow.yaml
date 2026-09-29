@@ -1,0 +1,62 @@
+schema_version: 1
+
+implementation:
+  type: opencode-plugin
+  plugin: ../.opencode/plugins/workflow-engine
+  database: ../runtime/tasks.db
+
+protocol:
+  workflow_plan: ../templates/workflow-plan.schema.json
+  reviewer_result: ../templates/reviewer-result.schema.json
+
+planner:
+  route: project_analysis
+  json_repair_attempts: 1
+
+scheduler:
+  max_parallel: 3
+  automatic: true
+
+parallel_policy:
+  safe_routes:
+    - code_read
+    - project_analysis
+    - project_coordination
+    - api_runtime_call
+    - api_regression
+
+  project_serial_routes:
+    - code_change
+    - api_code_change
+    - build_and_test
+    - documentation_update
+
+  global_serial_routes:
+    - database_write
+    - database_ddl
+    - database_backup
+    - long_term_memory_write
+
+review:
+  automatic: true
+  max_rework_cycles: 2
+
+retry:
+  enabled: true
+  max_retries: 1
+  safe_routes:
+    - code_read
+    - project_analysis
+    - api_runtime_call
+    - api_regression
+    - build_and_test
+    - independent_review
+
+  never_retry_routes:
+    - code_change
+    - api_code_change
+    - database_write
+    - database_ddl
+    - database_backup
+    - documentation_update
+    - long_term_memory_write
