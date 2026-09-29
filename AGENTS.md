@@ -228,7 +228,21 @@ Do not use:
 
 unless explicitly requested and reviewed.
 
-## 11. Framework Change Principle
+## 11. Git Commit Language
+
+All Git commit messages must be written in Chinese.
+
+Rules:
+
+- the commit title and body must be in Chinese
+- use English type prefixes such as `feat:`, `fix:`, `chore:`, `docs:`
+- Chinese descriptions must be summary-level; do not over-detail
+
+Example:
+
+`feat: 新增多 Agent 框架机器可读配置`
+
+## 12. Framework Change Principle
 
 The framework should be designed so that future architecture changes can be made visually.
 
