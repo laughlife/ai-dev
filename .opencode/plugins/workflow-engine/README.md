@@ -158,6 +158,10 @@ ROUTE_PRECONDITION_UNSATISFIED）绝不重试，必须先解决阻塞原因。
   - `force_failure {workflow_id, node_id, code, times=1}`：该 node 接下来
     times 次执行不真实 dispatch，直接落 FAILED（error=`<CODE>: forced by test
     hook`）——零模型消耗；强制码同样参与 §60-§62 重试判定
+  - `dry_reviewer_pass {project_id, route?, context_refs}`（§86）：对假想
+    envelope 干跑严格 reviewer-pass 前置校验器（bus.verifyReviewerPass，只读
+    tasks.db 真实行）——零 dispatch、零模型消耗、零 Mem0 写、零任务状态变更；
+    返回 `{satisfied, review_task_id, reasons, checked}`
   - `clear {workflow_id?}` / `list`
 - 生产 tool registry 永远看不到该工具（§84/§85 约束）
 

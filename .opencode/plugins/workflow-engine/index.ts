@@ -693,6 +693,21 @@ export default {
           note: "the next N execution(s) of this node fail directly with this code (zero model calls); hook state is in-memory only",
         }
       }
+      if (action === "dry_reviewer_pass") {
+        // §86: dry-run the strict reviewer-pass precondition resolver
+        // (bus.verifyReviewerPass) against the real tasks.db WITHOUT
+        // dispatching anything — zero model calls, zero Mem0 writes, zero
+        // task/workflow state changes. Purely a read-only verification of
+        // whether a long_term_memory_write-style envelope carrying the given
+        // context_refs would satisfy the reviewer-pass gate.
+        if (typeof input?.project_id !== "string" || !input.project_id) {
+          return failure("INVALID_INPUT", "project_id is required")
+        }
+        const contextRefs = Array.isArray(input?.context_refs) ? input.context_refs : []
+        const route = typeof input?.route === "string" && input.route.trim() ? input.route.trim() : "long_term_memory_write"
+        const review = bus.verifyReviewerPass({ project_id: input.project_id, route, context_refs: contextRefs })
+        return { ok: true, status: "OK", action, project_id: input.project_id, route, context_refs: contextRefs, ...review }
+      }
       if (action === "clear") {
         const res: any = hooks.clear(typeof input?.workflow_id === "string" && input.workflow_id ? input.workflow_id : null)
         return { ok: true, status: "OK", action, ...res }
@@ -700,7 +715,10 @@ export default {
       if (action === "list") {
         return { ok: true, status: "OK", action, hooks: hooks.list() }
       }
-      return failure("INVALID_INPUT", `unknown action '${String(action ?? "")}' (expected force_verdict | force_failure | clear | list)`)
+      return failure(
+        "INVALID_INPUT",
+        `unknown action '${String(action ?? "")}' (expected force_verdict | force_failure | dry_reviewer_pass | clear | list)`,
+      )
     }
 
     // ===================================================================
@@ -869,14 +887,16 @@ export default {
             "synthetic reviewer verdicts PASS/FIX/REWORK for a workflow; each review round consumes one FIFO entry " +
             "and NO real reviewer is dispatched — zero model calls), force_failure (the node's next N executions are " +
             "persisted FAILED directly with the given execution-class error code — zero model calls; participates in " +
-            "the normal safe-retry decision), clear (drop one workflow's quotas or all), list (show current in-memory " +
+            "the normal safe-retry decision), dry_reviewer_pass (§86: dry-run the strict reviewer-pass precondition " +
+            "resolver against real tasks.db rows for a hypothetical envelope — zero dispatch, zero model calls, zero " +
+            "Mem0 writes), clear (drop one workflow's quotas or all), list (show current in-memory " +
             "state). Hook state lives in memory only and is cleared on plugin reload.",
           input: {
             type: "object",
             properties: {
               action: {
                 type: "string",
-                enum: ["force_verdict", "force_failure", "clear", "list"],
+                enum: ["force_verdict", "force_failure", "dry_reviewer_pass", "clear", "list"],
                 description: "Hook action to perform",
               },
               workflow_id: { type: "string", description: "Target workflow_id (required for force_verdict/force_failure)" },
@@ -891,6 +911,13 @@ export default {
                 description: "force_failure: execution-class error code (e.g. EXECUTION_FAILED, WAIT_TIMEOUT)",
               },
               times: { type: "integer", description: "force_failure: number of executions to fail (default 1)" },
+              project_id: { type: "string", description: "dry_reviewer_pass: project_id of the hypothetical envelope (required)" },
+              route: { type: "string", description: "dry_reviewer_pass: route of the hypothetical envelope (default long_term_memory_write)" },
+              context_refs: {
+                type: "array",
+                items: { type: "string" },
+                description: "dry_reviewer_pass: context_refs entries ('task:<id>') of the hypothetical envelope",
+              },
             },
             required: ["action"],
             additionalProperties: false,
