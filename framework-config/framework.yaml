@@ -36,6 +36,14 @@ runtime_registry:
     - project-reader
   automatic_rotation: false
 
+task_bus:
+  implementation: opencode-plugin
+  plugin: ../.opencode/plugins/task-bus
+  database: ../runtime/tasks.db
+  protocol: ../framework-config/task-bus.yaml
+  automatic_dag_scheduler: false
+  parallel_batch_dispatch: false
+
 runtime:
   directory: ../runtime
   persistent_in_git: false

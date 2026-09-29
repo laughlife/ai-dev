@@ -2,10 +2,28 @@
 
 This directory contains reusable framework contracts and templates.
 
+Current content:
+
+- task-envelope.schema.json
+- result-envelope.schema.json
+
+These two schema files define the stable JSON contract of the Runtime Task Bus:
+
+- `task-envelope.schema.json` is the standard input contract (Task Envelope v1).
+- `result-envelope.schema.json` is the standard output contract (Result Envelope v1).
+
+Templates are structure definitions only. They never store active task data;
+runtime task state lives in `runtime/tasks.db`, not here.
+
+Any breaking schema change must:
+
+1. modify the drawio (if the change belongs to architecture semantics)
+2. bump `schema_version`
+3. update the Task Bus
+4. update the documentation
+
 Future examples:
 
-- Task Envelope
-- Result Envelope
 - Checkpoint
 - Reviewer Result
 - Agent Handoff

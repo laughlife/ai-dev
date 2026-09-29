@@ -1,0 +1,47 @@
+schema_version: 1
+
+implementation:
+  type: opencode-plugin
+  plugin: ../.opencode/plugins/task-bus
+  database: ../runtime/tasks.db
+
+protocol:
+  task_envelope: ../templates/task-envelope.schema.json
+  result_envelope: ../templates/result-envelope.schema.json
+
+dispatch:
+  mode: explicit
+
+persistent_roles:
+  - project-main
+  - project-reader
+
+ephemeral_roles:
+  - planner
+  - feature-executor
+  - db-operator
+  - api-runner
+  - test-runner
+  - reviewer
+  - documentation-agent
+  - memory-agent
+  - lifecycle-agent
+
+state_machine:
+  initial: READY
+
+  states:
+    - READY
+    - BLOCKED
+    - RUNNING
+    - COMPLETED
+    - FAILED
+    - CANCELLED
+
+features:
+  dependency_guard: true
+  automatic_dag_scheduler: false
+  parallel_batch_dispatch: false
+  automatic_retry: false
+  automatic_reviewer_loop: false
+  automatic_fix_rework_loop: false

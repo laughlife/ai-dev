@@ -17,6 +17,7 @@ generated_files:
   - agents.yaml
   - routing.yaml
   - lifecycle.yaml
+  - task-bus.yaml
 
 automatic_sync:
   implemented: false

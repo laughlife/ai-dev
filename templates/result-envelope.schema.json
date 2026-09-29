@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-dev.local/templates/result-envelope.schema.json",
+  "title": "Result Envelope v1",
+  "description": "Standard output contract of the Runtime Task Bus (Plan 6). Every dispatched task produces a Result Envelope matching this schema, persisted in the Task Bus database (runtime/tasks.db). Semantics of status: COMPLETED = normal successful completion; FAILED = execution error; BLOCKED = dependencies not completed, model unassigned (MODEL_UNASSIGNED), or route prerequisite not satisfied; CANCELLED = protocol-reserved only, Plan 6 does NOT implement a real cancel tool.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "status",
+    "project_id",
+    "route"
+  ],
+  "properties": {
+    "schema_version": {
+      "description": "Envelope schema version. Fixed to 1 for Result Envelope v1. Any breaking schema change must bump this value (see templates/AGENTS.md).",
+      "const": 1,
+      "type": "integer"
+    },
+    "task_id": {
+      "description": "task_id of the Task Envelope this result belongs to.",
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "description": "Target business project identifier, copied from the Task Envelope.",
+      "type": "string",
+      "minLength": 1
+    },
+    "route": {
+      "description": "Route used for dispatch, copied from the Task Envelope.",
+      "type": "string",
+      "minLength": 1
+    },
+    "target_role": {
+      "description": "Agent role resolved by the Task Bus from the route (per framework-config/routing.yaml). May be absent or null when the route could not be resolved to a role.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "status": {
+      "description": "Terminal or blocking status of the task. COMPLETED = normal completion in Plan 6 runtime; FAILED = execution exception; BLOCKED = dependency not completed, model unassigned (MODEL_UNASSIGNED), or route prerequisite not satisfied; CANCELLED = protocol compatibility reservation only, no cancel tool is implemented in Plan 6.",
+      "enum": [
+        "COMPLETED",
+        "FAILED",
+        "BLOCKED",
+        "CANCELLED"
+      ]
+    },
+    "session_id": {
+      "description": "OpenCode session id in which the task was executed, when applicable. Null if the task never reached a session (e.g. BLOCKED before dispatch).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "session_generation": {
+      "description": "Generation number of the executing session (per the Runtime Session Registry), when applicable. Null if not available.",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "output_text": {
+      "description": "Main textual output of the task execution.",
+      "type": "string"
+    },
+    "artifacts": {
+      "description": "Artifacts produced by the task (e.g. file paths, commit references, report locations). Kept lightweight; no embedded secrets.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "risks": {
+      "description": "Risks or caveats reported by the executor that the caller should be aware of.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "error": {
+      "description": "Error description when status is FAILED or BLOCKED. Null on normal completion.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "started_at": {
+      "description": "Timestamp (ISO 8601 / RFC 3339 date-time) when execution started.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished_at": {
+      "description": "Timestamp (ISO 8601 / RFC 3339 date-time) when execution finished.",
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

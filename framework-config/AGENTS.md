@@ -20,6 +20,7 @@ Current content:
 - routing.yaml
 - lifecycle.yaml
 - sync-state.yaml
+- task-bus.yaml
 
 These files describe:
 
@@ -30,6 +31,7 @@ These files describe:
 - routing
 - project registry
 - tool permissions
+- Task Bus protocol, dispatch mode, roles, state machine and feature flags (task-bus.yaml)
 
 ## Important
 
