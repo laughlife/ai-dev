@@ -516,6 +516,11 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     archive,
     parseRuntimeId,
     loadConfig,
+    // Plan 6 Phase 3 (additive, no behavior change): expose the internal
+    // config lookup helpers so the Task Bus plugin resolves projects and
+    // persistent-role models with EXACTLY the same semantics as ensure().
+    findProject,
+    resolveRoleModel,
     sessionKey,
     withLock,
     close,
