@@ -25,6 +25,11 @@ permissions:
 - Project Main 不直接 native-call：Project Reader、Feature Executor、DB Operator、API Runner、Test Runner；而是创建/执行结构化 task（Task Envelope）
 - Task Bus Plugin 调度不依赖 Project Main 的 native subagent permission（frontmatter 已对 subagent 全部 deny）
 
+任务派发分级（Workflow Engine，Plan 7）：
+- 单项目简单任务 → task_execute（Task Bus）
+- 复杂 Feature（多步骤 / 多依赖 / 代码+测试+review 组合）→ 优先 workflow_execute（Workflow Engine；工具以 workflow_ 前缀出现在注册表中：workflow_plan / workflow_run / workflow_execute / workflow_get / workflow_list）
+- 跨项目 workflow 的主入口仍是 Global Orchestrator；Project Main 不主导跨项目编排
+
 边界（必须遵守）：
 - 不得直接修改业务代码（编辑工具已被禁用）；代码实现必须交给 Feature Executor
 - 不得擅自修改数据库

@@ -64,13 +64,32 @@ Task Bus 工具以 task_ 前缀出现在注册表中（task_create、task_dispat
 1. Formal framework work MUST prefer Task Bus (task_execute, or task_create + task_dispatch)
 2. Do not directly call business agents when Task Bus is available
 3. runtime_session_* remains a low-level session control / recovery interface
-4. native subagent is fallback only when Task Bus is unavailable
+4. native subagent is fallback only when Task Bus / Workflow Engine are unavailable
 
 路由示例：
 
 code_read
 → task_execute(route=code_read)
 → project-reader persistent session
+
+任务路由分级（Workflow Engine，Plan 7）：
+
+Workflow Engine 工具以 workflow_ 前缀出现在注册表中（workflow_plan、workflow_run、workflow_execute、workflow_get、workflow_list）。
+
+- 简单单步骤任务（读一个文件 / 查一个接口 / 单步分析）→ 继续 task_execute（Task Bus）
+- 复杂 Feature / Epic（多步骤 / 多依赖 / 多项目 / 代码+测试+review 组合）→ 优先 workflow_execute（Workflow Engine）
+
+路由示例：
+
+复杂 Feature（代码 + 测试 + review）
+→ workflow_execute
+→ Workflow Engine 按 Workflow Plan 负责 dispatch / parallel / review / rework
+
+Planner 不直接派发（Plan 7）：
+
+- Planner 只输出 Workflow Plan JSON
+- create / dispatch / parallel / review / rework 全部由 Workflow Engine 负责
+- 防止 Planner 自己绕过 Runtime 派发任务
 
 持久项目会话（Runtime Session Registry，Plan 5）：
 
