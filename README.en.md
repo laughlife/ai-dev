@@ -106,7 +106,8 @@ Templates directory, providing:
 Plan 1: completed
 Plan 2: completed
 Plan 3: completed
-Plan 4: in progress
+Plan 4: completed
+Plan 5: in progress
 ```
 
 Not implemented yet:

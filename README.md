@@ -106,7 +106,8 @@ Agent 定义目录（人工可读、平台中立），定义各类型 Agent 的�
 Plan 1: completed
 Plan 2: completed
 Plan 3: completed
-Plan 4: in progress
+Plan 4: completed
+Plan 5: in progress
 ```
 
 当前尚未实现：

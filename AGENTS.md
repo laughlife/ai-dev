@@ -272,13 +272,24 @@ Do not claim that editing drawio automatically changes running Agents.
 
 ## 13. Task Decomposition and Multi-Agent Execution
 
-After receiving any task, decompose it first.
+After receiving a task, decompose it first.
 
-If the task can be executed by multiple agents in parallel, split it and let multiple agents execute it together.
+If a task maps to an Agent role already defined by the Architecture Source of Truth,
+the role and model defined by the drawio / framework-config MUST be used.
 
-Each split sub-task must directly use the recommended model for its capability type:
+Architecture-defined roles always take precedence over generic model recommendations.
 
-| Sub-task type | Recommended model |
+Examples:
+
+- Project Reader -> use the model defined for Project Reader
+- Planner -> use the model defined for Planner
+- Reviewer -> use the model defined for Reviewer
+- DB Operator -> use the model defined for DB Operator
+
+The following recommendations apply only to ad-hoc subtasks that do not map to an
+existing framework role:
+
+| Ad-hoc sub-task type | Recommended model |
 | --- | --- |
 | Logic analysis / reasoning | main model (current session model) |
 | Reading / searching / lookup | `bailian-token-plan/qwen3.8-flash` |
@@ -286,9 +297,11 @@ Each split sub-task must directly use the recommended model for its capability t
 
 Fallback rule:
 
-If the recommended model is unavailable, then and only then consider calling another suitable model.
+If the architecture-defined model or the ad-hoc recommended model is unavailable,
+use another suitable available model and report the fallback.
 
-Do not abandon decomposition just because the first-choice model is unavailable; fall back to an alternative model instead.
+Do not override an architecture-defined Agent model merely because a generic
+recommendation exists here.
 
 ## 14. Git Commit Discipline
 
