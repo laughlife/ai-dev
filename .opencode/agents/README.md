@@ -17,11 +17,13 @@ OpenCode-specific executable adapter
 
 Agent Profile != Runtime Session
 
-Not implemented yet:
-- persistent Project Main sessions
+Implemented (Plan 5):
+- persistent Project Main session registry
 - persistent Project Reader session reuse
-- Task Bus runtime
-- SQLite Session Registry
+- SQLite-backed Runtime Session Registry (../plugins/runtime-registry, DB: ../../runtime/tasks.db)
+
+Not implemented yet:
+- full Task Bus runtime
 - automatic lifecycle rotation
 - automatic config generation
 

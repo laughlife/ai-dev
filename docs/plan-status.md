@@ -78,14 +78,30 @@ Explicitly deferred:
 
 ## Plan 5
 
-Status: IN_PROGRESS
+Status: COMPLETED
+
+Commits:
+- 66c48b9  Plan 4 closure + governance model rule fix
+- c60c9bb  project-main runtime role
+- dbfa15c  SQLite runtime session registry plugin
+- ab2741e  orchestrator persistent session routing
+- (this commit)  acceptance documentation
 
 Scope:
 - Project Main runtime role normalization
 - Project Reader runtime mode support
 - SQLite Runtime Session Registry
-- persistent Project Main / Project Reader session reuse
+- persistent Project Main session reuse
+- persistent Project Reader session reuse
 - runtime session ensure/send/list/get/archive tools
+
+Deferred to Plan 6:
+- full Task Bus
+- Task Envelope / Result Envelope
+- DAG dependency scheduler
+- parallel task execution orchestration
+- automatic Reviewer loop
+- automatic lifecycle rotation
 
 ## History Note
 
@@ -93,7 +109,7 @@ Commit messages were rewritten to Chinese on 2026-09-29. Hashes after e0bc30c di
 
 ## Deferred
 
-- persistent Session Registry: being implemented in Plan 5
+- persistent Session Registry: implemented in Plan 5
 - full Task Bus runtime: Plan 6 (not issued yet)
 - SQLite runtime registry
 - automatic lifecycle actions

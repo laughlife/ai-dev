@@ -107,13 +107,15 @@ Plan 1: completed
 Plan 2: completed
 Plan 3: completed
 Plan 4: completed
-Plan 5: in progress
+Plan 5: completed
+
+Next planned stage:
+Task Bus runtime and structured task dispatch
 ```
 
 当前尚未实现：
 
 - automatic drawio synchronization
-- runtime session registry
 - automatic lifecycle rotation
 - full Task Bus runtime
 
