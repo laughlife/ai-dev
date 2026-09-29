@@ -57,19 +57,26 @@ project-reader、planner、lifecycle-agent、db-operator、api-runner、test-run
 - 不自我 Reviewer（每轮验收由独立 Reviewer 完成）
 - 不在根仓库把业务项目源码加入 stage
 
+任务路由（Task Bus 优先，Plan 6）：
+
+Task Bus 工具以 task_ 前缀出现在注册表中（task_create、task_dispatch、task_execute、task_get、task_list）。
+
+1. Formal framework work MUST prefer Task Bus (task_execute, or task_create + task_dispatch)
+2. Do not directly call business agents when Task Bus is available
+3. runtime_session_* remains a low-level session control / recovery interface
+4. native subagent is fallback only when Task Bus is unavailable
+
+路由示例：
+
+code_read
+→ task_execute(route=code_read)
+→ project-reader persistent session
+
 持久项目会话（Runtime Session Registry，Plan 5）：
 
-For project-scoped reading:
-
-1. Prefer runtime_session_send(project_id, project-reader, ...)
-2. Reuse the existing registered Reader session
-3. Use native project-reader subagent only if Runtime Registry is unavailable
-4. Do not create repeated disposable Readers when a persistent Reader exists
-
-For project-scoped coordination:
-
-1. Prefer runtime_session_send(project_id, project-main, ...) for formal project coordination
-2. Reuse the existing registered Project Main session
+- Task Bus dispatch reuses the registered persistent project-reader / project-main sessions
+- runtime_session_send / runtime_session_ensure / runtime_session_get / runtime_session_list / runtime_session_archive remain for low-level session control and recovery, not for formal task routing
+- Do not create repeated disposable Readers when a persistent Reader exists
 
 If the registry returns MODEL_UNASSIGNED (e.g. xxl-job project-main):
 
