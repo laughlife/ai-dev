@@ -269,3 +269,39 @@ Current state:
 - automatic synchronization: not implemented yet
 
 Do not claim that editing drawio automatically changes running Agents.
+
+## 13. Task Decomposition and Multi-Agent Execution
+
+After receiving any task, decompose it first.
+
+If the task can be executed by multiple agents in parallel, split it and let multiple agents execute it together.
+
+Each split sub-task must directly use the recommended model for its capability type:
+
+| Sub-task type | Recommended model |
+| --- | --- |
+| Logic analysis / reasoning | main model (current session model) |
+| Reading / searching / lookup | `bailian-token-plan/qwen3.8-flash` |
+| Coding / code generation | `bailian-token-plan/qwen3.8-max` |
+
+Fallback rule:
+
+If the recommended model is unavailable, then and only then consider calling another suitable model.
+
+Do not abandon decomposition just because the first-choice model is unavailable; fall back to an alternative model instead.
+
+## 14. Git Commit Discipline
+
+Every modification to files in this repository must be followed by a Git commit.
+
+Required workflow after each change:
+
+1. `git add` the changed files
+2. `git commit` with a Chinese commit message (see section 11)
+
+Forbidden operations:
+
+- Do NOT run `git pull`
+- Do NOT run `git push`
+
+Synchronization with remotes is handled manually by the user, not by agents.
