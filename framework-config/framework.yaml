@@ -1,0 +1,35 @@
+# Machine-readable mirror of ../diagrams/multi_agent_framework_v3_workspace.drawio
+# Conflict policy: drawio wins. This file is not a source of truth.
+
+schema_version: 1
+
+framework:
+  id: ai-dev
+  name: AI Dev Multi-Agent Framework
+  workspace_root: 'D:\ai-dev'
+
+architecture:
+  source_of_truth: ../diagrams/multi_agent_framework_v3_workspace.drawio
+  source_type: drawio
+  config_role: derived-mirror
+  conflict_policy: drawio-wins
+
+repositories:
+  framework:
+    path: 'D:\ai-dev'
+    branch: master
+    remote: https://gitee.com/liwei_liv/ai-dev.git
+
+runtime:
+  directory: ../runtime
+  persistent_in_git: false
+
+backups:
+  directory: ../.backups
+  persistent_in_git: false
+
+knowledge:
+  architecture: drawio
+  governance: AGENTS.md
+  long_term_memory: mem0
+  runtime_state: runtime

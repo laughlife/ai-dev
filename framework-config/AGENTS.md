@@ -1,8 +1,10 @@
 # Framework Configuration Directory Instructions
 
-This directory is reserved for future machine-readable framework configuration.
+This directory contains the machine-readable framework configuration.
 
-Its future purpose is to bridge:
+It is officially enabled as the derived machine-readable mirror of the architecture diagram.
+
+Its purpose is to bridge:
 
 `drawio`
 
@@ -10,7 +12,16 @@ and:
 
 `executable Agent definitions`
 
-Possible future content may describe:
+Current content:
+
+- framework.yaml
+- projects.yaml
+- agents.yaml
+- routing.yaml
+- lifecycle.yaml
+- sync-state.yaml
+
+These files describe:
 
 - Agent registry
 - models
@@ -22,18 +33,28 @@ Possible future content may describe:
 
 ## Important
 
-Do NOT implement this configuration format in the current task.
+The architecture diagram remains the Architecture Source of Truth.
 
-Do NOT create a speculative schema yet.
+The configuration in this directory is a derived mirror, not a second source of truth.
 
-The architecture diagram remains the current Architecture Source of Truth.
+If the drawio and these files disagree: drawio wins.
 
-When a synchronization mechanism is implemented later:
+Do not modify architecture in these files independently of the drawio.
 
-the expected direction is:
+Before changing any configuration here, inspect the drawio first.
+
+If manual edits make these files inconsistent with the drawio, report:
+
+`OUT_OF_SYNC`
+
+Automatic parser-based synchronization is not implemented yet.
+
+Current sync mode is manual; the recorded state lives in `sync-state.yaml`.
+
+The synchronization direction is:
 
 drawio
-→ normalized framework config
+→ framework-config
 → Agent definitions
 
 Do not make framework-config independently authoritative unless explicitly approved.

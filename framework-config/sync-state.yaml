@@ -1,0 +1,25 @@
+# Sync state of the derived machine-readable mirror.
+# Automatic synchronization is NOT implemented; mode is manual.
+
+schema_version: 1
+
+architecture_source:
+  file: ../diagrams/multi_agent_framework_v3_workspace.drawio
+  sha256: '39D169CEDFC1BCBF26A54617C8EA1EC63092E829A26468835271F967115C63F0'
+
+sync:
+  mode: manual
+  status: synchronized
+
+generated_files:
+  - framework.yaml
+  - projects.yaml
+  - agents.yaml
+  - routing.yaml
+  - lifecycle.yaml
+
+automatic_sync:
+  implemented: false
+
+drawio_parser:
+  implemented: false

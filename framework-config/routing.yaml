@@ -1,0 +1,77 @@
+# Machine-readable mirror of ../diagrams/multi_agent_framework_v3_workspace.drawio
+# Conflict policy: drawio wins. This file is not a source of truth.
+
+schema_version: 1
+
+communication:
+
+  runtime_agent_messages:
+    mechanism: opencode-native-task-subagent
+    payload: structured-json-task-envelope
+
+  mem0:
+    role: long-term-knowledge
+    runtime_message_bus: false
+    read: all-agents
+    write:
+      - global-orchestrator
+      - memory-agent
+
+  cross_project_changes_via_task_bus: true
+
+routes:
+
+  code_read:
+    target: project-reader
+
+  project_analysis:
+    target: planner
+
+  code_change:
+    target: feature-executor
+
+  database_read:
+    target: project-reader
+    tool: mysql-mcp
+
+  database_write:
+    target: db-operator
+
+  database_ddl:
+    target: db-operator
+
+  database_backup:
+    target: db-operator
+
+  api_code_change:
+    target: feature-executor
+
+  api_runtime_call:
+    target: api-runner
+
+  api_regression:
+    target: api-runner
+
+  build_and_test:
+    target: test-runner
+
+  independent_review:
+    target: reviewer
+
+  session_lifecycle:
+    target: lifecycle-agent
+
+  documentation_update:
+    target: documentation-agent
+
+  long_term_memory_write:
+    target: memory-agent
+    requires:
+      - reviewer-pass
+
+database:
+
+  default_target: mysql-local
+  server_target: mysql-server
+  server_target_requires_explicit_request: true
+  high_risk_operations_via_task_bus: true
