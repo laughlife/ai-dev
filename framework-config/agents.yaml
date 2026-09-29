@@ -1,7 +1,9 @@
 # Machine-readable mirror of ../diagrams/multi_agent_framework_v3_workspace.drawio
 # Conflict policy: drawio wins. This file is not a source of truth.
-# runtime_id stays null in this phase; real OpenCode provider/model IDs are
-# confirmed in a later phase. Display names are copied from the drawio.
+# runtime_id values come from the local OpenCode environment only (desktop 2.0.19
+# catalog + recorded OpenCode usage). No guessing.
+# "Sol Fast" = OpenCode catalog alias of the base Sol model (fast mode).
+# Reasoning levels: 极高 -> #xhigh, 高 -> #high.
 
 schema_version: 1
 
@@ -14,7 +16,7 @@ agents:
     model:
       display_name: GPT-6 Sol Fast
       reasoning: 极高
-      runtime_id: null
+      runtime_id: openai/gpt-6-sol-fast#xhigh
 
     lifecycle:
       type: persistent
@@ -46,7 +48,7 @@ agents:
     model:
       display_name: DeepSeek-V4.1-Flash
       reasoning: null
-      runtime_id: null
+      runtime_id: deepseek/deepseek-flash
 
     lifecycle:
       type: persistent
@@ -81,7 +83,7 @@ agents:
     model:
       display_name: GPT-6 Sol Fast
       reasoning: 极高
-      runtime_id: null
+      runtime_id: openai/gpt-6-sol-fast#xhigh
 
     lifecycle:
       type: feature-scoped
@@ -103,7 +105,7 @@ agents:
     model:
       display_name: DeepSeek-V4.1-Flash
       reasoning: null
-      runtime_id: null
+      runtime_id: deepseek/deepseek-flash
 
     lifecycle:
       type: persistent
@@ -151,7 +153,7 @@ agents:
       display_name: qwen3.8-max
       plan: Token Plan
       reasoning: null
-      runtime_id: null
+      runtime_id: bailian-token-plan/qwen3.8-max
 
     lifecycle:
       type: feature-scoped
@@ -184,7 +186,7 @@ agents:
     model:
       display_name: DeepSeek-V4.1-Flash
       reasoning: null
-      runtime_id: null
+      runtime_id: deepseek/deepseek-flash
 
     lifecycle:
       type: test-round-scoped
@@ -207,7 +209,7 @@ agents:
     model:
       display_name: DeepSeek-V4.1-Flash
       reasoning: null
-      runtime_id: null
+      runtime_id: deepseek/deepseek-flash
 
     model_policy:
       replaceable_with_fast_stable_model: true
@@ -230,7 +232,7 @@ agents:
     model:
       display_name: GPT-5.6 Sol
       reasoning: 高
-      runtime_id: null
+      runtime_id: openai/gpt-5.6-sol#high
 
     lifecycle:
       type: per-review-round
@@ -258,7 +260,7 @@ agents:
     model:
       display_name: DeepSeek-V4.1-Flash
       reasoning: null
-      runtime_id: null
+      runtime_id: deepseek/deepseek-flash
 
     lifecycle:
       type: event-driven
@@ -283,7 +285,7 @@ agents:
     model:
       display_name: GPT-5.6 Sol Fast
       reasoning: 高
-      runtime_id: null
+      runtime_id: openai/gpt-5.6-sol-fast#high
 
     lifecycle:
       type: event-driven
@@ -308,13 +310,13 @@ project_sessions:
     model:
       display_name: GPT-5.6 Sol Fast
       reasoning: 高
-      runtime_id: null
+      runtime_id: openai/gpt-5.6-sol-fast#high
 
   yudao-ui-admin-vue3:
     model:
       display_name: GPT-5.6 Sol Fast
       reasoning: 高
-      runtime_id: null
+      runtime_id: openai/gpt-5.6-sol-fast#high
 
   xxl-job:
     model:
@@ -327,4 +329,4 @@ project_sessions:
     model:
       display_name: GPT-5.6 Sol Fast
       reasoning: 高
-      runtime_id: null
+      runtime_id: openai/gpt-5.6-sol-fast#high

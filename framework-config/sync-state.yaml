@@ -5,7 +5,7 @@ schema_version: 1
 
 architecture_source:
   file: ../diagrams/multi_agent_framework_v3_workspace.drawio
-  sha256: '39D169CEDFC1BCBF26A54617C8EA1EC63092E829A26468835271F967115C63F0'
+  sha256: '6EB9E61BDB82AEBE58A291CDF2ED3E91B1B6F338A7C95FFC55948DD83C255945'
 
 sync:
   mode: manual

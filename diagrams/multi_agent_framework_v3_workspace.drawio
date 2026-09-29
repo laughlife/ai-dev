@@ -496,6 +496,9 @@
         <mxCell id="persist" value="&lt;b&gt;持久框架资产（根 Git 跟踪）&lt;/b&gt;&lt;br&gt;&lt;br&gt;diagrams/：流程图与模型/角色配置视图&lt;br&gt;docs/：架构、项目索引、API/DB规范、决策记录&lt;br&gt;agents/：Agent 定义、角色权限、系统提示词&lt;br&gt;templates/：Task Envelope、Result Envelope、Checkpoint 模板&lt;br&gt;README.md：框架入口和使用说明" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#3B82F6;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
           <mxGeometry x="260" y="1510" width="920" height="260" as="geometry"/>
         </mxCell>
+        <mxCell id="oc_adapter" value="&lt;b&gt;.opencode/agents/&lt;/b&gt;&lt;br&gt;OpenCode Runtime Adapter / Executable Agent Profiles&lt;br&gt;&lt;b&gt;同步链：&lt;/b&gt;drawio → framework-config → .opencode/agents（当前为手工同步）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#3B82F6;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
+          <mxGeometry x="260" y="1785" width="920" height="80" as="geometry"/>
+        </mxCell>
         <mxCell id="runtime" value="&lt;b&gt;运行时资产（根 Git 建议忽略）&lt;/b&gt;&lt;br&gt;&lt;br&gt;runtime/tasks.db：任务与 Session Registry&lt;br&gt;runtime/checkpoints/：短期 checkpoint&lt;br&gt;.backups/：DB / 配置备份&lt;br&gt;临时日志 / 调试输出&lt;br&gt;&lt;br&gt;&lt;b&gt;长期稳定知识最终进入 docs / Mem0；临时状态不进入 Mem0。&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
           <mxGeometry x="1420" y="1510" width="920" height="260" as="geometry"/>
         </mxCell>
