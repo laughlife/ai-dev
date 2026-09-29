@@ -113,7 +113,7 @@ Commits:
 - 0bbc53d  shared runtime session core extraction
 - b147835  Task Bus core plugin (create/dispatch/execute/get/list)
 - d80061a  orchestrator + project-main Task Bus routing
-- (this commit)  acceptance documentation
+- 300d071  acceptance documentation
 
 Scope:
 - Task Envelope v1
@@ -139,6 +139,30 @@ Deferred to Plan 8:
 - context telemetry
 - automatic 60/70/80 lifecycle rotation
 - automatic checkpoint
+
+## Plan 7
+
+Status: IN_PROGRESS
+
+Scope:
+- Planner DAG contract
+- workflow materialization
+- dependency scheduler
+- safe parallel execution
+- project-scoped Feature Executor model routing
+- Reviewer automatic dispatch
+- PASS/FIX/REWORK loop
+- bounded safe retry
+
+Deferred to Plan 8:
+- context telemetry
+- automatic 60/70/80 lifecycle rotation
+- checkpoint / rotation / restore
+
+Deferred to Plan 9:
+- drawio parser
+- automatic synchronization
+- final E2E production validation
 
 ## History Note
 

@@ -32,6 +32,7 @@ ai-dev/
 │   ├── agents.yaml
 │   ├── routing.yaml
 │   ├── lifecycle.yaml
+│   ├── task-bus.yaml
 │   └── sync-state.yaml
 ├── templates/                   # Reusable templates
 │   └── AGENTS.md
@@ -109,6 +110,7 @@ Plan 3: completed
 Plan 4: completed
 Plan 5: completed
 Plan 6: completed
+Plan 7: in progress
 
 Next planned stage:
 DAG scheduler + parallel task execution + Reviewer loop
