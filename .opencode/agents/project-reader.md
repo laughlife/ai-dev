@@ -1,6 +1,6 @@
 ---
 description: 项目只读读取代理（每项目 1 个；只读代码/文件/日志/Git diff/数据库只读；不修改任何文件）
-mode: subagent
+mode: all
 model: deepseek/deepseek-flash
 permissions:
   - action: edit

@@ -40,6 +40,39 @@ agents:
       - avoid-large-scale-direct-code-reading
       - avoid-direct-business-code-implementation
 
+  - id: project-main
+    display_name: Project Main
+    role: project-coordinator
+    instance_scope: per-project
+
+    model:
+      display_name: null
+      reasoning: null
+      runtime_id: null
+      source: project_sessions
+
+    lifecycle:
+      type: persistent
+      managed_by: lifecycle-agent
+      rotation_supported: true
+
+    responsibilities:
+      - maintain-project-context
+      - receive-project-tasks
+      - coordinate-project-reader
+      - coordinate-feature-executor
+      - coordinate-db-operator
+      - coordinate-api-runner
+      - aggregate-project-results
+      - return-project-summary
+
+    permissions:
+      business_code_write: false
+
+    restrictions:
+      - do-not-directly-implement-feature
+      - use-feature-executor-for-code-change
+
   - id: project-reader
     display_name: Project Reader
     role: reader

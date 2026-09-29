@@ -27,6 +27,9 @@ routes:
   project_analysis:
     target: planner
 
+  project_coordination:
+    target: project-main
+
   code_change:
     target: feature-executor
 
