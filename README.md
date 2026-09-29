@@ -108,17 +108,17 @@ Plan 2: completed
 Plan 3: completed
 Plan 4: completed
 Plan 5: completed
-Plan 6: in progress
+Plan 6: completed
 
 Next planned stage:
-DAG scheduling and automatic orchestration (deferred from Plan 6)
+DAG scheduler + parallel task execution + Reviewer loop
 ```
 
 当前尚未实现：
 
 - automatic drawio synchronization
 - automatic lifecycle rotation
-- full Task Bus runtime
+- automatic DAG scheduler / parallel batch dispatch / Reviewer loop（Plan 6 明确延期）
 
 ## 使用指南
 

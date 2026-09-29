@@ -22,8 +22,18 @@ Implemented (Plan 5):
 - persistent Project Reader session reuse
 - SQLite-backed Runtime Session Registry (../plugins/runtime-registry, DB: ../../runtime/tasks.db)
 
+Implemented (Plan 6):
+- Task Bus Core (../plugins/task-bus, shared DB: ../../runtime/tasks.db)
+- structured Task / Result Envelopes (../../templates/*.schema.json)
+- route-based dispatch (framework-config/routing.yaml)
+- persistent session dispatch integration (project-main / project-reader)
+- ephemeral task sessions (planner etc., sessions kept for audit)
+- dependency readiness guard (BLOCKED / DEPENDENCY_NOT_READY)
+
 Not implemented yet:
-- full Task Bus runtime
+- automatic DAG scheduler
+- parallel batch execution
+- automatic reviewer loop
 - automatic lifecycle rotation
 - automatic config generation
 

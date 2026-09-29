@@ -105,24 +105,40 @@ Deferred to Plan 6:
 
 ## Plan 6
 
-Status: IN_PROGRESS
+Status: COMPLETED
+
+Commits:
+- e714f59  Plan 5 closure + Task Bus phase start
+- da069d0  structured Task/Result Envelope protocol + task-bus.yaml
+- 0bbc53d  shared runtime session core extraction
+- b147835  Task Bus core plugin (create/dispatch/execute/get/list)
+- d80061a  orchestrator + project-main Task Bus routing
+- (this commit)  acceptance documentation
 
 Scope:
-- structured Task Envelope
-- structured Result Envelope
+- Task Envelope v1
+- Result Envelope v1
 - Task Bus Core
 - route-based dispatch
-- persistent-session dispatch integration
-- ephemeral-agent dispatch
+- persistent Project Main/Reader integration
+- ephemeral Agent dispatch
 - dependency readiness guard
 - task state persistence
+- Orchestrator Task Bus integration
 
-Deferred:
-- DAG automatic scheduler
-- parallel batch dispatch
-- automatic reviewer loop
-- automatic retry
-- automatic lifecycle rotation
+Deferred to Plan 7:
+- Planner DAG → tasks automatic materialization
+- automatic DAG scheduler
+- parallel task execution
+- Feature Executor model assignment/routing
+- automatic Reviewer dispatch
+- PASS/FIX/REWORK loop
+- retry policy
+
+Deferred to Plan 8:
+- context telemetry
+- automatic 60/70/80 lifecycle rotation
+- automatic checkpoint
 
 ## History Note
 
@@ -131,7 +147,7 @@ Commit messages were rewritten to Chinese on 2026-09-29. Hashes after e0bc30c di
 ## Deferred
 
 - persistent Session Registry: implemented in Plan 5
-- full Task Bus runtime: Plan 6 (in progress)
+- full Task Bus runtime: implemented in Plan 6 (core; DAG scheduler deferred to Plan 7)
 - automatic lifecycle actions
 - automatic drawio parser
 - automatic drawio → framework-config sync
