@@ -34,8 +34,19 @@
 // automatic DAG scheduler, parallel batch dispatch, automatic retry,
 // automatic reviewer dispatch / PASS-FIX-REWORK loop, automatic lifecycle
 // rotation, automatic checkpointing, cancel tool (CANCELLED is protocol-
-// reserved only). Plan 7 Phases 4-9 (Workflow Engine, reviewer-pass strict
-// verification, retry policy) are NOT implemented here either.
+// reserved only). Plan 7 Phases 4-7/9 (Workflow Engine, retry policy,
+// workflow tools) are NOT implemented here either.
+//
+// Plan 7 Phase 8 (§63-§66) IS implemented here: Gate 5 strict reviewer-pass
+// verification. A route whose `requires` contains `reviewer-pass` is unlocked
+// ONLY when the Task Envelope's context_refs carry a `task:<review_task_id>`
+// pointing at a REAL tasks.db row with same project_id, envelope.route
+// independent_review, target_role reviewer, status COMPLETED and a
+// result_json.output_text that deterministically parses as reviewer-result
+// JSON (schema_version 1) with verdict PASS. Caller claims (metadata,
+// objective/constraints text, arbitrary task ids, other projects' PASS)
+// never unlock anything (§65). Any other `requires` value stays BLOCKED —
+// Plan 7 cannot strictly verify it.
 //
 // Plan 7 Phase 1 (§8-§13) IS implemented here: project-level Feature Executor
 // model routing. The feature-executor model is resolved per project from
@@ -73,6 +84,60 @@ function safeParse(json: any): any {
   } catch {
     return null
   }
+}
+
+// =====================================================================
+// Plan 7 §64: deterministic reviewer-result parsing (templates/reviewer-
+// result.schema.json, schema_version 1). Pure string/JSON logic — never an
+// LLM. Parse strategy: JSON.parse the whole (trimmed) output_text first; on
+// failure, cut the balanced candidate substring from the FIRST '{' to the
+// LAST '}' (whitespace-tolerant, still fully deterministic) and parse that.
+// Anything else is rejected. Exported for offline verification harnesses.
+// =====================================================================
+export const REVIEWER_RESULT_VERDICTS = ["PASS", "FIX", "REWORK"] as const
+
+export function parseReviewerResultText(outputText: any): { ok: boolean; value: any; reason: string | null } {
+  if (typeof outputText !== "string" || !outputText.trim()) {
+    return { ok: false, value: null, reason: "result_json.output_text is missing or empty" }
+  }
+  const trimmed = outputText.trim() // tolerate leading/trailing whitespace
+  let parsed: any = null
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch {
+    const start = trimmed.indexOf("{")
+    const end = trimmed.lastIndexOf("}")
+    if (start < 0 || end <= start) {
+      return { ok: false, value: null, reason: "output_text is not JSON (no '{...}' substring found)" }
+    }
+    try {
+      parsed = JSON.parse(trimmed.slice(start, end + 1))
+    } catch {
+      return {
+        ok: false,
+        value: null,
+        reason: "output_text is not valid reviewer-result JSON (whole-text and first-'{'..last-'}' parses both failed)",
+      }
+    }
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { ok: false, value: null, reason: "reviewer result is not a JSON object" }
+  }
+  if (parsed.schema_version !== 1) {
+    return {
+      ok: false,
+      value: parsed,
+      reason: `reviewer result schema_version must be 1 (got ${JSON.stringify(parsed.schema_version ?? null)})`,
+    }
+  }
+  if (typeof parsed.verdict !== "string" || !(REVIEWER_RESULT_VERDICTS as readonly string[]).includes(parsed.verdict)) {
+    return {
+      ok: false,
+      value: parsed,
+      reason: `reviewer result verdict ${JSON.stringify(parsed.verdict ?? null)} is not one of PASS/FIX/REWORK`,
+    }
+  }
+  return { ok: true, value: parsed, reason: null }
 }
 
 // Create the shared task bus core on top of an existing runtime registry core
@@ -307,6 +372,96 @@ export function createTaskBusCore(ctx: any, runtimeCore: any) {
       task: rowToTask(tq.get.get(row.task_id)),
       result,
       ...(extra ?? {}),
+    }
+  }
+
+  // =====================================================================
+  // Plan 7 §64/§65: strict reviewer-pass precondition resolver.
+  // Trusts ONLY real tasks.db rows — never caller claims:
+  // metadata.reviewer_pass, objective/constraints text ("已经 PASS"),
+  // arbitrary/normal task ids and other projects' PASS all fail here.
+  // Candidates come from envelope.context_refs entries `task:<id>`; ANY one
+  // candidate satisfying ALL of the following unlocks the gate:
+  //   - the task exists in tasks.db
+  //   - its project_id equals the current task's project_id
+  //   - its envelope.route == "independent_review"
+  //   - its target_role == "reviewer"
+  //   - its status == "COMPLETED"
+  //   - its result_json.output_text deterministically parses as
+  //     reviewer-result JSON (schema_version 1, verdict in PASS/FIX/REWORK)
+  //   - and that verdict == "PASS"
+  // =====================================================================
+  function verifyReviewerPass(envelope: any): {
+    satisfied: boolean
+    review_task_id: string | null
+    reasons: string[]
+    checked: Array<{ task_id: string; reason: string | null }>
+  } {
+    const refs: any[] = Array.isArray(envelope?.context_refs) ? envelope.context_refs : []
+    const candidates: string[] = []
+    for (const ref of refs) {
+      if (typeof ref !== "string") continue
+      const t = ref.trim()
+      if (!t.startsWith("task:")) continue
+      const id = t.slice("task:".length).trim()
+      if (id) candidates.push(id)
+    }
+    const checked: Array<{ task_id: string; reason: string | null }> = []
+    if (candidates.length === 0) {
+      return {
+        satisfied: false,
+        review_task_id: null,
+        reasons: [
+          "envelope.context_refs contains no 'task:<review_task_id>' candidate referencing an independent_review task",
+        ],
+        checked,
+      }
+    }
+    for (const id of candidates) {
+      const revRow: any = tq.get.get(id)
+      if (!revRow) {
+        checked.push({ task_id: id, reason: "task does not exist in runtime/tasks.db" })
+        continue
+      }
+      const revEnvelope = safeParse(revRow.input_json)
+      const problems: string[] = []
+      if (revRow.project_id !== envelope?.project_id) {
+        problems.push(
+          `project_id mismatch (review task '${String(revRow.project_id)}' vs current '${String(envelope?.project_id)}')`,
+        )
+      }
+      if (revEnvelope?.route !== "independent_review") {
+        problems.push(`envelope.route is '${String(revEnvelope?.route ?? "unparseable")}', not 'independent_review'`)
+      }
+      if (revRow.target_role !== "reviewer") {
+        problems.push(`target_role is '${String(revRow.target_role)}', not 'reviewer'`)
+      }
+      if (revRow.status !== "COMPLETED") {
+        problems.push(`status is '${String(revRow.status)}', not 'COMPLETED'`)
+      }
+      if (problems.length > 0) {
+        checked.push({ task_id: id, reason: problems.join("; ") })
+        continue
+      }
+      const revResult = safeParse(revRow.result_json)
+      const outputText = revResult && typeof revResult === "object" && !Array.isArray(revResult) ? revResult.output_text : null
+      const parsed = parseReviewerResultText(outputText)
+      if (!parsed.ok) {
+        checked.push({ task_id: id, reason: parsed.reason })
+        continue
+      }
+      if (parsed.value.verdict !== "PASS") {
+        checked.push({ task_id: id, reason: `reviewer verdict is '${parsed.value.verdict}', not 'PASS'` })
+        continue
+      }
+      checked.push({ task_id: id, reason: null })
+      return { satisfied: true, review_task_id: id, reasons: [], checked }
+    }
+    return {
+      satisfied: false,
+      review_task_id: null,
+      reasons: checked.map((c) => `task:${c.task_id} -> ${c.reason}`),
+      checked,
     }
   }
 
@@ -733,20 +888,44 @@ export function createTaskBusCore(ctx: any, runtimeCore: any) {
       )
     }
 
-    // --- gate 5: route prerequisites (§28). Plan 6 has no verified
-    // Reviewer PASS chain, so a route with `requires` can NEVER be strictly
-    // satisfied here; caller claims alone must not unlock it. Real
-    // unlocking is deferred to the Plan 7 Reviewer Loop. ---
+    // --- gate 5: route prerequisites (§28, upgraded by Plan 7 §64/§65).
+    // `reviewer-pass` is now STRICTLY verified against real tasks.db rows
+    // (see verifyReviewerPass): context_refs must carry a task:<id> whose
+    // row is same-project, independent_review, reviewer, COMPLETED and whose
+    // result output_text parses as reviewer-result JSON with verdict PASS.
+    // Caller claims (metadata/objective/constraints) never unlock anything.
+    // Any OTHER `requires` value remains unverifiable in Plan 7 => BLOCKED,
+    // exactly as in Plan 6. ---
     if (routeInfo.requires.length > 0) {
-      return persistBlocked(
-        row,
-        envelope,
-        targetRole,
-        "ROUTE_PRECONDITION_UNSATISFIED",
-        `route '${envelope.route}' requires [${routeInfo.requires.join(", ")}]; Plan 6 cannot strictly verify ` +
-          "prerequisites (automatic Reviewer loop is deferred to Plan 7), and caller claims alone never unlock a route",
-        { requires: routeInfo.requires },
-      )
+      const unverifiable = routeInfo.requires.filter((r) => r !== "reviewer-pass")
+      if (unverifiable.length > 0) {
+        return persistBlocked(
+          row,
+          envelope,
+          targetRole,
+          "ROUTE_PRECONDITION_UNSATISFIED",
+          `route '${envelope.route}' requires [${routeInfo.requires.join(", ")}]; prerequisite(s) [${unverifiable.join(", ")}] ` +
+            "cannot be strictly verified in Plan 7, and caller claims alone never unlock a route",
+          { requires: routeInfo.requires },
+        )
+      }
+      const review = verifyReviewerPass(envelope)
+      if (!review.satisfied) {
+        return persistBlocked(
+          row,
+          envelope,
+          targetRole,
+          "ROUTE_PRECONDITION_UNSATISFIED",
+          `route '${envelope.route}' requires reviewer-pass but no context_refs candidate satisfies it: ${review.reasons.join(" | ")} ` +
+            "(only a real COMPLETED independent_review/reviewer task of the SAME project with reviewer-result verdict PASS in tasks.db can unlock this route, §64/§65)",
+          {
+            requires: routeInfo.requires,
+            reviewer_pass_satisfied: false,
+            reviewer_pass_candidates_checked: review.checked,
+          },
+        )
+      }
+      // reviewer-pass satisfied -> fall through to the remaining gates
     }
 
     // --- gate 6: project must still exist (needed for ephemeral scope) ---
@@ -983,6 +1162,7 @@ export function createTaskBusCore(ctx: any, runtimeCore: any) {
     ephemeralContext,
     persistResult,
     persistBlocked,
+    verifyReviewerPass, // Plan 7 §64/§65: strict reviewer-pass precondition resolver
     executePersistent,
     executeEphemeral,
     dispatchLocked,

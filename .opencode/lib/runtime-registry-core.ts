@@ -17,6 +17,17 @@
 // rotation, automatic checkpointing, drawio parsing. The `tasks` table stays
 // schema-only until the Task Bus phase.
 //
+// Plan 7 Phase 5 (§45-§49) additive extension: generic scoped session API
+// (ensureScopedSession / sendScopedSession / archiveScopedSession) on top of
+// the SAME `sessions` table (no ALTER, no new table). Workflow-scoped keys
+// (e.g. `workflow:<id>:planner`,
+// `workflow:<id>:project:<pid>:feature-executor`) are stored verbatim as
+// ordinary session_key values. runtime_id must ALWAYS be passed explicitly —
+// a scoped session never guesses, inherits or defaults a model (§47).
+// The existing project-main/project-reader API surface and the five
+// runtime_session_* tool behaviors are unchanged; runtime_session_list simply
+// shows the scoped rows too (the registry is a superset).
+//
 // Runtime facts verified on this machine (desktop 2.0.19): Bun 1.4.2,
 // bun:sqlite (SQLite 3.53.2), Bun.YAML.parse.
 
@@ -335,6 +346,47 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     }
   }
 
+  // --- shared prompt/wait/extract mechanism (plan §25). Used by send() and,
+  // since Plan 7 §47, by sendScopedSession(). Throws on prompt/wait/context
+  // errors (callers map that to SEND_FAILED); never touches the DB itself. ---
+  async function promptAndExtract(
+    sessionID: string,
+    text: string,
+  ): Promise<
+    | { code: "OK"; text: string; detail?: undefined }
+    | { code: "NO_ASSISTANT_TEXT" | "NO_ASSISTANT_RESULT"; text: null; detail?: string }
+  > {
+    await ctx.session.prompt({ sessionID, text })
+    let timer: any
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error("WAIT_TIMEOUT")), WAIT_TIMEOUT_MS)
+    })
+    try {
+      await Promise.race([ctx.session.wait({ sessionID }), timeout])
+    } finally {
+      clearTimeout(timer)
+    }
+    const contextRes: any = await ctx.session.context({ sessionID })
+    const messages: any[] = Array.isArray(contextRes) ? contextRes : (contextRes?.messages ?? [])
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m?.type !== "assistant") continue
+      const parts: any[] = Array.isArray(m.content) ? m.content : []
+      const resultText = parts
+        .filter((p: any) => p?.type === "text" && typeof p.text === "string")
+        .map((p: any) => p.text)
+        .join("\n")
+        .trim()
+      if (resultText) return { code: "OK", text: resultText }
+      return {
+        code: "NO_ASSISTANT_TEXT",
+        text: null,
+        detail: "the last assistant message contained no text part",
+      }
+    }
+    return { code: "NO_ASSISTANT_RESULT", text: null }
+  }
+
   // --- core: send (plan §25: durable prompt, wait, extract last assistant result) ---
   async function send(projectId: any, role: any, text: any) {
     const g = guard()
@@ -345,39 +397,22 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     const sessionID = ensured.session_id
     const key = ensured.session_key
     try {
-      await ctx.session.prompt({ sessionID, text })
-      let timer: any
-      const timeout = new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error("WAIT_TIMEOUT")), WAIT_TIMEOUT_MS)
-      })
-      try {
-        await Promise.race([ctx.session.wait({ sessionID }), timeout])
-      } finally {
-        clearTimeout(timer)
-      }
-      const contextRes: any = await ctx.session.context({ sessionID })
-      const messages: any[] = Array.isArray(contextRes) ? contextRes : (contextRes?.messages ?? [])
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const m = messages[i]
-        if (m?.type !== "assistant") continue
-        const parts: any[] = Array.isArray(m.content) ? m.content : []
-        const resultText = parts
-          .filter((p: any) => p?.type === "text" && typeof p.text === "string")
-          .map((p: any) => p.text)
-          .join("\n")
-          .trim()
-        q.touch.run(nowIso(), key, ensured.generation)
-        if (resultText) {
-          return {
-            ok: true,
-            status: "OK",
-            session_key: key,
-            session_id: sessionID,
-            generation: ensured.generation,
-            reused_session: ensured.reused,
-            result: resultText,
-          }
+      const out = await promptAndExtract(sessionID, text)
+      // same touch semantics as before: the row is touched when an assistant
+      // message was reached (OK / NO_ASSISTANT_TEXT), not on NO_ASSISTANT_RESULT
+      if (out.code !== "NO_ASSISTANT_RESULT") q.touch.run(nowIso(), key, ensured.generation)
+      if (out.code === "OK") {
+        return {
+          ok: true,
+          status: "OK",
+          session_key: key,
+          session_id: sessionID,
+          generation: ensured.generation,
+          reused_session: ensured.reused,
+          result: out.text,
         }
+      }
+      if (out.code === "NO_ASSISTANT_TEXT") {
         return {
           ok: false,
           status: "NO_ASSISTANT_TEXT",
@@ -385,7 +420,7 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
           session_id: sessionID,
           generation: ensured.generation,
           result: null,
-          detail: "the last assistant message contained no text part",
+          detail: out.detail,
         }
       }
       return {
@@ -485,6 +520,250 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     }
   }
 
+  // =====================================================================
+  // Plan 7 §45-§49: generic scoped session API (additive; the existing
+  // project-main/project-reader surface above is untouched).
+  //
+  // - Scoped keys (e.g. `workflow:<id>:planner`,
+  //   `workflow:<id>:project:<pid>:feature-executor`) are stored VERBATIM as
+  //   ordinary sessions.session_key values — same table, same composite
+  //   primary key (session_key, generation), same replaced_by chain. No
+  //   ALTER, no new table.
+  // - runtime_id is ALWAYS explicit (§47): ensureScopedSession refuses to
+  //   create a session when it is null/missing (MODEL_UNASSIGNED) or cannot
+  //   be parsed (RUNTIME_ID_UNPARSEABLE). It never resolves a model from
+  //   agents.yaml/projects.yaml and never guesses.
+  // - sendScopedSession NEVER auto-creates: without a latest ACTIVE row it
+  //   returns SCOPED_SESSION_NOT_FOUND; creation must go through
+  //   ensureScopedSession with an explicit runtime_id.
+  // - archiveScopedSession marks the latest ACTIVE row ARCHIVED and does NOT
+  //   delete the OpenCode session (§49: keep it for audit).
+  // - Workflow / reviewer / retry semantics are NOT implemented here; this
+  //   is plain session plumbing for the future Workflow Engine.
+  // =====================================================================
+
+  async function ensureScopedSession(input: any) {
+    const g = guard()
+    if (g) return g
+    const key = input?.session_key
+    if (typeof key !== "string" || !key.trim()) {
+      return failure("INVALID_INPUT", "session_key is required (non-empty string, stored verbatim)")
+    }
+    const projectId = input?.project_id
+    if (typeof projectId !== "string" || !projectId) return failure("INVALID_INPUT", "project_id is required")
+    const role = input?.role
+    if (typeof role !== "string" || !role) return failure("INVALID_INPUT", "role is required")
+    // serialize per session_key against concurrent ensure/send/archive
+    return withLock(key, () =>
+      ensureScopedLocked(key, projectId, role, input?.runtime_id, input?.scope_context, input?.title),
+    )
+  }
+
+  async function ensureScopedLocked(
+    key: string,
+    projectId: string,
+    role: string,
+    runtimeId: any,
+    scopeContext: any,
+    title: any,
+  ) {
+    // reuse the latest ACTIVE generation when its OpenCode session still exists
+    const latest: any = q.latest.get(key)
+    if (latest && latest.status === "ACTIVE") {
+      let alive = true
+      try {
+        await ctx.session.get({ sessionID: latest.opencode_session_id })
+      } catch {
+        alive = false
+      }
+      if (alive) {
+        q.touch.run(nowIso(), key, latest.generation)
+        return rowToResult({ ...latest, last_used_at: nowIso() }, true)
+      }
+      // registry row exists but the OpenCode session is gone -> STALE, generation + 1
+      q.markStatus.run("STALE", nowIso(), key, latest.generation)
+    }
+
+    // §47: explicit runtime_id only — refuse before creating anything
+    if (typeof runtimeId !== "string" || !runtimeId.trim()) {
+      return {
+        ok: false,
+        status: "MODEL_UNASSIGNED",
+        code: "MODEL_UNASSIGNED",
+        session_key: key,
+        project_id: projectId,
+        role,
+        session_created: false,
+        detail:
+          "runtime_id is required for scoped sessions and was null/missing; " +
+          "refusing to create a session, resolve a model from config, inherit or guess one (§47)",
+      }
+    }
+    const model = parseRuntimeId(runtimeId)
+    if (!model) {
+      return failure("RUNTIME_ID_UNPARSEABLE", `cannot parse runtime_id '${runtimeId}'`, {
+        session_key: key,
+        project_id: projectId,
+        role,
+        session_created: false,
+      })
+    }
+
+    // best-effort project_path for the NOT NULL column; a scoped key may
+    // reference a project that is fine, but config problems must never block
+    // session creation (nothing is guessed from config either)
+    let projectPath = ""
+    try {
+      const cfg = loadConfig()
+      const project = findProject(cfg, projectId)
+      if (project && typeof project.path === "string") projectPath = project.path
+    } catch {}
+
+    const prevGeneration = latest ? (latest.generation as number) : 0
+    const generation = prevGeneration + 1 // fresh keys start at generation 1
+    const sessionTitle =
+      typeof title === "string" && title.trim() ? title : `[scoped] ${role} ${projectId}`
+    let sessionID: string
+    try {
+      // session location stays at the framework root; scope arrives via the
+      // synthetic scope_context message below (same pattern as ensure())
+      const info: any = await ctx.session.create({ title: sessionTitle })
+      sessionID = info?.id ?? info?.sessionID
+      if (!sessionID) throw new Error("session create returned no id")
+    } catch (e: any) {
+      return failure("SESSION_CREATE_FAILED", errMsg(e), { session_key: key })
+    }
+
+    try {
+      await ctx.session.switchAgent({ sessionID, agent: role })
+      const modelRef: any = { providerID: model.providerID, id: model.id }
+      if (model.variant) modelRef.variant = model.variant
+      await ctx.session.switchModel({ sessionID, model: modelRef })
+      if (typeof scopeContext === "string" && scopeContext.trim()) {
+        // caller-supplied scope text (PROJECT_ID / PROJECT_PATH / WORKFLOW_ID
+        // / TARGET_ROLE ...); injected verbatim, nothing is added or guessed
+        await ctx.session.synthetic({ sessionID, text: scopeContext })
+      }
+    } catch (e: any) {
+      return failure("SESSION_INIT_FAILED", `${errMsg(e)} (session ${sessionID} was created but initialization failed)`, {
+        session_id: sessionID,
+        session_key: key,
+      })
+    }
+
+    const ts = nowIso()
+    q.insert.run(key, projectId, role, sessionID, generation, role, runtimeId, projectPath, "ACTIVE", null, ts, ts, null)
+    if (latest) q.linkReplaced.run(sessionID, ts, key, prevGeneration)
+
+    return {
+      ok: true,
+      status: "ACTIVE",
+      session_key: key,
+      session_id: sessionID,
+      project_id: projectId,
+      role,
+      generation,
+      reused: false,
+      agent_id: role,
+      model_runtime_id: runtimeId,
+      project_path: projectPath,
+      created_at: ts,
+      last_used_at: ts,
+    }
+  }
+
+  async function sendScopedSession(input: any) {
+    const g = guard()
+    if (g) return g
+    const key = input?.session_key
+    if (typeof key !== "string" || !key.trim()) {
+      return failure("INVALID_INPUT", "session_key is required (non-empty string)")
+    }
+    const text = input?.text
+    if (typeof text !== "string" || !text.trim()) return failure("INVALID_INPUT", "text is required")
+    return withLock(key, async () => {
+      const latest: any = q.latest.get(key)
+      if (!latest || latest.status !== "ACTIVE") {
+        // NEVER auto-create here: creation must be an explicit
+        // ensureScopedSession call carrying a runtime_id (§47)
+        return {
+          ok: false,
+          status: "SCOPED_SESSION_NOT_FOUND",
+          code: "SCOPED_SESSION_NOT_FOUND",
+          session_key: key,
+          detail: latest
+            ? `latest generation ${latest.generation} of session_key '${key}' is ${latest.status}, not ACTIVE; ` +
+              "call ensureScopedSession with an explicit runtime_id to create a new generation"
+            : `no session row exists for session_key '${key}'; call ensureScopedSession with an explicit ` +
+              "runtime_id first (sendScopedSession never auto-creates)",
+        }
+      }
+      const sessionID = latest.opencode_session_id
+      const generation = latest.generation
+      try {
+        const out = await promptAndExtract(sessionID, text)
+        q.touch.run(nowIso(), key, generation)
+        if (out.code === "OK") {
+          return {
+            ok: true,
+            status: "OK",
+            session_key: key,
+            session_id: sessionID,
+            generation,
+            output_text: out.text,
+          }
+        }
+        return {
+          ok: false,
+          status: out.code,
+          code: out.code,
+          session_key: key,
+          session_id: sessionID,
+          generation,
+          output_text: null,
+          ...(out.detail ? { detail: out.detail } : {}),
+        }
+      } catch (e: any) {
+        return failure("SEND_FAILED", errMsg(e), { session_key: key, session_id: sessionID, generation })
+      }
+    })
+  }
+
+  function archiveScopedSession(input: any) {
+    const g = guard()
+    if (g) return g
+    const key = input?.session_key
+    if (typeof key !== "string" || !key.trim()) {
+      return failure("INVALID_INPUT", "session_key is required (non-empty string)")
+    }
+    const row: any = q.latest.get(key)
+    if (!row || row.status !== "ACTIVE") {
+      return {
+        ok: false,
+        status: "SCOPED_SESSION_NOT_FOUND",
+        code: "SCOPED_SESSION_NOT_FOUND",
+        session_key: key,
+        detail: row
+          ? `latest generation ${row.generation} of session_key '${key}' is ${row.status}, not ACTIVE`
+          : `no session row exists for session_key '${key}'`,
+      }
+    }
+    // §49: mark ARCHIVED only; the OpenCode session is intentionally NOT
+    // deleted so the workflow stays auditable.
+    q.markStatus.run("ARCHIVED", nowIso(), key, row.generation)
+    return {
+      ok: true,
+      status: "ARCHIVED",
+      session_key: key,
+      session_id: row.opencode_session_id,
+      project_id: row.project_id,
+      role: row.role,
+      generation: row.generation,
+      opencode_session_deleted: false,
+      note: "OpenCode session kept for audit (§49); the scoped registry row is ARCHIVED",
+    }
+  }
+
   // --- per-session_key serialization to avoid racing ensure/send/archive ---
   const chains = new Map<string, Promise<any>>()
   function withLock<T>(key: string, fn: () => Promise<T> | T): Promise<T> {
@@ -514,6 +793,12 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     list,
     get,
     archive,
+    // Plan 7 §47 (additive): generic scoped session API. Same `sessions`
+    // table, same mechanisms; explicit runtime_id mandatory; no workflow /
+    // reviewer / retry logic here.
+    ensureScopedSession,
+    sendScopedSession,
+    archiveScopedSession,
     parseRuntimeId,
     loadConfig,
     // Plan 6 Phase 3 (additive, no behavior change): expose the internal
