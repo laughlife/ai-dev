@@ -30,11 +30,18 @@ Implemented (Plan 6):
 - ephemeral task sessions (planner etc., sessions kept for audit)
 - dependency readiness guard (BLOCKED / DEPENDENCY_NOT_READY)
 
+Implemented (Plan 7):
+- Workflow Engine (../plugins/workflow-engine, shared DB: ../../runtime/tasks.db)
+- DAG Scheduler (deterministic validation, cycle reject, node → task materialization)
+- safe parallel dispatch (waves, max_parallel, project/global serialization locks)
+- Feature Executor project model routing (project_sessions.<project>.model.runtime_id)
+- automatic Reviewer loop (fresh ephemeral reviewer session per round)
+- PASS/FIX/REWORK (bounded rework cycles, descendant subgraph replay, safe retry)
+
 Not implemented yet:
-- automatic DAG scheduler
-- parallel batch execution
-- automatic reviewer loop
 - automatic lifecycle rotation
+- automatic checkpoint
+- automatic drawio sync
 - automatic config generation
 
 Runtime model notes:

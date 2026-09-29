@@ -142,7 +142,19 @@ Deferred to Plan 8:
 
 ## Plan 7
 
-Status: IN_PROGRESS
+Status: COMPLETED
+
+Commits:
+- ac4d33b  Plan 6 closure + workflow phase start
+- b1b4409  project-level Feature Executor model routing
+- e4a72ee  workflow DAG + Reviewer protocol contracts
+- 777379f  shared Task Bus core extraction
+- f282130  scoped session extension + strict Reviewer PASS verification
+- ac9e719  workflow planning + deterministic DAG validation
+- 9e26e0e  DAG parallel scheduler + Reviewer rework loop
+- 2062007  orchestrator/project-main automatic workflow entry
+- 97575e0  reviewer-pass dry-run test hook
+- (final) acceptance documentation
 
 Scope:
 - Planner DAG contract
@@ -154,15 +166,34 @@ Scope:
 - PASS/FIX/REWORK loop
 - bounded safe retry
 
+Delivered:
+- Workflow Plan v1
+- Reviewer Result v1
+- Workflow Engine
+- DAG validation
+- automatic materialization
+- safe parallel scheduler
+- project model Feature Executor routing
+- feature-scoped Executor reuse
+- automatic Reviewer dispatch
+- PASS/FIX/REWORK
+- bounded rework
+- safe retry policy
+- strict reviewer-pass verification
+
 Deferred to Plan 8:
 - context telemetry
-- automatic 60/70/80 lifecycle rotation
-- checkpoint / rotation / restore
+- 60/70/80 automatic lifecycle rotation
+- checkpoint
+- session generation rotation
+- restore
 
 Deferred to Plan 9:
 - drawio parser
-- automatic synchronization
-- final E2E production validation
+- automatic architecture synchronization
+- automatic Agent generation
+- Documentation/Memory final PASS event chain
+- production E2E
 
 ## History Note
 
@@ -171,7 +202,7 @@ Commit messages were rewritten to Chinese on 2026-09-29. Hashes after e0bc30c di
 ## Deferred
 
 - persistent Session Registry: implemented in Plan 5
-- full Task Bus runtime: implemented in Plan 6 (core; DAG scheduler deferred to Plan 7)
+- full Task Bus runtime: implemented in Plan 6 (core; DAG scheduler implemented in Plan 7 Workflow Engine)
 - automatic lifecycle actions
 - automatic drawio parser
 - automatic drawio → framework-config sync

@@ -110,17 +110,17 @@ Plan 3: completed
 Plan 4: completed
 Plan 5: completed
 Plan 6: completed
-Plan 7: in progress
+Plan 7: completed
 
 Next planned stage:
-DAG scheduler + parallel task execution + Reviewer loop
+automatic lifecycle rotation + checkpoint
 ```
 
 当前尚未实现：
 
 - automatic drawio synchronization
 - automatic lifecycle rotation
-- automatic DAG scheduler / parallel batch dispatch / Reviewer loop（Plan 6 明确延期）
+- automatic checkpoint / restore（Plan 7 明确延期至 Plan 8）
 
 ## 使用指南
 
