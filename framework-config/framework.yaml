@@ -26,6 +26,16 @@ runtime_adapters:
     role: executable-agent-profiles
     source: agents.yaml
 
+runtime_registry:
+  implementation: opencode-plugin
+  plugin: ../.opencode/plugins/runtime-registry
+  database: ../runtime/tasks.db
+  session_location: 'D:\ai-dev'
+  managed_roles:
+    - project-main
+    - project-reader
+  automatic_rotation: false
+
 runtime:
   directory: ../runtime
   persistent_in_git: false
