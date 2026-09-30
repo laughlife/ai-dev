@@ -1,104 +1,103 @@
-<?xml version='1.0' encoding='utf-8'?>
-<mxfile host="app.diagrams.net" agent="ChatGPT" compressed="false">
+<mxfile host="Electron" agent="ChatGPT" compressed="false" pages="3">
   <diagram id="main-v3" name="01-多Agent主工作流">
-    <mxGraphModel dx="2600" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2600" pageHeight="3600" math="0" shadow="0">
+    <mxGraphModel dx="3040" dy="223" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2600" pageHeight="4100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="title" value="&amp;lt;b&amp;gt;多 Agent 多项目开发执行框架（v4：Completion Guard + 独立并行 Lane）&amp;lt;/b&amp;gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=28;fontStyle=1;fontColor=#163A63;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="420" y="20" width="1760" height="60" as="geometry" />
+        <mxCell id="title" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=28;fontStyle=1;fontColor=#163A63;align=center;verticalAlign=middle;" value="&amp;lt;b&amp;gt;多 Agent 多项目开发执行框架（v4：Completion Guard + 独立并行 Lane）&amp;lt;/b&amp;gt;" vertex="1">
+          <mxGeometry height="60" width="1760" x="420" y="20" as="geometry" />
         </mxCell>
-        <mxCell id="sub" value="主工作空间：D:\ai-dev\　｜　架构源：v4 machine metadata　｜　Completion Gate　｜　Lane Scheduler" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=14;fontColor=#486581;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="430" y="82" width="1740" height="38" as="geometry" />
+        <mxCell id="sub" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=14;fontColor=#486581;align=center;verticalAlign=middle;" value="主工作空间：D:\ai-dev\　｜　架构源：v4 machine metadata　｜　Completion Gate　｜　Lane Scheduler" vertex="1">
+          <mxGeometry height="38" width="1740" x="430" y="82" as="geometry" />
         </mxCell>
-        <mxCell id="workspace" value="&lt;b&gt;主工作空间 / Framework Root：D:\ai-dev\&lt;/b&gt;&lt;br&gt;&lt;br&gt;根 Git 只管理框架资产：流程图、docs、Agent 定义、模板、框架配置等。&lt;br&gt;业务项目目录全部加入根 .gitignore；每个业务项目拥有自己的独立 Git 仓库。&lt;br&gt;&lt;b&gt;项目：&lt;/b&gt;ruoyi-vue-pro / yudao-ui-admin-vue3 / xxl-job / nyamtn" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#94A3B8;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
-          <mxGeometry x="180" y="150" width="2240" height="135" as="geometry" />
+        <mxCell id="workspace" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#94A3B8;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" value="&lt;b&gt;主工作空间 / Framework Root：D:\ai-dev\&lt;/b&gt;&lt;br&gt;&lt;br&gt;根 Git 只管理框架资产：流程图、docs、Agent 定义、模板、框架配置等。&lt;br&gt;业务项目目录全部加入根 .gitignore；每个业务项目拥有自己的独立 Git 仓库。&lt;br&gt;&lt;b&gt;项目：&lt;/b&gt;ruoyi-vue-pro / yudao-ui-admin-vue3 / xxl-job / nyamtn" vertex="1">
+          <mxGeometry height="135" width="2240" x="180" y="150" as="geometry" />
         </mxCell>
-        <mxCell id="req" value="&lt;b&gt;需求 / 项目目标&lt;/b&gt;&lt;br&gt;&lt;br&gt;产品需求、业务目标、功能描述、约束、验收条件" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#3B82F6;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="180" y="350" width="560" height="125" as="geometry" />
+        <mxCell id="req" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#3B82F6;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;需求 / 项目目标&lt;/b&gt;&lt;br&gt;&lt;br&gt;产品需求、业务目标、功能描述、约束、验收条件" vertex="1">
+          <mxGeometry height="125" width="560" x="180" y="350" as="geometry" />
         </mxCell>
-        <mxCell id="mem0" value="&lt;b&gt;Mem0 / 长期记忆&lt;/b&gt;&lt;br&gt;&lt;br&gt;所有 Agent 可读&lt;br&gt;&lt;b&gt;仅主控 / Memory Agent 可写&lt;/b&gt;&lt;br&gt;保存长期知识、历史决策、稳定约束" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF3;strokeColor=#22A06B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="1020" y="350" width="560" height="125" as="geometry" />
+        <mxCell id="mem0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF3;strokeColor=#22A06B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;Mem0 / 长期记忆&lt;/b&gt;&lt;br&gt;&lt;br&gt;所有 Agent 可读&lt;br&gt;&lt;b&gt;仅主控 / Memory Agent 可写&lt;/b&gt;&lt;br&gt;保存长期知识、历史决策、稳定约束" vertex="1">
+          <mxGeometry height="125" width="560" x="1020" y="350" as="geometry" />
         </mxCell>
-        <mxCell id="mcp" value="&lt;b&gt;MCP / 工具能力层&lt;/b&gt;&lt;br&gt;&lt;br&gt;MySQL MCP / Mem0 MCP / Files / Git / Shell / Logs / Search / HTTP / OpenAPI&lt;br&gt;&lt;b&gt;MCP 提供能力，不承担 Agent 临时通讯。&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0FF;strokeColor=#8B5CF6;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="1860" y="350" width="560" height="125" as="geometry" />
+        <mxCell id="mcp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0FF;strokeColor=#8B5CF6;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;MCP / 工具能力层&lt;/b&gt;&lt;br&gt;&lt;br&gt;MySQL MCP / Mem0 MCP / Files / Git / Shell / Logs / Search / HTTP / OpenAPI&lt;br&gt;&lt;b&gt;MCP 提供能力，不承担 Agent 临时通讯。&lt;/b&gt;" vertex="1">
+          <mxGeometry height="125" width="560" x="1860" y="350" as="geometry" />
         </mxCell>
-        <mxCell id="orch" value="&lt;b&gt;总主控 / Global Orchestrator&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：GPT-6 Sol Fast（极高）&lt;/b&gt;&lt;br&gt;职责：理解最终目标、跨项目路由、维护全局任务、调用 Planner / Project Session / Governance、汇总结果、控制闭环&lt;br&gt;&lt;b&gt;会话：长期复用；达到换代阈值时由 Lifecycle Agent 执行 checkpoint + 新会话换代。&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#3B82F6;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="720" y="590" width="1160" height="160" as="geometry" />
+        <mxCell id="orch" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#3B82F6;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;总主控 / Global Orchestrator&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：GPT-6 Sol Fast（极高）&lt;/b&gt;&lt;br&gt;职责：理解最终目标、跨项目路由、维护全局任务、调用 Planner / Project Session / Governance、汇总结果、控制闭环&lt;br&gt;&lt;b&gt;会话：长期复用；达到换代阈值时由 Lifecycle Agent 执行 checkpoint + 新会话换代。&lt;/b&gt;" vertex="1">
+          <mxGeometry height="160" width="1160" x="720" y="590" as="geometry" />
         </mxCell>
-        <mxCell id="lane_analysis" value="&lt;b&gt;分析 / 规划层&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFCFF;strokeColor=#D7E3F1;strokeWidth=1;dashed=1;fontSize=12;fontColor=#486581;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
-          <mxGeometry x="150" y="820" width="1530" height="390" as="geometry" />
+        <mxCell id="lane_analysis" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFCFF;strokeColor=#D7E3F1;strokeWidth=1;dashed=1;fontSize=12;fontColor=#486581;align=left;verticalAlign=top;spacing=8;" value="&lt;b&gt;分析 / 规划层&lt;/b&gt;" vertex="1">
+          <mxGeometry height="390" width="1530" x="150" y="820" as="geometry" />
         </mxCell>
-        <mxCell id="lane_govern" value="&lt;b&gt;治理 / 运行时层&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFCFF;strokeColor=#D7E3F1;strokeWidth=1;dashed=1;fontSize=12;fontColor=#486581;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
-          <mxGeometry x="1740" y="820" width="710" height="390" as="geometry" />
+        <mxCell id="lane_govern" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFCFF;strokeColor=#D7E3F1;strokeWidth=1;dashed=1;fontSize=12;fontColor=#486581;align=left;verticalAlign=top;spacing=8;" value="&lt;b&gt;治理 / 运行时层&lt;/b&gt;" vertex="1">
+          <mxGeometry height="390" width="710" x="1740" y="820" as="geometry" />
         </mxCell>
-        <mxCell id="reader" value="&lt;b&gt;Project Reader / 项目读取代理（每项目 1 个）&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：DeepSeek-V4.1-Flash&lt;/b&gt;&lt;br&gt;职责：持续读取该项目代码、文件、日志、Git diff、数据库只读信息；输出结构化上下文&lt;br&gt;&lt;b&gt;生命周期：长期复用，不再一次读取一次销毁。&lt;/b&gt;&lt;br&gt;目的：提高同项目重复读取时的上下文与缓存命中率。&lt;br&gt;达到换代阈值后：Lifecycle Agent → Reader Checkpoint → 新一代 Reader。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="210" y="890" width="700" height="245" as="geometry" />
+        <mxCell id="reader" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;Project Reader / 项目读取代理（每项目 1 个）&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：DeepSeek-V4.1-Flash&lt;/b&gt;&lt;br&gt;职责：持续读取该项目代码、文件、日志、Git diff、数据库只读信息；输出结构化上下文&lt;br&gt;&lt;b&gt;生命周期：长期复用，不再一次读取一次销毁。&lt;/b&gt;&lt;br&gt;目的：提高同项目重复读取时的上下文与缓存命中率。&lt;br&gt;达到换代阈值后：Lifecycle Agent → Reader Checkpoint → 新一代 Reader。" vertex="1">
+          <mxGeometry height="245" width="700" x="210" y="890" as="geometry" />
         </mxCell>
-        <mxCell id="planner" value="&lt;b&gt;Planner / 逻辑分析与任务派发&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：GPT-6 Sol Fast（极高）&lt;/b&gt;&lt;br&gt;职责：复杂分析、任务拆解、DAG、依赖关系、根因分析、选择目标项目、定义验收条件、返工规划&lt;br&gt;&lt;b&gt;生命周期：一个 Feature / Epic；返工期间可继续复用；Feature 结束后关闭。&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0FF;strokeColor=#8B5CF6;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="990" y="890" width="620" height="245" as="geometry" />
+        <mxCell id="planner" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0FF;strokeColor=#8B5CF6;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;Planner / 逻辑分析与任务派发&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：GPT-6 Sol Fast（极高）&lt;/b&gt;&lt;br&gt;职责：复杂分析、任务拆解、DAG、依赖关系、根因分析、选择目标项目、定义验收条件、返工规划&lt;br&gt;&lt;b&gt;生命周期：一个 Feature / Epic；返工期间可继续复用；Feature 结束后关闭。&lt;/b&gt;" vertex="1">
+          <mxGeometry height="245" width="620" x="990" y="890" as="geometry" />
         </mxCell>
-        <mxCell id="lifecycle" value="&lt;b&gt;Lifecycle Agent / 会话生命周期管理&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：DeepSeek-V4.1-Flash&lt;/b&gt;&lt;br&gt;长期治理 Agent。负责：Session Registry、上下文阈值、checkpoint、换代、归档、恢复。&lt;br&gt;重点管理：Project Main、Project Reader、Feature Executor、Planner。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="1790" y="875" width="610" height="150" as="geometry" />
+        <mxCell id="lifecycle" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;Lifecycle Agent / 会话生命周期管理&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：DeepSeek-V4.1-Flash&lt;/b&gt;&lt;br&gt;长期治理 Agent。负责：Session Registry、上下文阈值、checkpoint、换代、归档、恢复。&lt;br&gt;重点管理：Project Main、Project Reader、Feature Executor、Planner。" vertex="1">
+          <mxGeometry height="150" width="610" x="1790" y="875" as="geometry" />
         </mxCell>
-        <mxCell id="registry" value="&lt;b&gt;Runtime Registry / 任务与会话账本&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;SQLite：tasks.db&lt;/b&gt;&lt;br&gt;task_id / project / role / session_id / generation / status / context_pct / checkpoint / replaced_by&lt;br&gt;作为运行时状态真相源；Mem0 不保存临时 Task State。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#94A3B8;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
-          <mxGeometry x="1790" y="1045" width="610" height="130" as="geometry" />
+        <mxCell id="registry" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#94A3B8;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" value="&lt;b&gt;Runtime Registry / 任务与会话账本&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;SQLite：tasks.db&lt;/b&gt;&lt;br&gt;task_id / project / role / session_id / generation / status / context_pct / checkpoint / replaced_by&lt;br&gt;作为运行时状态真相源；Mem0 不保存临时 Task State。" vertex="1">
+          <mxGeometry height="130" width="610" x="1790" y="1045" as="geometry" />
         </mxCell>
-        <mxCell id="task_bus" value="&lt;b&gt;Task Bus / Agent 通讯层&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;实现：OpenCode 原生 Task / Subagent + 结构化 JSON Task Envelope&lt;/b&gt;&lt;br&gt;task_id / project / objective / constraints / dependencies / expected_output / status&lt;br&gt;Agent 间临时通讯走这里；不使用 Mem0 当消息队列。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#3B82F6;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="560" y="1285" width="1480" height="165" as="geometry" />
+        <mxCell id="task_bus" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#3B82F6;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;Task Bus / Agent 通讯层&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;实现：OpenCode 原生 Task / Subagent + 结构化 JSON Task Envelope&lt;/b&gt;&lt;br&gt;task_id / project / objective / constraints / dependencies / expected_output / status&lt;br&gt;Agent 间临时通讯走这里；不使用 Mem0 当消息队列。" vertex="1">
+          <mxGeometry height="165" width="1480" x="560" y="1285" as="geometry" />
         </mxCell>
-        <mxCell id="lane_projects" value="&lt;b&gt;项目层：每个项目一个长期 Project Session；代码修改时再创建 Feature Child Session&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFCFF;strokeColor=#D7E3F1;strokeWidth=1;dashed=1;fontSize=12;fontColor=#486581;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
-          <mxGeometry x="130" y="1530" width="2340" height="430" as="geometry" />
+        <mxCell id="lane_projects" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFCFF;strokeColor=#D7E3F1;strokeWidth=1;dashed=1;fontSize=12;fontColor=#486581;align=left;verticalAlign=top;spacing=8;" value="&lt;b&gt;项目层：每个项目一个长期 Project Session；代码修改时再创建 Feature Child Session&lt;/b&gt;" vertex="1">
+          <mxGeometry height="430" width="2340" x="130" y="1530" as="geometry" />
         </mxCell>
-        <mxCell id="p_java" value="&lt;b&gt;Project Session：ruoyi-vue-pro / 后端&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：GPT-5.6 Sol Fast（高）&lt;/b&gt;&lt;br&gt;&lt;b&gt;D:\ai-dev\ruoyi-vue-pro&lt;/b&gt;&lt;br&gt;职责：Java / Controller / Service / Mapper / SQL / 单测&lt;br&gt;&lt;b&gt;会话：项目主会话长期复用；具体修改使用 Feature Child Session。&lt;/b&gt;&lt;br&gt;需要 DB / API 操作时，不直接跨 Agent 聊天，提交子任务回 Task Bus。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#4CAF6A;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
-          <mxGeometry x="180" y="1610" width="430" height="260" as="geometry" />
+        <mxCell id="p_java" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#4CAF6A;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" value="&lt;b&gt;Project Session：ruoyi-vue-pro / 后端&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：GPT-5.6 Sol Fast（高）&lt;/b&gt;&lt;br&gt;&lt;b&gt;D:\ai-dev\ruoyi-vue-pro&lt;/b&gt;&lt;br&gt;职责：Java / Controller / Service / Mapper / SQL / 单测&lt;br&gt;&lt;b&gt;会话：项目主会话长期复用；具体修改使用 Feature Child Session。&lt;/b&gt;&lt;br&gt;需要 DB / API 操作时，不直接跨 Agent 聊天，提交子任务回 Task Bus。" vertex="1">
+          <mxGeometry height="260" width="430" x="180" y="1610" as="geometry" />
         </mxCell>
-        <mxCell id="p_vue" value="&lt;b&gt;Project Session：yudao-ui-admin-vue3 / 前端&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：GPT-5.6 Sol Fast（高）&lt;/b&gt;&lt;br&gt;&lt;b&gt;D:\ai-dev\yudao-ui-admin-vue3&lt;/b&gt;&lt;br&gt;职责：Vue / 页面 / 组件 / API 对接 / 状态管理&lt;br&gt;&lt;b&gt;会话：项目主会话长期复用；具体修改使用 Feature Child Session。&lt;/b&gt;&lt;br&gt;需要 DB / API 操作时，不直接跨 Agent 聊天，提交子任务回 Task Bus。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#4CAF6A;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
-          <mxGeometry x="785" y="1610" width="430" height="260" as="geometry" />
+        <mxCell id="p_vue" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#4CAF6A;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" value="&lt;b&gt;Project Session：yudao-ui-admin-vue3 / 前端&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：GPT-5.6 Sol Fast（高）&lt;/b&gt;&lt;br&gt;&lt;b&gt;D:\ai-dev\yudao-ui-admin-vue3&lt;/b&gt;&lt;br&gt;职责：Vue / 页面 / 组件 / API 对接 / 状态管理&lt;br&gt;&lt;b&gt;会话：项目主会话长期复用；具体修改使用 Feature Child Session。&lt;/b&gt;&lt;br&gt;需要 DB / API 操作时，不直接跨 Agent 聊天，提交子任务回 Task Bus。" vertex="1">
+          <mxGeometry height="260" width="430" x="785" y="1610" as="geometry" />
         </mxCell>
-        <mxCell id="p_xxl" value="&lt;b&gt;Project Session：xxl-job / 任务调度&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：待定 / 按项目配置&lt;/b&gt;&lt;br&gt;&lt;b&gt;D:\ai-dev\xxl-job&lt;/b&gt;&lt;br&gt;职责：调度服务 / Job / 配置 / 调度接口&lt;br&gt;&lt;b&gt;会话：项目主会话长期复用；具体修改使用 Feature Child Session。&lt;/b&gt;&lt;br&gt;需要 DB / API 操作时，不直接跨 Agent 聊天，提交子任务回 Task Bus。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#4CAF6A;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
-          <mxGeometry x="1390" y="1610" width="430" height="260" as="geometry" />
+        <mxCell id="p_xxl" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#4CAF6A;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" value="&lt;b&gt;Project Session：xxl-job / 任务调度&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：待定 / 按项目配置&lt;/b&gt;&lt;br&gt;&lt;b&gt;D:\ai-dev\xxl-job&lt;/b&gt;&lt;br&gt;职责：调度服务 / Job / 配置 / 调度接口&lt;br&gt;&lt;b&gt;会话：项目主会话长期复用；具体修改使用 Feature Child Session。&lt;/b&gt;&lt;br&gt;需要 DB / API 操作时，不直接跨 Agent 聊天，提交子任务回 Task Bus。" vertex="1">
+          <mxGeometry height="260" width="430" x="1390" y="1610" as="geometry" />
         </mxCell>
-        <mxCell id="p_android" value="&lt;b&gt;Project Session：nyamtn / PDA / Android&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：GPT-5.6 Sol Fast（高）&lt;/b&gt;&lt;br&gt;&lt;b&gt;D:\ai-dev\nyamtn&lt;/b&gt;&lt;br&gt;职责：Kotlin / UI / 扫码 / API 调用&lt;br&gt;&lt;b&gt;会话：项目主会话长期复用；具体修改使用 Feature Child Session。&lt;/b&gt;&lt;br&gt;需要 DB / API 操作时，不直接跨 Agent 聊天，提交子任务回 Task Bus。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#4CAF6A;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
-          <mxGeometry x="1995" y="1610" width="430" height="260" as="geometry" />
+        <mxCell id="p_android" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#4CAF6A;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" value="&lt;b&gt;Project Session：nyamtn / PDA / Android&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：GPT-5.6 Sol Fast（高）&lt;/b&gt;&lt;br&gt;&lt;b&gt;D:\ai-dev\nyamtn&lt;/b&gt;&lt;br&gt;职责：Kotlin / UI / 扫码 / API 调用&lt;br&gt;&lt;b&gt;会话：项目主会话长期复用；具体修改使用 Feature Child Session。&lt;/b&gt;&lt;br&gt;需要 DB / API 操作时，不直接跨 Agent 聊天，提交子任务回 Task Bus。" vertex="1">
+          <mxGeometry height="260" width="430" x="1995" y="1610" as="geometry" />
         </mxCell>
-        <mxCell id="lane_ops" value="&lt;b&gt;专用能力执行层：DB / API 独立对话&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFCFF;strokeColor=#D7E3F1;strokeWidth=1;dashed=1;fontSize=12;fontColor=#486581;align=left;verticalAlign=top;spacing=8;" vertex="1" parent="1">
-          <mxGeometry x="300" y="2050" width="2000" height="400" as="geometry" />
+        <mxCell id="lane_ops" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFCFF;strokeColor=#D7E3F1;strokeWidth=1;dashed=1;fontSize=12;fontColor=#486581;align=left;verticalAlign=top;spacing=8;" value="&lt;b&gt;专用能力执行层：DB / API 独立对话&lt;/b&gt;" vertex="1">
+          <mxGeometry height="400" width="2000" x="300" y="2050" as="geometry" />
         </mxCell>
-        <mxCell id="dbop" value="&lt;b&gt;DB Operator / 数据库专用子 Agent&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;数据库：ruoyi-vue-pro&lt;/b&gt;&lt;br&gt;默认：&lt;b&gt;mysql-local&lt;/b&gt;　｜　明确要求服务器环境：&lt;b&gt;mysql-server&lt;/b&gt;&lt;br&gt;&lt;b&gt;模型：[Token Plan] qwen3.8-max&lt;/b&gt;&lt;br&gt;Reader 可做 SELECT / SHOW / EXPLAIN；&lt;b&gt;INSERT / UPDATE / DELETE / DDL / 备份只走 DB Operator&lt;/b&gt;&lt;br&gt;生命周期：一个 DB 变更集合 / Feature；高风险操作前先备份；PASS 后关闭。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="390" y="2140" width="820" height="230" as="geometry" />
+        <mxCell id="dbop" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;DB Operator / 数据库专用子 Agent&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;数据库：ruoyi-vue-pro&lt;/b&gt;&lt;br&gt;默认：&lt;b&gt;mysql-local&lt;/b&gt;　｜　明确要求服务器环境：&lt;b&gt;mysql-server&lt;/b&gt;&lt;br&gt;&lt;b&gt;模型：[Token Plan] qwen3.8-max&lt;/b&gt;&lt;br&gt;Reader 可做 SELECT / SHOW / EXPLAIN；&lt;b&gt;INSERT / UPDATE / DELETE / DDL / 备份只走 DB Operator&lt;/b&gt;&lt;br&gt;生命周期：一个 DB 变更集合 / Feature；高风险操作前先备份；PASS 后关闭。" vertex="1">
+          <mxGeometry height="230" width="820" x="390" y="2140" as="geometry" />
         </mxCell>
-        <mxCell id="apirun" value="&lt;b&gt;API Runner / 接口调用与联调专用子 Agent&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：DeepSeek-V4.1-Flash&lt;/b&gt;&lt;br&gt;工具：Shell / curl / HTTP / OpenAPI&lt;br&gt;职责：真实请求、请求参数、响应验证、接口回归、联调定位。&lt;br&gt;&lt;b&gt;API Runner 只负责调用和验证，不修改业务代码。&lt;/b&gt;&lt;br&gt;接口代码修改回对应 Project Feature Session；生命周期：一次联调 / 回归轮次，完成即关闭。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="1390" y="2140" width="820" height="230" as="geometry" />
+        <mxCell id="apirun" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;API Runner / 接口调用与联调专用子 Agent&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：DeepSeek-V4.1-Flash&lt;/b&gt;&lt;br&gt;工具：Shell / curl / HTTP / OpenAPI&lt;br&gt;职责：真实请求、请求参数、响应验证、接口回归、联调定位。&lt;br&gt;&lt;b&gt;API Runner 只负责调用和验证，不修改业务代码。&lt;/b&gt;&lt;br&gt;接口代码修改回对应 Project Feature Session；生命周期：一次联调 / 回归轮次，完成即关闭。" vertex="1">
+          <mxGeometry height="230" width="820" x="1390" y="2140" as="geometry" />
         </mxCell>
-        <mxCell id="result_bus" value="&lt;b&gt;Execution Result Bus / 执行结果汇聚&lt;/b&gt;&lt;br&gt;Git Diff / Changed Files / DB Change / API Result / Build Result / Logs / Risks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#94A3B8;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
-          <mxGeometry x="560" y="2530" width="1480" height="95" as="geometry" />
+        <mxCell id="result_bus" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#94A3B8;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" value="&lt;b&gt;Execution Result Bus / 执行结果汇聚&lt;/b&gt;&lt;br&gt;Git Diff / Changed Files / DB Change / API Result / Build Result / Logs / Risks" vertex="1">
+          <mxGeometry height="95" width="1480" x="560" y="2530" as="geometry" />
         </mxCell>
-        <mxCell id="test" value="&lt;b&gt;Test Runner / 验证执行器&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：DeepSeek-V4.1-Flash 或其他快速稳定模型&lt;/b&gt;&lt;br&gt;职责：编译、单测、构建、接口回归、SQL EXPLAIN、日志检查、基础回归&lt;br&gt;&lt;b&gt;会话：每一轮测试新建，完成即关闭。&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#3B82F6;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="720" y="2710" width="1160" height="135" as="geometry" />
+        <mxCell id="test" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#3B82F6;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;Test Runner / 验证执行器&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：DeepSeek-V4.1-Flash 或其他快速稳定模型&lt;/b&gt;&lt;br&gt;职责：编译、单测、构建、接口回归、SQL EXPLAIN、日志检查、基础回归&lt;br&gt;&lt;b&gt;会话：每一轮测试新建，完成即关闭。&lt;/b&gt;" vertex="1">
+          <mxGeometry height="135" width="1160" x="720" y="2710" as="geometry" />
         </mxCell>
-        <mxCell id="review" value="&lt;b&gt;Reviewer / 独立验收代理&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：GPT-5.6 Sol（高）&lt;/b&gt;&lt;br&gt;输入：原需求 + 验收标准 + Git Diff + DB 变化 + API/Test 结果&lt;br&gt;输出：PASS / FIX / REWORK；检查遗漏、副作用、一致性。&lt;br&gt;&lt;b&gt;每轮验收新建会话，避免继承 Executor 的偏见。&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0F3;strokeColor=#E5484D;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="650" y="2940" width="1050" height="155" as="geometry" />
+        <mxCell id="review" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0F3;strokeColor=#E5484D;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;Reviewer / 独立验收代理&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;模型：GPT-5.6 Sol（高）&lt;/b&gt;&lt;br&gt;输入：原需求 + 验收标准 + Git Diff + DB 变化 + API/Test 结果&lt;br&gt;输出：PASS / FIX / REWORK；检查遗漏、副作用、一致性。&lt;br&gt;&lt;b&gt;每轮验收新建会话，避免继承 Executor 的偏见。&lt;/b&gt;" vertex="1">
+          <mxGeometry height="155" width="1050" x="650" y="2940" as="geometry" />
         </mxCell>
-        <mxCell id="decision" value="验收结果？" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=2;fontSize=13;fontStyle=1;fontColor=#8A4B08;align=center;verticalAlign=middle;" vertex="1" parent="1">
-          <mxGeometry x="1900" y="2960" width="180" height="120" as="geometry" />
+        <mxCell id="decision" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=2;fontSize=13;fontStyle=1;fontColor=#8A4B08;align=center;verticalAlign=middle;" value="验收结果？" vertex="1">
+          <mxGeometry height="120" width="180" x="1900" y="2960" as="geometry" />
         </mxCell>
-        <mxCell id="final_summary" value="&lt;b&gt;主控汇总&lt;/b&gt;&lt;br&gt;&lt;br&gt;汇总变更、测试、DB/API结果、风险、待办；确认 Feature 状态。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF3;strokeColor=#22A06B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="160" y="3210" width="480" height="115" as="geometry" />
+        <mxCell id="final_summary" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF3;strokeColor=#22A06B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;主控汇总&lt;/b&gt;&lt;br&gt;&lt;br&gt;汇总变更、测试、DB/API结果、风险、待办；确认 Feature 状态。" vertex="1">
+          <mxGeometry height="115" width="480" x="160" y="3210" as="geometry" />
         </mxCell>
-        <mxCell id="docs" value="&lt;b&gt;Documentation Agent&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;DeepSeek-V4.1-Flash&lt;/b&gt;&lt;br&gt;更新 docs / architecture / API / DB / CHANGELOG / checkpoint。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF3;strokeColor=#22A06B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="760" y="3210" width="480" height="115" as="geometry" />
+        <mxCell id="docs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF3;strokeColor=#22A06B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;Documentation Agent&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;DeepSeek-V4.1-Flash&lt;/b&gt;&lt;br&gt;更新 docs / architecture / API / DB / CHANGELOG / checkpoint。" vertex="1">
+          <mxGeometry height="115" width="480" x="760" y="3210" as="geometry" />
         </mxCell>
-        <mxCell id="memory" value="&lt;b&gt;Memory Agent / Mem0 治理&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;GPT-5.6 Sol Fast（高）&lt;/b&gt;&lt;br&gt;仅写 Reviewer 已通过且长期有效的信息。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF3;strokeColor=#22A06B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="1360" y="3210" width="480" height="115" as="geometry" />
+        <mxCell id="memory" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF3;strokeColor=#22A06B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;Memory Agent / Mem0 治理&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;GPT-5.6 Sol Fast（高）&lt;/b&gt;&lt;br&gt;仅写 Reviewer 已通过且长期有效的信息。" vertex="1">
+          <mxGeometry height="115" width="480" x="1360" y="3210" as="geometry" />
         </mxCell>
-        <mxCell id="done" value="&lt;b&gt;交付完成 / Feature Closed&lt;/b&gt;&lt;br&gt;&lt;br&gt;关闭一次性会话；保留 Project Main / Project Reader；Registry 标记 PASS / ARCHIVED。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF3;strokeColor=#22A06B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
-          <mxGeometry x="1960" y="3210" width="480" height="115" as="geometry" />
+        <mxCell id="done" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF3;strokeColor=#22A06B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;交付完成 / Feature Closed&lt;/b&gt;&lt;br&gt;&lt;br&gt;关闭一次性会话；保留 Project Main / Project Reader；Registry 标记 PASS / ARCHIVED。" vertex="1">
+          <mxGeometry height="115" width="480" x="1960" y="3210" as="geometry" />
         </mxCell>
-        <mxCell id="rules" value="&lt;b&gt;核心规则&lt;/b&gt;&lt;br&gt;① Project Reader = 每项目 1 个长期 Reader，由 Lifecycle 管理换代，以提高缓存命中。　② DB 只读可由 Reader；DB 写/DDL/备份只走 DB Operator。　③ 真实 API 调用只走 API Runner；接口代码修改回 Project Feature Session。&lt;br&gt;④ Agent 临时通讯走 Task Bus + JSON；Mem0 只放长期知识。　⑤ 根 Git 只管理框架；4 个业务项目由各自 Git 管理。　⑥ Reviewer 每轮新建，禁止执行 Agent 自评。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#94A3B8;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
-          <mxGeometry x="200" y="3390" width="2200" height="120" as="geometry" />
+        <mxCell id="rules" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#94A3B8;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" value="&lt;b&gt;核心规则&lt;/b&gt;&lt;br&gt;① Project Reader = 每项目 1 个长期 Reader，由 Lifecycle 管理换代，以提高缓存命中。　② DB 只读可由 Reader；DB 写/DDL/备份只走 DB Operator。　③ 真实 API 调用只走 API Runner；接口代码修改回 Project Feature Session。&lt;br&gt;④ Agent 临时通讯走 Task Bus + JSON；Mem0 只放长期知识。　⑤ 根 Git 只管理框架；4 个业务项目由各自 Git 管理。　⑥ Reviewer 每轮新建，禁止执行 Agent 自评。" vertex="1">
+          <mxGeometry height="120" width="2200" x="200" y="3390" as="geometry" />
         </mxCell>
-        <mxCell id="e_req_orch" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" edge="1" parent="1" source="req" target="orch">
+        <mxCell id="e_req_orch" edge="1" parent="1" source="req" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" target="orch" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="460" y="520" />
@@ -106,7 +105,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_mem_orch" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#22A06B;" edge="1" parent="1" source="mem0" target="orch">
+        <mxCell id="e_mem_orch" edge="1" parent="1" source="mem0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#22A06B;" target="orch" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1300" y="520" />
@@ -114,7 +113,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_mcp_orch" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#8B5CF6;" edge="1" parent="1" source="mcp" target="orch">
+        <mxCell id="e_mcp_orch" edge="1" parent="1" source="mcp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#8B5CF6;" target="orch" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="2140" y="520" />
@@ -122,7 +121,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_orch_reader" value="调用项目 Reader" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" edge="1" parent="1" source="orch" target="reader">
+        <mxCell id="e_orch_reader" edge="1" parent="1" source="orch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" target="reader" value="调用项目 Reader">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="830" y="800" />
@@ -130,7 +129,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_orch_planner" value="复杂分析" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" edge="1" parent="1" source="orch" target="planner">
+        <mxCell id="e_orch_planner" edge="1" parent="1" source="orch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" target="planner" value="复杂分析">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1410" y="800" />
@@ -138,7 +137,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_reader_planner" value="结构化上下文" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#F97316;fontColor=#C2410C;fontStyle=1;" edge="1" parent="1" source="reader" target="planner">
+        <mxCell id="e_reader_planner" edge="1" parent="1" source="reader" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#F97316;fontColor=#C2410C;fontStyle=1;" target="planner" value="结构化上下文">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="940" y="1010" />
@@ -146,7 +145,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_orch_life" value="会话治理" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;dashed=1;" edge="1" parent="1" source="orch" target="lifecycle">
+        <mxCell id="e_orch_life" edge="1" parent="1" source="orch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;dashed=1;" target="lifecycle" value="会话治理">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1880" y="670" />
@@ -155,10 +154,10 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_life_registry" value="维护" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;dashed=1;" edge="1" parent="1" source="lifecycle" target="registry">
+        <mxCell id="e_life_registry" edge="1" parent="1" source="lifecycle" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;dashed=1;" target="registry" value="维护">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_life_reader" value="管理 Reader 生命周期" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;dashed=1;" edge="1" parent="1" source="lifecycle" target="reader">
+        <mxCell id="e_life_reader" edge="1" parent="1" source="lifecycle" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;dashed=1;" target="reader" value="管理 Reader 生命周期">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1730" y="950" />
@@ -169,7 +168,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_orch_registry" value="读取状态" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;dashed=1;" edge="1" parent="1" source="orch" target="registry">
+        <mxCell id="e_orch_registry" edge="1" parent="1" source="orch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;dashed=1;" target="registry" value="读取状态">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1940" y="730" />
@@ -178,7 +177,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_planner_bus" value="生成 Task DAG" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#8B5CF6;" edge="1" parent="1" source="planner" target="task_bus">
+        <mxCell id="e_planner_bus" edge="1" parent="1" source="planner" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#8B5CF6;" target="task_bus" value="生成 Task DAG">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1300" y="1200" />
@@ -186,7 +185,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_bus_registry" value="写任务状态" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;dashed=1;" edge="1" parent="1" source="task_bus" target="registry">
+        <mxCell id="e_bus_registry" edge="1" parent="1" source="task_bus" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;dashed=1;" target="registry" value="写任务状态">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="2100" y="1365" />
@@ -195,7 +194,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_bus_p_java" value="派发" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" edge="1" parent="1" source="task_bus" target="p_java">
+        <mxCell id="e_bus_p_java" edge="1" parent="1" source="task_bus" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" target="p_java" value="派发">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1300" y="1490" />
@@ -204,7 +203,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_bus_p_vue" value="派发" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" edge="1" parent="1" source="task_bus" target="p_vue">
+        <mxCell id="e_bus_p_vue" edge="1" parent="1" source="task_bus" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" target="p_vue" value="派发">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1300" y="1490" />
@@ -213,7 +212,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_bus_p_xxl" value="派发" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" edge="1" parent="1" source="task_bus" target="p_xxl">
+        <mxCell id="e_bus_p_xxl" edge="1" parent="1" source="task_bus" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" target="p_xxl" value="派发">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1300" y="1490" />
@@ -222,7 +221,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_bus_p_android" value="派发" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" edge="1" parent="1" source="task_bus" target="p_android">
+        <mxCell id="e_bus_p_android" edge="1" parent="1" source="task_bus" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" target="p_android" value="派发">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1300" y="1490" />
@@ -231,7 +230,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_bus_db" value="DB写/DDL/备份" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#F97316;fontColor=#C2410C;fontStyle=1;" edge="1" parent="1" source="task_bus" target="dbop">
+        <mxCell id="e_bus_db" edge="1" parent="1" source="task_bus" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#F97316;fontColor=#C2410C;fontStyle=1;" target="dbop" value="DB写/DDL/备份">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="340" y="1365" />
@@ -240,7 +239,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_bus_api" value="接口调用/联调" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" edge="1" parent="1" source="task_bus" target="apirun">
+        <mxCell id="e_bus_api" edge="1" parent="1" source="task_bus" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" target="apirun" value="接口调用/联调">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="2260" y="1365" />
@@ -249,7 +248,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_mcp_db" value="MySQL MCP" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;dashed=1;" edge="1" parent="1" source="mcp" target="dbop">
+        <mxCell id="e_mcp_db" edge="1" parent="1" source="mcp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;dashed=1;" target="dbop" value="MySQL MCP">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="2480" y="410" />
@@ -260,7 +259,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_mcp_api" value="HTTP / Shell / OpenAPI" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;dashed=1;" edge="1" parent="1" source="mcp" target="apirun">
+        <mxCell id="e_mcp_api" edge="1" parent="1" source="mcp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;dashed=1;" target="apirun" value="HTTP / Shell / OpenAPI">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="2500" y="430" />
@@ -270,7 +269,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_result_1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;" edge="1" parent="1" source="p_java" target="result_bus">
+        <mxCell id="e_result_1" edge="1" parent="1" source="p_java" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;" target="result_bus" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="395" y="2470" />
@@ -278,7 +277,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_result_2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;" edge="1" parent="1" source="p_vue" target="result_bus">
+        <mxCell id="e_result_2" edge="1" parent="1" source="p_vue" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;" target="result_bus" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1000" y="2470" />
@@ -286,7 +285,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_result_3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;" edge="1" parent="1" source="p_xxl" target="result_bus">
+        <mxCell id="e_result_3" edge="1" parent="1" source="p_xxl" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;" target="result_bus" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1605" y="2470" />
@@ -294,7 +293,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_result_4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;" edge="1" parent="1" source="p_android" target="result_bus">
+        <mxCell id="e_result_4" edge="1" parent="1" source="p_android" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;" target="result_bus" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="2210" y="2470" />
@@ -302,7 +301,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_result_5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;" edge="1" parent="1" source="dbop" target="result_bus">
+        <mxCell id="e_result_5" edge="1" parent="1" source="dbop" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;" target="result_bus" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="800" y="2470" />
@@ -310,7 +309,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_result_6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;" edge="1" parent="1" source="apirun" target="result_bus">
+        <mxCell id="e_result_6" edge="1" parent="1" source="apirun" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;" target="result_bus" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1800" y="2470" />
@@ -318,13 +317,13 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_result_test" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" edge="1" parent="1" source="result_bus" target="test">
+        <mxCell id="e_result_test" edge="1" parent="1" source="result_bus" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" target="test" value="">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_test_review" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" edge="1" parent="1" source="test" target="review">
+        <mxCell id="e_test_review" edge="1" parent="1" source="test" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" target="review" value="">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_review_decision" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" edge="1" parent="1" source="review" target="decision">
+        <mxCell id="e_review_decision" edge="1" parent="1" source="review" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" target="decision" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1750" y="3015" />
@@ -332,7 +331,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_pass_summary" value="PASS" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#22A06B;" edge="1" parent="1" source="decision" target="final_summary">
+        <mxCell id="e_pass_summary" edge="1" parent="1" source="decision" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#22A06B;" target="final_summary" value="PASS">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="1990" y="3160" />
@@ -341,16 +340,16 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="e_summary_docs" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#22A06B;" edge="1" parent="1" source="final_summary" target="docs">
+        <mxCell id="e_summary_docs" edge="1" parent="1" source="final_summary" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#22A06B;" target="docs" value="">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_docs_mem" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#22A06B;" edge="1" parent="1" source="docs" target="memory">
+        <mxCell id="e_docs_mem" edge="1" parent="1" source="docs" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#22A06B;" target="memory" value="">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_mem_done" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#22A06B;" edge="1" parent="1" source="memory" target="done">
+        <mxCell id="e_mem_done" edge="1" parent="1" source="memory" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#22A06B;" target="done" value="">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_rework" value="FIX / REWORK" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#F97316;fontColor=#C2410C;fontStyle=1;" edge="1" parent="1" source="decision" target="planner">
+        <mxCell id="e_rework" edge="1" parent="1" source="decision" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#F97316;fontColor=#C2410C;fontStyle=1;" target="planner" value="FIX / REWORK">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
               <mxPoint x="2390" y="3020" />
@@ -360,7 +359,229 @@
             </Array>
           </mxGeometry>
         </mxCell>
-      <mxCell id="arch-agent-global-orchestrator" parent="1" value="global-orchestrator" vertex="1" data-arch-kind="agent" data-arch-id="global-orchestrator" data-role="orchestrator" data-model-key="gpt-6-sol-fast" data-lifecycle="persistent" data-runtime-mode="primary"><mxGeometry x="20" y="10000" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-agent-project-main" parent="1" value="project-main" vertex="1" data-arch-kind="agent" data-arch-id="project-main" data-role="project-coordinator" data-model-key="project-session" data-lifecycle="persistent" data-runtime-mode="all"><mxGeometry x="20" y="10001" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-agent-project-reader" parent="1" value="project-reader" vertex="1" data-arch-kind="agent" data-arch-id="project-reader" data-role="reader" data-model-key="deepseek-v4.1-flash" data-lifecycle="persistent" data-runtime-mode="all"><mxGeometry x="20" y="10002" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-agent-planner" parent="1" value="planner" vertex="1" data-arch-kind="agent" data-arch-id="planner" data-role="planner" data-model-key="gpt-6-sol-fast" data-lifecycle="feature-scoped" data-runtime-mode="subagent"><mxGeometry x="20" y="10003" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-agent-lifecycle-agent" parent="1" value="lifecycle-agent" vertex="1" data-arch-kind="agent" data-arch-id="lifecycle-agent" data-role="governance" data-model-key="deepseek-v4.1-flash" data-lifecycle="persistent" data-runtime-mode="subagent"><mxGeometry x="20" y="10004" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-agent-feature-executor" parent="1" value="feature-executor" vertex="1" data-arch-kind="agent" data-arch-id="feature-executor" data-role="executor" data-model-key="project-session" data-lifecycle="feature-scoped" data-runtime-mode="subagent"><mxGeometry x="20" y="10005" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-agent-db-operator" parent="1" value="db-operator" vertex="1" data-arch-kind="agent" data-arch-id="db-operator" data-role="database-operator" data-model-key="qwen3.8-max" data-lifecycle="feature-scoped" data-runtime-mode="subagent"><mxGeometry x="20" y="10006" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-agent-api-runner" parent="1" value="api-runner" vertex="1" data-arch-kind="agent" data-arch-id="api-runner" data-role="api-runner" data-model-key="deepseek-v4.1-flash" data-lifecycle="test-round-scoped" data-runtime-mode="subagent"><mxGeometry x="20" y="10007" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-agent-test-runner" parent="1" value="test-runner" vertex="1" data-arch-kind="agent" data-arch-id="test-runner" data-role="test-runner" data-model-key="deepseek-v4.1-flash" data-lifecycle="test-round-scoped" data-runtime-mode="subagent"><mxGeometry x="20" y="10008" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-agent-reviewer" parent="1" value="reviewer" vertex="1" data-arch-kind="agent" data-arch-id="reviewer" data-role="reviewer" data-model-key="gpt-5.6-sol" data-lifecycle="per-review-round" data-runtime-mode="subagent"><mxGeometry x="20" y="10009" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-agent-documentation-agent" parent="1" value="documentation-agent" vertex="1" data-arch-kind="agent" data-arch-id="documentation-agent" data-role="documentation" data-model-key="deepseek-v4.1-flash" data-lifecycle="event-driven" data-runtime-mode="subagent"><mxGeometry x="20" y="10010" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-agent-memory-agent" parent="1" value="memory-agent" vertex="1" data-arch-kind="agent" data-arch-id="memory-agent" data-role="memory-governance" data-model-key="gpt-5.6-sol-fast" data-lifecycle="event-driven" data-runtime-mode="subagent"><mxGeometry x="20" y="10011" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-project-ruoyi-vue-pro" parent="1" value="ruoyi-vue-pro" vertex="1" data-arch-kind="project" data-arch-id="ruoyi-vue-pro" data-project-path="D:\ai-dev\ruoyi-vue-pro"><mxGeometry x="20" y="10012" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-project-yudao-ui-admin-vue3" parent="1" value="yudao-ui-admin-vue3" vertex="1" data-arch-kind="project" data-arch-id="yudao-ui-admin-vue3" data-project-path="D:\ai-dev\yudao-ui-admin-vue3"><mxGeometry x="20" y="10013" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-project-xxl-job" parent="1" value="xxl-job" vertex="1" data-arch-kind="project" data-arch-id="xxl-job" data-project-path="D:\ai-dev\xxl-job"><mxGeometry x="20" y="10014" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-project-nyamtn" parent="1" value="nyamtn" vertex="1" data-arch-kind="project" data-arch-id="nyamtn" data-project-path="D:\ai-dev\nyamtn"><mxGeometry x="20" y="10015" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-code_read" parent="1" value="code_read" vertex="1" data-arch-kind="route" data-route-id="code_read" data-target="project-reader" data-arch-id="code_read"><mxGeometry x="20" y="10016" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-project_analysis" parent="1" value="project_analysis" vertex="1" data-arch-kind="route" data-route-id="project_analysis" data-target="planner" data-arch-id="project_analysis"><mxGeometry x="20" y="10017" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-project_coordination" parent="1" value="project_coordination" vertex="1" data-arch-kind="route" data-route-id="project_coordination" data-target="project-main" data-arch-id="project_coordination"><mxGeometry x="20" y="10018" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-code_change" parent="1" value="code_change" vertex="1" data-arch-kind="route" data-route-id="code_change" data-target="feature-executor" data-arch-id="code_change"><mxGeometry x="20" y="10019" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-database_read" parent="1" value="database_read" vertex="1" data-arch-kind="route" data-route-id="database_read" data-target="project-reader" data-arch-id="database_read"><mxGeometry x="20" y="10020" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-database_write" parent="1" value="database_write" vertex="1" data-arch-kind="route" data-route-id="database_write" data-target="db-operator" data-arch-id="database_write"><mxGeometry x="20" y="10021" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-database_ddl" parent="1" value="database_ddl" vertex="1" data-arch-kind="route" data-route-id="database_ddl" data-target="db-operator" data-arch-id="database_ddl"><mxGeometry x="20" y="10022" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-database_backup" parent="1" value="database_backup" vertex="1" data-arch-kind="route" data-route-id="database_backup" data-target="db-operator" data-arch-id="database_backup"><mxGeometry x="20" y="10023" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-api_code_change" parent="1" value="api_code_change" vertex="1" data-arch-kind="route" data-route-id="api_code_change" data-target="feature-executor" data-arch-id="api_code_change"><mxGeometry x="20" y="10024" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-api_runtime_call" parent="1" value="api_runtime_call" vertex="1" data-arch-kind="route" data-route-id="api_runtime_call" data-target="api-runner" data-arch-id="api_runtime_call"><mxGeometry x="20" y="10025" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-api_regression" parent="1" value="api_regression" vertex="1" data-arch-kind="route" data-route-id="api_regression" data-target="api-runner" data-arch-id="api_regression"><mxGeometry x="20" y="10026" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-build_and_test" parent="1" value="build_and_test" vertex="1" data-arch-kind="route" data-route-id="build_and_test" data-target="test-runner" data-arch-id="build_and_test"><mxGeometry x="20" y="10027" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-independent_review" parent="1" value="independent_review" vertex="1" data-arch-kind="route" data-route-id="independent_review" data-target="reviewer" data-arch-id="independent_review"><mxGeometry x="20" y="10028" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-session_lifecycle" parent="1" value="session_lifecycle" vertex="1" data-arch-kind="route" data-route-id="session_lifecycle" data-target="lifecycle-agent" data-arch-id="session_lifecycle"><mxGeometry x="20" y="10029" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-documentation_update" parent="1" value="documentation_update" vertex="1" data-arch-kind="route" data-route-id="documentation_update" data-target="documentation-agent" data-arch-id="documentation_update"><mxGeometry x="20" y="10030" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-route-long_term_memory_write" parent="1" value="long_term_memory_write" vertex="1" data-arch-kind="route" data-route-id="long_term_memory_write" data-target="memory-agent" data-arch-id="long_term_memory_write"><mxGeometry x="20" y="10031" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-component-workflow-engine" parent="1" value="Workflow Engine / DAG Scheduler" vertex="1" data-arch-kind="runtime_component" data-arch-id="workflow-engine" data-component-kind="workflow-engine" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=middle;spacing=8;"><mxGeometry x="1800" y="1180" width="500" height="80" as="geometry" /></mxCell><mxCell id="arch-component-lifecycle-engine" parent="1" value="Lifecycle Engine / Session Lifecycle" vertex="1" data-arch-kind="runtime_component" data-arch-id="lifecycle-engine" data-component-kind="lifecycle-engine" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=middle;spacing=8;"><mxGeometry x="1800" y="1280" width="500" height="80" as="geometry" /></mxCell><mxCell id="arch-component-runtime-session-registry" parent="1" value="Runtime Session Registry / tasks.db" vertex="1" data-arch-kind="runtime_component" data-arch-id="runtime-session-registry" data-component-kind="runtime-session-registry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=middle;spacing=8;"><mxGeometry x="1800" y="1380" width="500" height="80" as="geometry" /></mxCell><mxCell id="arch-component-completion-guard" parent="1" value="Completion Guard（Execution / Delivery）" vertex="1" data-arch-kind="runtime_component" data-arch-id="completion-guard" data-component-kind="completion-guard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=middle;spacing=8;"><mxGeometry x="1800" y="1480" width="500" height="80" as="geometry" /></mxCell><mxCell id="arch-component-lane-scheduler" parent="1" value="Parallel Execution Lanes / Resource Locks" vertex="1" data-arch-kind="runtime_component" data-arch-id="lane-scheduler" data-component-kind="lane-scheduler" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=middle;spacing=8;"><mxGeometry x="1800" y="1580" width="500" height="80" as="geometry" /></mxCell><mxCell id="arch-guard-execution-completion-gate" parent="1" value="Execution Completion Gate：EXECUTION_COMPLETE" vertex="1" data-arch-kind="completion_guard" data-arch-id="execution-completion-gate" data-stage="execution" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=middle;spacing=8;"><mxGeometry x="1800" y="1740" width="500" height="70" as="geometry" /></mxCell><mxCell id="arch-guard-delivery-completion-gate" parent="1" value="Delivery Completion Gate：DELIVERY_COMPLETE" vertex="1" data-arch-kind="completion_guard" data-arch-id="delivery-completion-gate" data-stage="delivery" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=middle;spacing=8;"><mxGeometry x="1800" y="1820" width="500" height="70" as="geometry" /></mxCell><mxCell id="arch-guard-final-report-permission" parent="1" value="Final Report Permission：仅 DELIVERY_COMPLETE" vertex="1" data-arch-kind="completion_guard" data-arch-id="final-report-permission" data-stage="final-report" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=middle;spacing=8;"><mxGeometry x="1800" y="1900" width="500" height="70" as="geometry" /></mxCell><mxCell id="arch-lane-controller" parent="1" value="Lane controller：default=1 max=1" vertex="1" data-arch-kind="execution_lane" data-arch-id="controller" data-default-parallel="1" data-max-parallel="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=1;fontSize=11;fontColor=#17324D;align=left;verticalAlign=middle;spacing=6;"><mxGeometry x="1800" y="2000" width="500" height="60" as="geometry" /></mxCell><mxCell id="arch-lane-read_probe" parent="1" value="Lane read_probe：default=3 max=6" vertex="1" data-arch-kind="execution_lane" data-arch-id="read_probe" data-default-parallel="3" data-max-parallel="6" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=1;fontSize=11;fontColor=#17324D;align=left;verticalAlign=middle;spacing=6;"><mxGeometry x="1800" y="2075" width="500" height="60" as="geometry" /></mxCell><mxCell id="arch-lane-coding" parent="1" value="Lane coding：default=3 max=6" vertex="1" data-arch-kind="execution_lane" data-arch-id="coding" data-default-parallel="3" data-max-parallel="6" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=1;fontSize=11;fontColor=#17324D;align=left;verticalAlign=middle;spacing=6;"><mxGeometry x="1800" y="2150" width="500" height="60" as="geometry" /></mxCell><mxCell id="arch-lane-test_validation" parent="1" value="Lane test_validation：default=3 max=6" vertex="1" data-arch-kind="execution_lane" data-arch-id="test_validation" data-default-parallel="3" data-max-parallel="6" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=1;fontSize=11;fontColor=#17324D;align=left;verticalAlign=middle;spacing=6;"><mxGeometry x="1800" y="2225" width="500" height="60" as="geometry" /></mxCell><mxCell id="arch-lane-api_integration" parent="1" value="Lane api_integration：default=3 max=6" vertex="1" data-arch-kind="execution_lane" data-arch-id="api_integration" data-default-parallel="3" data-max-parallel="6" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=1;fontSize=11;fontColor=#17324D;align=left;verticalAlign=middle;spacing=6;"><mxGeometry x="1800" y="2300" width="500" height="60" as="geometry" /></mxCell><mxCell id="arch-lane-documentation" parent="1" value="Lane documentation：default=3 max=6" vertex="1" data-arch-kind="execution_lane" data-arch-id="documentation" data-default-parallel="3" data-max-parallel="6" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=1;fontSize=11;fontColor=#17324D;align=left;verticalAlign=middle;spacing=6;"><mxGeometry x="1800" y="2375" width="500" height="60" as="geometry" /></mxCell><mxCell id="arch-lane-reviewer" parent="1" value="Lane reviewer：default=1 max=3" vertex="1" data-arch-kind="execution_lane" data-arch-id="reviewer" data-default-parallel="1" data-max-parallel="3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=1;fontSize=11;fontColor=#17324D;align=left;verticalAlign=middle;spacing=6;"><mxGeometry x="1800" y="2450" width="500" height="60" as="geometry" /></mxCell><mxCell id="arch-policy-execution-complete" parent="1" value="all required nodes terminal-success; no READY/RUNNING/BLOCKED/FAILED; scheduler inactive" vertex="1" data-arch-kind="policy" data-arch-id="execution-complete"><mxGeometry x="20" y="10047" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-policy-delivery-complete" parent="1" value="reviewer PASS; deliverables/docs/memory/evidence complete; no active child" vertex="1" data-arch-kind="policy" data-arch-id="delivery-complete"><mxGeometry x="20" y="10048" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-policy-final-report" parent="1" value="delivery gate is DELIVERY_COMPLETE; otherwise continue or report blocked" vertex="1" data-arch-kind="policy" data-arch-id="final-report"><mxGeometry x="20" y="10049" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-policy-resource-lock" parent="1" value="intersecting resources serialize; missing write scope defaults to project:&lt;pid&gt;:write" vertex="1" data-arch-kind="policy" data-arch-id="resource-lock"><mxGeometry x="20" y="10050" width="1" height="1" as="geometry" /></mxCell><mxCell id="arch-lifecycle-thresholds" parent="1" value="60/70/80 context lifecycle" vertex="1" data-arch-kind="lifecycle" data-arch-id="context-rotation" data-continue-below="60" data-checkpoint-from="60" data-checkpoint-to="70" data-rotate-at="70" data-hard-stop-at="80"><mxGeometry x="20" y="20000" width="1" height="1" as="geometry" /></mxCell></root>
+        <mxCell id="topology-title" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;fontSize=20;fontStyle=1;fontColor=#163A63;align=left;verticalAlign=middle;" value="&lt;b&gt;v4 主执行拓扑（人类可读主链）&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px;font-weight:normal&quot;&gt;上方保留项目、工具与 Agent 职责视图；下方明确 DAG 并行执行与双完成门的执行顺序。&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="2200" x="180" y="3540" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_req" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#3B82F6;strokeWidth=2;fontSize=12;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;" value="&lt;b&gt;Requirement&lt;/b&gt;&lt;br&gt;需求输入 / 验收条件" vertex="1">
+          <mxGeometry height="90" width="280" x="100" y="3630" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_orch" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#3B82F6;strokeWidth=2;fontSize=12;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;" value="&lt;b&gt;Global Orchestrator&lt;/b&gt;&lt;br&gt;全局路由与闭环控制" vertex="1">
+          <mxGeometry height="90" width="280" x="410" y="3630" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_planner_dag" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0FF;strokeColor=#8B5CF6;strokeWidth=2;fontSize=12;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;" value="&lt;b&gt;Planner / Execution DAG&lt;/b&gt;&lt;br&gt;拆解依赖与验收条件" vertex="1">
+          <mxGeometry height="90" width="280" x="720" y="3630" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-runtime-team-execution-coordinator" parent="1" value="&lt;b&gt;Team Execution Coordinator&lt;/b&gt;&lt;br&gt;并行 Team Execution / DAG wave" vertex="1" data-arch-kind="runtime_component" data-arch-id="team-execution-coordinator" data-component-kind="team-execution-coordinator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0FF;strokeColor=#8B5CF6;strokeWidth=2;fontSize=12;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;">
+          <mxGeometry height="90" width="280" x="1030" y="3630" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_lanes" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=2;fontSize=12;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;" value="&lt;b&gt;Parallel Worker Lanes&lt;/b&gt;&lt;br&gt;Read / Coding / Test / API" vertex="1">
+          <mxGeometry height="90" width="300" x="1670" y="3630" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_result" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#94A3B8;strokeWidth=2;fontSize=12;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;" value="&lt;b&gt;Execution Result Bus&lt;/b&gt;&lt;br&gt;结构化结果汇聚" vertex="1">
+          <mxGeometry height="90" width="430" x="2000" y="3630" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_test_reviewer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0F3;strokeColor=#E5484D;strokeWidth=2;fontSize=12;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;" value="&lt;b&gt;Test / Reviewer&lt;/b&gt;&lt;br&gt;验证与独立验收" vertex="1">
+          <mxGeometry height="90" width="300" x="430" y="3780" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_docs_memory" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF3;strokeColor=#22A06B;strokeWidth=2;fontSize=12;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;" value="&lt;b&gt;Documentation / Memory&lt;/b&gt;&lt;br&gt;仅架构位置" vertex="1">
+          <mxGeometry height="90" width="300" x="760" y="3780" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_closed" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF3;strokeColor=#22A06B;strokeWidth=2;fontSize=12;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;" value="&lt;b&gt;Feature Closed&lt;/b&gt;&lt;br&gt;完成闭环" vertex="1">
+          <mxGeometry height="90" width="300" x="1750" y="3780" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_req_orch" edge="1" parent="1" source="topo_req" target="topo_orch" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_orch_planner" edge="1" parent="1" source="topo_orch" target="topo_planner_dag" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#3B82F6;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_planner_team" edge="1" parent="1" source="topo_planner_dag" target="arch-runtime-team-execution-coordinator" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#8B5CF6;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_team_ready" edge="1" parent="1" source="arch-runtime-team-execution-coordinator" target="arch-component-workflow-engine" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#8B5CF6;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_ready_lanes" edge="1" parent="1" source="arch-component-workflow-engine" target="topo_lanes" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#F59E0B;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_lanes_result" edge="1" parent="1" source="topo_lanes" target="topo_result" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#64748B;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_result_execution_guard" edge="1" parent="1" source="topo_result" target="arch-guard-execution-completion-gate" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#0891B2;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_execution_guard_test" edge="1" parent="1" source="arch-guard-execution-completion-gate" target="topo_test_reviewer" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#0891B2;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_test_docs" edge="1" parent="1" source="topo_test_reviewer" target="topo_docs_memory" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#22A06B;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_docs_delivery_guard" edge="1" parent="1" source="topo_docs_memory" target="arch-guard-delivery-completion-gate" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#22A06B;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_delivery_final_report" edge="1" parent="1" source="arch-guard-delivery-completion-gate" target="arch-guard-final-report-permission" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#22A06B;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="topo_final_report_closed" edge="1" parent="1" source="arch-guard-final-report-permission" target="topo_closed" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#22A06B;" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-agent-global-orchestrator" data-arch-id="global-orchestrator" data-arch-kind="agent" data-lifecycle="persistent" data-model-key="gpt-6-sol-fast" data-role="orchestrator" data-runtime-mode="primary" parent="1" value="global-orchestrator" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10000" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-agent-project-main" data-arch-id="project-main" data-arch-kind="agent" data-lifecycle="persistent" data-model-key="project-session" data-role="project-coordinator" data-runtime-mode="all" parent="1" value="project-main" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10001" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-agent-project-reader" data-arch-id="project-reader" data-arch-kind="agent" data-lifecycle="persistent" data-model-key="deepseek-v4.1-flash" data-role="reader" data-runtime-mode="all" parent="1" value="project-reader" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10002" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-agent-planner" data-arch-id="planner" data-arch-kind="agent" data-lifecycle="feature-scoped" data-model-key="gpt-6-sol-fast" data-role="planner" data-runtime-mode="subagent" parent="1" value="planner" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10003" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-agent-lifecycle-agent" data-arch-id="lifecycle-agent" data-arch-kind="agent" data-lifecycle="persistent" data-model-key="deepseek-v4.1-flash" data-role="governance" data-runtime-mode="subagent" parent="1" value="lifecycle-agent" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10004" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-agent-feature-executor" data-arch-id="feature-executor" data-arch-kind="agent" data-lifecycle="feature-scoped" data-model-key="project-session" data-role="executor" data-runtime-mode="subagent" parent="1" value="feature-executor" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10005" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-agent-db-operator" data-arch-id="db-operator" data-arch-kind="agent" data-lifecycle="feature-scoped" data-model-key="qwen3.8-max" data-role="database-operator" data-runtime-mode="subagent" parent="1" value="db-operator" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10006" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-agent-api-runner" data-arch-id="api-runner" data-arch-kind="agent" data-lifecycle="test-round-scoped" data-model-key="deepseek-v4.1-flash" data-role="api-runner" data-runtime-mode="subagent" parent="1" value="api-runner" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10007" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-agent-test-runner" data-arch-id="test-runner" data-arch-kind="agent" data-lifecycle="test-round-scoped" data-model-key="deepseek-v4.1-flash" data-role="test-runner" data-runtime-mode="subagent" parent="1" value="test-runner" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10008" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-agent-reviewer" data-arch-id="reviewer" data-arch-kind="agent" data-lifecycle="per-review-round" data-model-key="gpt-5.6-sol" data-role="reviewer" data-runtime-mode="subagent" parent="1" value="reviewer" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10009" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-agent-documentation-agent" data-arch-id="documentation-agent" data-arch-kind="agent" data-lifecycle="event-driven" data-model-key="deepseek-v4.1-flash" data-role="documentation" data-runtime-mode="subagent" parent="1" value="documentation-agent" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10010" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-agent-memory-agent" data-arch-id="memory-agent" data-arch-kind="agent" data-lifecycle="event-driven" data-model-key="gpt-5.6-sol-fast" data-role="memory-governance" data-runtime-mode="subagent" parent="1" value="memory-agent" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10011" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-project-ruoyi-vue-pro" data-arch-id="ruoyi-vue-pro" data-arch-kind="project" data-project-path="D:\ai-dev\ruoyi-vue-pro" parent="1" value="ruoyi-vue-pro" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10012" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-project-yudao-ui-admin-vue3" data-arch-id="yudao-ui-admin-vue3" data-arch-kind="project" data-project-path="D:\ai-dev\yudao-ui-admin-vue3" parent="1" value="yudao-ui-admin-vue3" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10013" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-project-xxl-job" data-arch-id="xxl-job" data-arch-kind="project" data-project-path="D:\ai-dev\xxl-job" parent="1" value="xxl-job" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10014" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-project-nyamtn" data-arch-id="nyamtn" data-arch-kind="project" data-project-path="D:\ai-dev\nyamtn" parent="1" value="nyamtn" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10015" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-code_read" data-arch-id="code_read" data-arch-kind="route" data-route-id="code_read" data-target="project-reader" parent="1" value="code_read" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10016" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-project_analysis" data-arch-id="project_analysis" data-arch-kind="route" data-route-id="project_analysis" data-target="planner" parent="1" value="project_analysis" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10017" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-project_coordination" data-arch-id="project_coordination" data-arch-kind="route" data-route-id="project_coordination" data-target="project-main" parent="1" value="project_coordination" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10018" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-code_change" data-arch-id="code_change" data-arch-kind="route" data-route-id="code_change" data-target="feature-executor" parent="1" value="code_change" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10019" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-database_read" data-arch-id="database_read" data-arch-kind="route" data-route-id="database_read" data-target="project-reader" parent="1" value="database_read" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10020" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-database_write" data-arch-id="database_write" data-arch-kind="route" data-route-id="database_write" data-target="db-operator" parent="1" value="database_write" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10021" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-database_ddl" data-arch-id="database_ddl" data-arch-kind="route" data-route-id="database_ddl" data-target="db-operator" parent="1" value="database_ddl" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10022" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-database_backup" data-arch-id="database_backup" data-arch-kind="route" data-route-id="database_backup" data-target="db-operator" parent="1" value="database_backup" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10023" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-api_code_change" data-arch-id="api_code_change" data-arch-kind="route" data-route-id="api_code_change" data-target="feature-executor" parent="1" value="api_code_change" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10024" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-api_runtime_call" data-arch-id="api_runtime_call" data-arch-kind="route" data-route-id="api_runtime_call" data-target="api-runner" parent="1" value="api_runtime_call" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10025" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-api_regression" data-arch-id="api_regression" data-arch-kind="route" data-route-id="api_regression" data-target="api-runner" parent="1" value="api_regression" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10026" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-build_and_test" data-arch-id="build_and_test" data-arch-kind="route" data-route-id="build_and_test" data-target="test-runner" parent="1" value="build_and_test" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10027" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-independent_review" data-arch-id="independent_review" data-arch-kind="route" data-route-id="independent_review" data-target="reviewer" parent="1" value="independent_review" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10028" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-session_lifecycle" data-arch-id="session_lifecycle" data-arch-kind="route" data-route-id="session_lifecycle" data-target="lifecycle-agent" parent="1" value="session_lifecycle" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10029" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-documentation_update" data-arch-id="documentation_update" data-arch-kind="route" data-route-id="documentation_update" data-target="documentation-agent" parent="1" value="documentation_update" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10030" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-route-long_term_memory_write" data-arch-id="long_term_memory_write" data-arch-kind="route" data-route-id="long_term_memory_write" data-target="memory-agent" parent="1" value="long_term_memory_write" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10031" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-component-workflow-engine" data-arch-id="workflow-engine" data-arch-kind="runtime_component" data-component-kind="workflow-engine" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#3B82F6;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=middle;spacing=8;" value="&lt;b&gt;Ready Queue / Workflow Engine&lt;/b&gt;&lt;br&gt;依赖满足后入队并调度" vertex="1">
+          <mxGeometry height="90" width="310" x="1340" y="3630" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-component-lifecycle-engine" data-arch-id="lifecycle-engine" data-arch-kind="runtime_component" data-component-kind="lifecycle-engine" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=middle;spacing=8;" value="Lifecycle Engine / Session Lifecycle" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10040" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-component-runtime-session-registry" data-arch-id="runtime-session-registry" data-arch-kind="runtime_component" data-component-kind="runtime-session-registry" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=middle;spacing=8;" value="Runtime Session Registry / tasks.db" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10041" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-component-completion-guard" data-arch-id="completion-guard" data-arch-kind="runtime_component" data-component-kind="completion-guard" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=middle;spacing=8;" value="Completion Guard（Execution / Delivery）" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10042" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-component-lane-scheduler" data-arch-id="lane-scheduler" data-arch-kind="runtime_component" data-component-kind="lane-scheduler" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=middle;spacing=8;" value="Parallel Execution Lanes / Resource Locks" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10043" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-guard-execution-completion-gate" data-arch-id="execution-completion-gate" data-arch-kind="completion_guard" data-stage="execution" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;" value="&lt;b&gt;Execution Completion Guard&lt;/b&gt;&lt;br&gt;执行节点全部完成后放行" vertex="1">
+          <mxGeometry height="90" width="310" x="100" y="3780" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-guard-delivery-completion-gate" data-arch-id="delivery-completion-gate" data-arch-kind="completion_guard" data-stage="delivery" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;" value="&lt;b&gt;Delivery Completion Guard&lt;/b&gt;&lt;br&gt;验收及交付证据完备后放行" vertex="1">
+          <mxGeometry height="90" width="310" x="1090" y="3780" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-guard-final-report-permission" data-arch-id="final-report-permission" data-arch-kind="completion_guard" data-stage="final-report" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFEFF;strokeColor=#0891B2;strokeWidth=2;fontSize=12;fontColor=#17324D;align=center;verticalAlign=middle;spacing=8;" value="&lt;b&gt;Final Report Permission&lt;/b&gt;&lt;br&gt;交付完成才可出最终报告" vertex="1">
+          <mxGeometry height="90" width="310" x="1420" y="3780" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-lane-controller" data-arch-id="controller" data-arch-kind="execution_lane" data-default-parallel="1" data-max-parallel="1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=1;fontSize=11;fontColor=#17324D;align=left;verticalAlign=middle;spacing=6;" value="Lane controller：default=1 max=1" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10044" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-lane-read_probe" data-arch-id="read_probe" data-arch-kind="execution_lane" data-default-parallel="3" data-max-parallel="6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=1;fontSize=11;fontColor=#17324D;align=left;verticalAlign=middle;spacing=6;" value="Lane read_probe：default=3 max=6" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10045" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-lane-coding" data-arch-id="coding" data-arch-kind="execution_lane" data-default-parallel="3" data-max-parallel="6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=1;fontSize=11;fontColor=#17324D;align=left;verticalAlign=middle;spacing=6;" value="Lane coding：default=3 max=6" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10046" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-lane-test_validation" data-arch-id="test_validation" data-arch-kind="execution_lane" data-default-parallel="3" data-max-parallel="6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=1;fontSize=11;fontColor=#17324D;align=left;verticalAlign=middle;spacing=6;" value="Lane test_validation：default=3 max=6" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10047" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-lane-api_integration" data-arch-id="api_integration" data-arch-kind="execution_lane" data-default-parallel="3" data-max-parallel="6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=1;fontSize=11;fontColor=#17324D;align=left;verticalAlign=middle;spacing=6;" value="Lane api_integration：default=3 max=6" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10048" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-lane-documentation" data-arch-id="documentation" data-arch-kind="execution_lane" data-default-parallel="3" data-max-parallel="6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=1;fontSize=11;fontColor=#17324D;align=left;verticalAlign=middle;spacing=6;" value="Lane documentation：default=3 max=6" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10049" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-lane-reviewer" data-arch-id="reviewer" data-arch-kind="execution_lane" data-default-parallel="1" data-max-parallel="3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=1;fontSize=11;fontColor=#17324D;align=left;verticalAlign=middle;spacing=6;" value="Lane reviewer：default=1 max=3" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10050" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-policy-execution-complete" data-arch-id="execution-complete" data-arch-kind="policy" parent="1" value="all required nodes terminal-success; no READY/RUNNING/BLOCKED/FAILED; scheduler inactive" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10047" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-policy-delivery-complete" data-arch-id="delivery-complete" data-arch-kind="policy" parent="1" value="reviewer PASS; deliverables/docs/memory/evidence complete; no active child" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10048" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-policy-final-report" data-arch-id="final-report" data-arch-kind="policy" parent="1" value="delivery gate is DELIVERY_COMPLETE; otherwise continue or report blocked" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10049" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-policy-resource-lock" data-arch-id="resource-lock" data-arch-kind="policy" parent="1" value="intersecting resources serialize; missing write scope defaults to project:&lt;pid&gt;:write" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="10050" as="geometry" />
+        </mxCell>
+        <mxCell id="arch-lifecycle-thresholds" data-arch-id="context-rotation" data-arch-kind="lifecycle" data-checkpoint-from="60" data-checkpoint-to="70" data-continue-below="60" data-hard-stop-at="80" data-rotate-at="70" parent="1" value="60/70/80 context lifecycle" vertex="1">
+          <mxGeometry height="1" width="1" x="20" y="20000" as="geometry" />
+        </mxCell>
+      </root>
     </mxGraphModel>
   </diagram>
   <diagram id="lifecycle-v3" name="02-会话生命周期与调用路由">
@@ -455,8 +676,7 @@
         <mxCell id="footer2" value="&lt;b&gt;一句话规则：&lt;/b&gt;项目主会话长期、项目 Reader 长期、Feature Executor 按功能、API/Test/Reviewer 短期；DB 写操作专用；Lifecycle Agent 统一管理换代。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF3;strokeColor=#22A06B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
           <mxGeometry x="260" y="2380" width="2080" height="95" as="geometry" />
         </mxCell>
-        <mxCell id="arch-runtime-team-execution-coordinator" parent="1" value="team-execution-coordinator" vertex="1" data-arch-kind="runtime_component" data-arch-id="team-execution-coordinator" data-component-kind="team-execution-coordinator"><mxGeometry x="20" y="11020" width="1" height="1" as="geometry" /></mxCell>
-    </root>
+      </root>
     </mxGraphModel>
   </diagram>
   <diagram id="workspace-git-v3" name="03-D_ai-dev工作空间与Git管理">
@@ -473,10 +693,10 @@
         <mxCell id="rootrepo" value="&lt;b&gt;Framework Root Repository：D:\ai-dev\&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;根 Git 只管理框架，不管理业务项目源码。&lt;/b&gt;&lt;br&gt;建议跟踪：README.md / diagrams/ / docs/ / agents/ / templates/ / framework-config/&lt;br&gt;建议不跟踪：业务项目目录 / runtime/ / .backups/ / 临时日志。&lt;br&gt;OpenCode 主工作空间从 D:\ai-dev\ 启动，Global Orchestrator 按项目路径路由。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EAF3FF;strokeColor=#3B82F6;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
           <mxGeometry x="200" y="180" width="2200" height="180" as="geometry" />
         </mxCell>
-        <mxCell id="tree" value="&lt;b&gt;推荐目录结构&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font face='monospace'&gt;D:\ai-dev\&lt;br&gt;├─ .git\　　　　　　　　　　　← 框架根仓库&lt;br&gt;├─ .gitignore&lt;br&gt;├─ README.md&lt;br&gt;├─ diagrams\　　　　　　　　　← .drawio 流程图&lt;br&gt;├─ docs\　　　　　　　　　　　← 架构 / 规范 / 决策 / API / DB 文档&lt;br&gt;├─ agents\　　　　　　　　　　← Agent 定义 / Prompt / Policy&lt;br&gt;├─ templates\　　　　　　　　← Task Envelope / Checkpoint / 文档模板&lt;br&gt;├─ runtime\　　　　　　　　　 ← tasks.db / 临时状态（建议忽略）&lt;br&gt;├─ .backups\　　　　　　　　← DB / 配置临时备份（建议忽略）&lt;br&gt;│&lt;br&gt;├─ ruoyi-vue-pro\　　　　　　← 独立 Git；根仓库忽略&lt;br&gt;├─ yudao-ui-admin-vue3\　　　← 独立 Git；根仓库忽略&lt;br&gt;├─ xxl-job\　　　　　　　　　← 独立 Git；根仓库忽略&lt;br&gt;└─ nyamtn\　　　　　　　　　 ← 独立 Git；已移动到 D:\ai-dev\nyamtn&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#94A3B8;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
+        <mxCell id="tree" value="&lt;b&gt;推荐目录结构&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font face=&#39;monospace&#39;&gt;D:\ai-dev\&lt;br&gt;├─ .git\　　　　　　　　　　　← 框架根仓库&lt;br&gt;├─ .gitignore&lt;br&gt;├─ README.md&lt;br&gt;├─ diagrams\　　　　　　　　　← .drawio 流程图&lt;br&gt;├─ docs\　　　　　　　　　　　← 架构 / 规范 / 决策 / API / DB 文档&lt;br&gt;├─ agents\　　　　　　　　　　← Agent 定义 / Prompt / Policy&lt;br&gt;├─ templates\　　　　　　　　← Task Envelope / Checkpoint / 文档模板&lt;br&gt;├─ runtime\　　　　　　　　　 ← tasks.db / 临时状态（建议忽略）&lt;br&gt;├─ .backups\　　　　　　　　← DB / 配置临时备份（建议忽略）&lt;br&gt;│&lt;br&gt;├─ ruoyi-vue-pro\　　　　　　← 独立 Git；根仓库忽略&lt;br&gt;├─ yudao-ui-admin-vue3\　　　← 独立 Git；根仓库忽略&lt;br&gt;├─ xxl-job\　　　　　　　　　← 独立 Git；根仓库忽略&lt;br&gt;└─ nyamtn\　　　　　　　　　 ← 独立 Git；已移动到 D:\ai-dev\nyamtn&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#94A3B8;strokeWidth=2;fontSize=12;fontColor=#17324D;align=left;verticalAlign=top;spacing=10;" vertex="1" parent="1">
           <mxGeometry x="140" y="440" width="1140" height="630" as="geometry" />
         </mxCell>
-        <mxCell id="gitignore" value="&lt;b&gt;根 D:\ai-dev\.gitignore 建议&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font face='monospace'&gt;/ruoyi-vue-pro/&lt;br&gt;/yudao-ui-admin-vue3/&lt;br&gt;/xxl-job/&lt;br&gt;/nyamtn/&lt;br&gt;&lt;br&gt;/runtime/&lt;br&gt;/.backups/&lt;br&gt;*.log&lt;br&gt;&lt;/font&gt;&lt;br&gt;&lt;b&gt;结果：&lt;/b&gt;根仓库不会 stage / commit 子项目源码；进入任一项目目录后，仍由该项目自己的 .git 正常管理。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
+        <mxCell id="gitignore" value="&lt;b&gt;根 D:\ai-dev\.gitignore 建议&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;font face=&#39;monospace&#39;&gt;/ruoyi-vue-pro/&lt;br&gt;/yudao-ui-admin-vue3/&lt;br&gt;/xxl-job/&lt;br&gt;/nyamtn/&lt;br&gt;&lt;br&gt;/runtime/&lt;br&gt;/.backups/&lt;br&gt;*.log&lt;br&gt;&lt;/font&gt;&lt;br&gt;&lt;b&gt;结果：&lt;/b&gt;根仓库不会 stage / commit 子项目源码；进入任一项目目录后，仍由该项目自己的 .git 正常管理。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7E6;strokeColor=#F59E0B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
           <mxGeometry x="1470" y="440" width="990" height="430" as="geometry" />
         </mxCell>
         <mxCell id="git_rules" value="&lt;b&gt;Git 边界规则&lt;/b&gt;&lt;br&gt;&lt;br&gt;① Framework Root：只提交框架流程图、docs、Agent 配置、模板、治理规则。&lt;br&gt;② ruoyi-vue-pro：只在自己的仓库中 commit / branch / diff。&lt;br&gt;③ yudao-ui-admin-vue3：独立仓库。&lt;br&gt;④ xxl-job：独立仓库。&lt;br&gt;⑤ nyamtn：独立仓库，路径固定为 D:\ai-dev\nyamtn。&lt;br&gt;⑥ Global Orchestrator 不允许在根仓库把业务项目源码加入 stage。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0F3;strokeColor=#E5484D;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">

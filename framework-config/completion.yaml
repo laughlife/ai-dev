@@ -29,10 +29,10 @@ outputs:
   execution_complete: EXECUTION_COMPLETE
   execution_incomplete: EXECUTION_INCOMPLETE
 runtime_components:
+  - team-execution-coordinator
   - workflow-engine
   - lifecycle-engine
   - runtime-session-registry
   - completion-guard
   - lane-scheduler
-  - team-execution-coordinator
 schema_version: 1
