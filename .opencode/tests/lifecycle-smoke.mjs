@@ -32,6 +32,7 @@ const { registerLifecycleObservationHooks } = await import("../lib/lifecycle-hoo
 const sessions = new Map()
 let sequence = 0
 const generated = []
+let catalogLimit = 200000
 const ctx = {
   location: { directory: tempRoot },
   session: {
@@ -52,7 +53,7 @@ const ctx = {
   },
   model: {
     async list() {
-      return [{ providerID: "openai", id: "gpt-5.6-sol-fast", limit: { context: 200000 } }]
+      return [{ providerID: "openai", id: "gpt-5.6-sol-fast", limit: catalogLimit == null ? {} : { context: catalogLimit } }]
     },
   },
 }
@@ -87,6 +88,11 @@ const telemetry = await lifecycle.refreshTelemetry({ session_key: key, observati
 assert(telemetry.ok && telemetry.context_pct === 75, "verified telemetry computes 75 percent")
 assert(core.db.query("SELECT COUNT(*) AS n FROM lifecycle_events WHERE event_type='TELEMETRY_SAMPLE'").get().n === 1, "telemetry event persisted")
 assert(JSON.parse(core.db.query("SELECT details_json FROM lifecycle_events LIMIT 1").get().details_json).observation_source === "smoke", "observation source is audited")
+catalogLimit = null
+const partial = await lifecycle.refreshTelemetry({ session_key: key, observation_source: "partial-catalog" })
+const preserved = core.db.query("SELECT context_limit, context_pct FROM sessions WHERE session_key=? AND generation=1").get(key)
+assert(partial.status === "TELEMETRY_PARTIAL" && partial.stored === false && preserved.context_limit === 200000 && preserved.context_pct === 75, "partial catalog sample preserves last verified columns")
+catalogLimit = 200000
 
 const evaluation = await lifecycle.evaluateThreshold({ session_key: key, refresh: false })
 assert(evaluation.lifecycle_state === "ROTATE_PENDING", "threshold state is dynamic and correct")

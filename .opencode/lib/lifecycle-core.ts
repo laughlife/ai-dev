@@ -698,7 +698,8 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
     if (!row) return failure("SESSION_NOT_FOUND", `no sessions row exists for session_key '${key}'`)
 
     const m = await measureSession(row.opencode_session_id)
-    if (m.context_tokens != null) {
+    const completeSample = m.context_tokens != null && m.context_limit != null && m.context_pct != null
+    if (completeSample) {
       q.updateTelemetry.run(
         m.context_tokens,
         m.context_limit,
@@ -715,13 +716,13 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
       telemetry_source: m.context_tokens != null ? m.telemetry_source : null,
       model_key: m.model_key,
       reason: m.reason,
-      stored: m.context_tokens != null,
+      stored: completeSample,
       observation_source: typeof input?.observation_source === "string" ? input.observation_source : null,
     })
     const measured = m.context_tokens != null
     return {
       ok: true,
-      status: !measured ? "TELEMETRY_UNAVAILABLE" : m.context_pct == null ? "TELEMETRY_PARTIAL" : "TELEMETRY_REFRESHED",
+      status: !measured ? "TELEMETRY_UNAVAILABLE" : !completeSample ? "TELEMETRY_PARTIAL" : "TELEMETRY_REFRESHED",
       session_key: key,
       generation: row.generation,
       session_id: row.opencode_session_id,
@@ -730,7 +731,7 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
       context_pct: m.context_pct,
       telemetry_source: measured ? m.telemetry_source : null,
       telemetry_at: measured ? m.telemetry_at : null,
-      stored: measured,
+      stored: completeSample,
       detail: m.reason,
     } as any
   }
