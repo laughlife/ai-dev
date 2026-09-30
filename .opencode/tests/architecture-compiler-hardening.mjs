@@ -9,6 +9,7 @@ const source = path.join(root, "diagrams", "multi_agent_framework_v4_completion_
 const { parseDrawio } = await import("../../tools/architecture-sync/parser.ts")
 const { validateIR } = await import("../../tools/architecture-sync/validate.ts")
 const { parseYaml, stringifyYaml } = await import("../../tools/architecture-sync/yaml.ts")
+const { safePath, preflightGeneratedFiles } = await import("../../tools/architecture-sync/safety.ts")
 
 const ir = parseDrawio(source)
 const runtimeMap = { "gpt-6-sol-fast": {}, "gpt-5.6-sol-fast": {}, "gpt-5.6-sol": {}, "deepseek-v4.1-flash": {}, "qwen3.8-max": {} }
@@ -20,6 +21,9 @@ assert.ok(validateIR(duplicate, runtimeMap).includes("ARCH_ENTITY_DUPLICATE:agen
 const invalidThresholds = structuredClone(ir)
 invalidThresholds.lifecycle.thresholds.hard_stop_new_tasks_at_percent = 40
 assert.ok(validateIR(invalidThresholds, runtimeMap).includes("ARCH_LIFECYCLE_THRESHOLD_ORDER_INVALID"))
+const outOfRangeThresholds = structuredClone(ir)
+outOfRangeThresholds.lifecycle.thresholds.hard_stop_new_tasks_at_percent = 150
+assert.ok(validateIR(outOfRangeThresholds, runtimeMap).includes("ARCH_LIFECYCLE_THRESHOLD_RANGE_INVALID"))
 
 const missingProjectMetadata = structuredClone(ir)
 missingProjectMetadata.projects[0].path = null
@@ -73,5 +77,11 @@ assert.equal(applied.status, "APPLIED")
 assert.ok(fs.existsSync(path.join(applyFixture, "framework-config", "agents.yaml")))
 assert.ok(fs.existsSync(path.join(applyFixture, ".opencode", "agents", "reviewer.md")))
 fs.rmSync(applyFixture, { recursive: true, force: true })
+
+assert.throws(() => safePath(root, "../outside"), /ARCHITECTURE_SYNC_PATH_ESCAPE/)
+assert.throws(() => safePath(root, path.join(root, "outside")), /ARCHITECTURE_SYNC_PATH_ABSOLUTE/)
+assert.throws(() => preflightGeneratedFiles(root, { "framework-config/empty.yaml": "" }), /ARCHITECTURE_SYNC_EMPTY_OUTPUT/)
+assert.throws(() => preflightGeneratedFiles(root, { "outside.txt": "data" }), /ARCHITECTURE_SYNC_OUTPUT_SCOPE/)
+assert.throws(() => preflightGeneratedFiles(root, { ".opencode/agents/rogue.md": "---\nmode: subagent\n---\n" }), /ARCHITECTURE_SYNC_GENERATED_BLOCK_MISSING/)
 
 console.log("ARCHITECTURE_COMPILER_HARDENING_EXPECTED_PASS")
