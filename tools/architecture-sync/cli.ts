@@ -7,6 +7,7 @@ import { validateIR } from "./validate.ts"
 import { parseYaml } from "./yaml.ts"
 import { generateFrameworkConfig } from "./generators/framework-config.ts"
 import { generateAgentContracts, generatedAgentBlock, extractGeneratedBlock } from "./generators/opencode-agents.ts"
+import { safePath, preflightGeneratedFiles } from "./safety.ts"
 
 const root = path.resolve(process.env.AI_DEV_ROOT ?? process.cwd())
 const source = path.join(root, "diagrams", "multi_agent_framework_v4_completion_guard.drawio")
@@ -16,25 +17,6 @@ function sha(file: string): string { return crypto.createHash("sha256").update(f
 function readYaml(file: string): any { return parseYaml(fs.readFileSync(file, "utf8")) ?? {} }
 function modelDisplay(key: string): string | null { return ({ "gpt-6-sol-fast": "GPT-6 Sol Fast", "gpt-5.6-sol-fast": "GPT-5.6 Sol Fast", "gpt-5.6-sol": "GPT-5.6 Sol", "deepseek-v4.1-flash": "DeepSeek-V4.1-Flash", "qwen3.8-max": "qwen3.8-max", "project-session": null } as any)[key] ?? null }
 function ids(items: any[] | undefined): Set<string> { return new Set((items ?? []).map((item: any) => item?.id).filter(Boolean)) }
-function safePath(rootDir: string, relative: string): string {
-  if (path.isAbsolute(relative)) throw new Error(`ARCHITECTURE_SYNC_PATH_ABSOLUTE:${relative}`)
-  const resolved = path.resolve(rootDir, relative)
-  const boundary = rootDir.endsWith(path.sep) ? rootDir : `${rootDir}${path.sep}`
-  if (resolved !== rootDir && !resolved.startsWith(boundary)) throw new Error(`ARCHITECTURE_SYNC_PATH_ESCAPE:${relative}`)
-  return resolved
-}
-
-function preflightGeneratedFiles(rootDir: string, files: Record<string, string>) {
-  for (const [relative, text] of Object.entries(files)) {
-    const destination = safePath(rootDir, relative)
-    if (!text.trim()) throw new Error(`ARCHITECTURE_SYNC_EMPTY_OUTPUT:${relative}`)
-    if (!(relative.startsWith("framework-config/") || relative.startsWith(".opencode/agents/"))) throw new Error(`ARCHITECTURE_SYNC_OUTPUT_SCOPE:${relative}`)
-    if (relative.endsWith(".yaml") && parseYaml(text) === null) throw new Error(`ARCHITECTURE_SYNC_INVALID_YAML:${relative}`)
-    if (relative.startsWith(".opencode/agents/") && !text.includes("ARCH-GENERATED:BEGIN")) throw new Error(`ARCHITECTURE_SYNC_GENERATED_BLOCK_MISSING:${relative}`)
-    safePath(rootDir, path.relative(rootDir, destination))
-  }
-}
-
 function analyze() {
   const ir: any = parseDrawio(source)
   const runtime = readYaml(path.join(configDir, "runtime-model-map.yaml"))
