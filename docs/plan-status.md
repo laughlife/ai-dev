@@ -237,7 +237,7 @@ Current acceptance:
 - U3 live read runtime evidence: PASS (Desktop V2 `2.0.20`)
 - U3 live coding runtime evidence: PASS (three node-scoped workers with overlap)
 - U3 conflict serialization runtime evidence: PASS (same-resource negative control)
-- U3 final acceptance: BLOCKED pending fresh independent Reviewer PASS only
+- U3 final acceptance: PASS (independent Reviewer PASS on 2026-10-01)
 - U4–U6: NOT STARTED
 
 ## History Note

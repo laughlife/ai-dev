@@ -1,14 +1,13 @@
 # Plan 9 U3 — Live Team Execution Runtime Evidence
 
-Status: `U3_FINAL_ACCEPTANCE_BLOCKED`
+Status: `PASS`
 
 This document is the collection template for the Plan 9 U3 acceptance item
 (Team Execution Mode parallel safety; see root `AGENTS.md` §9.1 and
 `../diagrams/multi_agent_framework_v4_completion_guard.drawio`).
 
 It records the exact live evidence observed on the OpenCode Runtime host. The
-runtime evidence is complete; the current blocker is only the independent
-final Reviewer decision.
+runtime evidence and independent final review are complete.
 
 Scope: Plan 9 U3 only. U4 is explicitly out of scope for this document.
 
@@ -16,38 +15,36 @@ Scope: Plan 9 U3 only. U4 is explicitly out of scope for this document.
 
 | Field | Value |
 | --- | --- |
-| Status | `U3_FINAL_ACCEPTANCE_BLOCKED` |
+| Status | `PASS` |
 | Live OpenCode Runtime evidence | Desktop V2 session, read-team, coding-team, and negative-control evidence complete |
 | Latest runtime probe | Desktop-managed OpenCode V2 `2.0.20`; the earlier PATH `1.1.53` probe is stale/non-V2 and invalid for U3 (see §2.1) |
 | Deterministic harness evidence | present (implementation-level only, see §4) |
 | Date of this assessment | 2026-10-01 |
 | Scope | Team Execution Mode parallel safety (U3) |
 
-## 2. Exact blocker
+## 2. Final acceptance
 
-The Desktop V2 runtime has now executed qualifying read, coding, and
-same-resource negative-control workflows. U3 final acceptance remains blocked
-only until the corrected evidence is independently reviewed and accepted. The
-remaining gate is:
+The Desktop V2 runtime executed qualifying read, coding, and same-resource
+negative-control workflows. A fresh independent Reviewer passed the complete
+evidence on 2026-10-01. U3 final acceptance is closed; U4 remains NOT STARTED.
 
-1. **Independent final review pending.** Internal workflow validation and
-   reviewer nodes passed, but a fresh independent Reviewer must verify the
-   complete live evidence and documentation before U3 is closed.
-2. **Harness cannot substitute.** The available deterministic harnesses run
+The following evidence remains normative and must not be replaced by harness
+output:
+
+1. **Harness cannot substitute.** The available deterministic harnesses run
    under Node 24 (`--experimental-strip-types`); the DB-backed one imports the
    production `.ts` cores by remapping `bun:sqlite` to the Node `node:sqlite`
    adapter via `register-hooks.mjs`. They prove pure scheduling / contract
    correctness in isolation — not runtime-host dispatch, real scoped sessions,
    or real parallel waves.
-3. **Parallel evidence needs the host.** Acceptable parallel evidence is the
+2. **Parallel evidence needs the host.** Acceptable parallel evidence is the
    runtime-produced `waves[]` (node_ids / parallelism / `started_at` /
    `ended_at`) with genuinely overlapping timestamps between independent,
    non-conflicting lanes. An isolated harness cannot produce or reconstruct
    that observation.
 
-Until (1) is satisfied with the facts required in §3, the U3 final gate stays
-`U3_FINAL_ACCEPTANCE_BLOCKED`. Do not downgrade this to a PASS by inference,
-simulation, or harness output.
+The independent Reviewer verdict is recorded in §7. Do not downgrade or
+replace the live evidence with inference, simulation, or harness output.
 
 ## 2.1 Runtime target correction and qualifying Desktop V2 probe (2026-09-30)
 
@@ -80,9 +77,9 @@ dry-run, model-synthesised or harness-only results must never be entered here.
 
 | # | workflow_id | Date | Runtime version | Qualifying signal | Waves observed | Overlapping timestamps | Scoped sessions (pid/route) | Reviewer verdict | Evidence pointer |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `0d3835e2-797f-4bf4-b408-e50d3c32b8ef` | 2026-09-30 | OpenCode 2.0.20 | 3 independent non-conflicting `code_read` nodes; `TEAM_EXECUTION` | wave 0; parallelism 3 | 15:20:09.265Z–15:20:48.446Z; all three intervals overlap | 3 scoped `project-reader` workers; task/session details below | Runtime `REVIEW_PASSED`; independent final review pending | Desktop V2 session record; `workflow_get` + `task_get` |
-| 2 | `cfc83688-d03d-48ab-b1a0-377e504e1e13` | 2026-09-30 | OpenCode 2.0.20 | 3 independent non-conflicting `code_change` nodes; `TEAM_EXECUTION` | wave 0; parallelism 3 | 15:33:13.634Z–15:39:10.260Z; all three intervals overlap | 3 scoped `feature-executor` workers; details below | Runtime `REVIEW_PASSED`; V1/V2/V3 PASS; independent final review pending | Desktop V2 workflow result |
-| 3 | `9cf538e4-160c-4293-9ba3-b0285e34d4fd` | 2026-09-30 | OpenCode 2.0.20 | same-resource write negative control; `TEAM_EXECUTION` | N1 wave 0, N2 wave 1; parallelism 1 each | N1 end `15:55:02.042Z` < N2 start `15:55:02.043Z` | 2 scoped `feature-executor` workers on identical `resources.write` | Runtime `REVIEW_PASSED`; independent final review pending | Desktop V2 negative-control result |
+| 1 | `0d3835e2-797f-4bf4-b408-e50d3c32b8ef` | 2026-09-30 | OpenCode 2.0.20 | 3 independent non-conflicting `code_read` nodes; `TEAM_EXECUTION` | wave 0; parallelism 3 | 15:20:09.265Z–15:20:48.446Z; all three intervals overlap | 3 scoped `project-reader` workers; task/session details below | Runtime `REVIEW_PASSED`; final independent review PASS | Desktop V2 session record; `workflow_get` + `task_get` |
+| 2 | `cfc83688-d03d-48ab-b1a0-377e504e1e13` | 2026-09-30 | OpenCode 2.0.20 | 3 independent non-conflicting `code_change` nodes; `TEAM_EXECUTION` | wave 0; parallelism 3 | 15:33:13.634Z–15:39:10.260Z; all three intervals overlap | 3 scoped `feature-executor` workers; details below | Runtime `REVIEW_PASSED`; V1/V2/V3 PASS; final independent review PASS | Desktop V2 workflow result |
+| 3 | `9cf538e4-160c-4293-9ba3-b0285e34d4fd` | 2026-09-30 | OpenCode 2.0.20 | same-resource write negative control; `TEAM_EXECUTION` | N1 wave 0, N2 wave 1; parallelism 1 each | N1 end `15:55:02.042Z` < N2 start `15:55:02.043Z` | 2 scoped `feature-executor` workers on identical `resources.write` | Runtime `REVIEW_PASSED`; final independent review PASS | Desktop V2 negative-control result |
 
 ### 3.1 Read-team worker evidence
 
@@ -92,8 +89,8 @@ dry-run, model-synthesised or harness-only results must never be entered here.
 | `read-infra-module` | `f5e37d1b-7627-4530-a800-46fc62996f22` | `workflow:0d3835e2-797f-4bf4-b408-e50d3c32b8ef:project:ruoyi-vue-pro:project-reader:node:read-infra-module` | `ses_f0d192ac9ffebz6636TEHj4rgm` | `2026-09-30T15:20:09.267Z` | `2026-09-30T15:20:48.446Z` |
 | `read-admin-vue3-source` | `8130138b-2366-431f-80f7-a72634e5ed5e` | `workflow:0d3835e2-797f-4bf4-b408-e50d3c32b8ef:project:ruoyi-vue-pro:project-reader:node:read-admin-vue3-source` | `ses_f0d192ac8ffeeurjgb9Jr2aQGt` | `2026-09-30T15:20:09.268Z` | `2026-09-30T15:20:37.357Z` |
 
-This is real Desktop V2 runtime evidence for the **read lane**. Final U3
-closure still requires the independent Reviewer decision below.
+This is real Desktop V2 runtime evidence for the **read lane**. The complete
+U3 evidence set received independent Reviewer PASS on 2026-10-01.
 
 ### 3.2 Coding-team worker evidence
 
@@ -172,7 +169,7 @@ Required per-row facts:
 These harnesses are valid implementation evidence. They are explicitly **not**
 claimed as live OpenCode Runtime or production-session observations.
 
-## 6. How to unblock
+## 6. Acceptance protocol (completed)
 
 1. A live OpenCode Runtime host with the workflow-engine plugin loaded
    and the required role models configured in `framework-config/agents.yaml`.
@@ -190,12 +187,12 @@ claimed as live OpenCode Runtime or production-session observations.
    Nothing else substitutes for these fields. A health check, a session-creation
    attempt, a harness run, or a hand-written value is not admissible.
 4. Enter each observation in the §3 template with an evidence pointer.
-5. Obtain an independent Reviewer PASS over the filled evidence, then change
-   the status to `PASS`. The current status remains blocked until step 5.
+5. Obtain an independent Reviewer PASS over the filled evidence. Completed:
+   `PASS` on 2026-10-01.
 
 ## 7. Sign-off
 
 | Role | Required | State |
 | --- | --- | --- |
-| Reviewer | independent PASS over the filled live evidence | PENDING |
+| Reviewer | independent PASS over the filled live evidence | PASS — 2026-10-01 |
 | Documentation Agent | record only accepted facts | this document |
