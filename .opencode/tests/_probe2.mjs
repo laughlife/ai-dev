@@ -45,7 +45,7 @@ const ins = core.db.query("INSERT INTO sessions (session_key, project_id, role, 
 const key = "project:ruoyi-vue-pro:main"
 const predId = (await ctx.session.create({ title: "pred" })).id
 ins.run(key, "ruoyi-vue-pro", "project-main", predId, 1, "project-main", "openai/gpt-5.6-sol-fast#high", FIX, "ACTIVE", null, now(), now(), null)
-sess.get(predId).messages = [{ info: { type: "assistant", role: "assistant", model: { providerID: "openai", id: "gpt-5.6-sol-fast" }, tokens: { input: 150000, output: 0 } } }]
+sess.get(predId).messages = [{ info: { type: "assistant", role: "assistant", model: { providerID: "openai", id: "gpt-5.6-sol-fast" }, tokens: { input: 150000, output: 0, reasoning: 0, cache: { read: 0, write: 0 } } } }]
 
 const r = await lifecycle.rotateSession({ session_key: key, force: true, reason: "probe" })
 console.log("ROTATE:", JSON.stringify({ ok: r.ok, status: r.status, code: r.code, to: r.to_generation, succ: r.successor_session_id, detail: r.detail }))
