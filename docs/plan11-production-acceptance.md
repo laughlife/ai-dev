@@ -43,5 +43,10 @@ The local recovery/rollback drill is executable and currently passes:
 PLAN11_RECOVERY_ROLLBACK_PASS {"restart":"IN_SYNC","rollback":"PASS"}
 ```
 
+An independent Reviewer returned `PASS` after verifying that architecture,
+Git isolation, recovery, compiler rollback, and missing evidence all fail closed.
+The acceptance test also runs the gate against an invalid temporary root and
+expects `BLOCKED` with the corresponding failure markers.
+
 Once those records exist, rerun the gate and the full regression suite. A
 `RELEASE_READY` result is the final Framework v1 release gate.

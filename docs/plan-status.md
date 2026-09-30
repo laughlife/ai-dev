@@ -302,6 +302,8 @@ Evidence:
   → `framework_v1: NOT_READY`
 - `node --experimental-strip-types .opencode/tests/plan11-recovery-rollback.mjs`
   → `PLAN11_RECOVERY_ROLLBACK_PASS`
+- Independent Reviewer: PASS (architecture, Git isolation, recovery, compiler
+  rollback, and missing evidence are all fail-closed)
 
 Missing user-reviewed evidence:
 - three live Desktop UI/runtime lifecycle samples
