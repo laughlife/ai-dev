@@ -2,7 +2,7 @@
 
 ## Plan 1
 
-Status: COMPLETED
+Status: FINAL_ACCEPTANCE_IN_PROGRESS
 
 Commit:
 e0bc30c
@@ -203,15 +203,15 @@ Status: COMPLETED
 Scope:
 - verified context telemetry
 - checkpoint and restore
-- 60/70/80 automatic session lifecycle
+- 60/70/80 session lifecycle (final automatic-admission acceptance reopened)
 - session generation rotation and reload recovery
 
 Acceptance evidence:
 - `node --experimental-strip-types --import ./.opencode/tests/register-hooks.mjs ./.opencode/tests/lifecycle-smoke.mjs`
   → `PLAN8_LIFECYCLE_SMOKE_PASS`
 - same harness with `_probe2.mjs` → `PROBE2 OK`
-- independent Reviewer final verdict: `PASS` at commit `6035ce2`
-- automatic rotation remains disabled; Desktop UI handoff remains manual and is not claimed as transparent
+- prior isolated Smoke and Reviewer evidence exists, but the complete A–P final gate is reopened by Plan 9 Part A
+- automatic rotation remains disabled until the final gate passes; Desktop UI handoff remains manual and is not claimed as transparent
 
 ## History Note
 

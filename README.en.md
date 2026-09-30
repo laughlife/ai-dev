@@ -113,17 +113,17 @@ Plan 4: completed
 Plan 5: completed
 Plan 6: completed
 Plan 7: completed
-Plan 8: in progress
+Plan 8: final acceptance in progress
 
 Next planned stage:
-automatic lifecycle rotation + checkpoint
+automatic lifecycle rotation + checkpoint (final acceptance reopened; not enabled yet)
 ```
 
 Not implemented yet:
 
 - automatic drawio synchronization
-- automatic lifecycle rotation
-- automatic checkpoint / restore (explicitly deferred from Plan 7 to Plan 8)
+- automatic lifecycle admission (pending Plan 8 Final Gate)
+- checkpoint / restore runtime (implemented; final acceptance evidence pending)
 
 ## Usage Guide
 
