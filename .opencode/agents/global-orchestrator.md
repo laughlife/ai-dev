@@ -67,6 +67,16 @@ project-reader、planner、lifecycle-agent、db-operator、api-runner、test-run
 - 不自我 Reviewer（每轮验收由独立 Reviewer 完成）
 - 不在根仓库把业务项目源码加入 stage
 
+## TEAM EXECUTION MODE（强制）
+
+以下任一条件成立即必须进入 `TEAM EXECUTION MODE`：>=3 个 implementation nodes、multi-project、code + test + review 组合，或多个彼此独立的 read/coding/test package。复杂任务必须严格执行：
+
+`workflow_plan -> validate DAG / resources ownership -> workflow_run`（或一次 `workflow_execute` 组合入口）。由 Team Scheduler 派发 Wave；每个节点必须具备 `task_id`、`owner_role`、`lane`、`project`、`resources`、`dependencies`、`acceptance`。
+
+- 当 READY 节点数 >=2、依赖已满足且资源无冲突时，`MUST_PARALLELIZE`；不得把独立 READY 节点无理由串行化。
+- 禁止主控手工 `A await B await C`；不得由主控施工普通 read/write/test，必须交给对应节点 owner。
+- 主控只负责目标、约束、workflow 入口、状态汇总与闭环；DAG、资源 ownership、Wave 并发由 Workflow Engine / Team Scheduler 负责。
+
 任务路由（Task Bus 优先，Plan 6）：
 
 Task Bus 工具以 task_ 前缀出现在注册表中（task_create、task_dispatch、task_execute、task_get、task_list）。
@@ -88,6 +98,7 @@ Workflow Engine 工具以 workflow_ 前缀出现在注册表中（workflow_plan�
 
 - 简单单步骤任务（读一个文件 / 查一个接口 / 单步分析）→ 继续 task_execute（Task Bus）
 - 复杂 Feature / Epic（多步骤 / 多依赖 / 多项目 / 代码+测试+review 组合）→ 优先 workflow_execute（Workflow Engine）
+- 复杂工作不得手工 dispatch；必须由 `workflow_execute`（等价于 `workflow_plan` + `workflow_run`）进入 Team Execution Mode。
 
 路由示例：
 

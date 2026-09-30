@@ -1,6 +1,6 @@
 import { normalizeLanePolicies } from "../../lib/lane-scheduler.ts"
 import { resolveResourceContract } from "../../lib/lane-resource-contract.ts"
-import { dispatchTeamWaves, normalizeTeamExecutionPolicy } from "../../lib/team-execution-coordinator.ts"
+import { dispatchTeamWaves, normalizeTeamExecutionPolicy, isTeamExecutionRequired, shouldMustParallelize } from "../../lib/team-execution-coordinator.ts"
 
 // Workflow Engine — automatic DAG scheduler (Plan 7 Phase 4+, T7b; §39-§44,
 // §60-§62, §68)
@@ -752,17 +752,30 @@ export function createScheduler(deps: SchedulerDeps) {
     }
     const policy = normalizePolicy(wfCfg)
 
-    const runState: any = { waves: [], verdicts: [], retries: [], reworks: [], notes: [], archived_sessions: [] }
-    let stopCode: string | null = null
-    let stopDetail: string | null = null
-
     const row0: any = q!.wfGet.get(wfId)
     const plan = safeParse(row0?.plan_json)
+    const baseRunState: any = { waves: [], verdicts: [], retries: [], reworks: [], notes: [], archived_sessions: [] }
     if (!plan || !Array.isArray(plan.nodes) || plan.nodes.length === 0) {
       const ts = nowIso()
       q!.wfFinish.run("FAILED", ts, ts, wfId)
-      return buildResponse(wfId, runState, "PLAN_MISSING", "workflows.plan_json is missing or has no nodes (materialization never succeeded)")
+      return buildResponse(wfId, baseRunState, "PLAN_MISSING", "workflows.plan_json is missing or has no nodes (materialization never succeeded)")
     }
+    // The plan must be read and validated before Team Execution policy is
+    // evaluated; otherwise a malformed/missing plan could trigger a TDZ
+    // access and mask the deterministic PLAN_MISSING result.
+    const teamMode = isTeamExecutionRequired({ nodes: plan.nodes }, policy.teamExecution)
+    const runState: any = {
+      ...baseRunState,
+      team_execution_mode: teamMode ? "TEAM_EXECUTION" : "SINGLE_TASK",
+      team_execution_required: teamMode,
+      parallel_wave_policy: {
+        must_parallelize_min_ready_non_conflicting: policy.teamExecution.must_parallelize.min_ready_non_conflicting,
+        scheduler: "workflow-engine-team-scheduler",
+      },
+    }
+    let stopCode: string | null = null
+    let stopDetail: string | null = null
+
     const depsOf = new Map<string, string[]>()
     const nodeIds = new Set<string>(plan.nodes.map((n: any) => n?.node_id).filter((x: any) => typeof x === "string"))
     for (const n of plan.nodes) {
@@ -924,6 +937,15 @@ export function createScheduler(deps: SchedulerDeps) {
           })),
         policy,
       )
+      const mustParallelize = shouldMustParallelize(ready.map((r) => ({
+        node_id: r.node_id,
+        route: String(planById.get(r.node_id)?.route ?? ""),
+        project_id: String(planById.get(r.node_id)?.project_id ?? ""),
+        resources: planById.get(r.node_id)?.resources ?? {},
+      })), { policy: policy.teamExecution })
+      if (mustParallelize && waves.some((wave) => wave.length >= policy.teamExecution.must_parallelize.min_ready_non_conflicting)) {
+        runState.notes.push("MUST_PARALLELIZE satisfied by ready non-conflicting nodes; wave scheduler retained resource-safe lanes")
+      }
 
       let stop = false
       for (const wave of waves) {
@@ -1056,6 +1078,9 @@ export function createScheduler(deps: SchedulerDeps) {
       workflow: rowToWorkflow(row),
       nodes,
       waves: runState.waves,
+      team_execution_mode: runState.team_execution_mode,
+      team_execution_required: runState.team_execution_required,
+      parallel_wave_policy: runState.parallel_wave_policy,
       rework_cycle: row.rework_cycle,
       verdicts: runState.verdicts,
       retries: runState.retries,

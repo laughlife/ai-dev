@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 
 const { scheduleLaneWaves, normalizeLanePolicies } = await import("../lib/lane-scheduler.ts")
 const { resourcesConflict, resolveResourceContract } = await import("../lib/lane-resource-contract.ts")
-const { isComplexTeamTask, dispatchTeamWaves } = await import("../lib/team-execution-coordinator.ts")
+const { isComplexTeamTask, isTeamExecutionRequired, shouldMustParallelize, dispatchTeamWaves } = await import("../lib/team-execution-coordinator.ts")
 
 const policies = normalizeLanePolicies({ scheduler: { lanes: {
   controller: { default_parallel: 1, max_parallel: 1 }, reviewer: { default_parallel: 1, max_parallel: 3 },
@@ -13,6 +13,14 @@ const read = (id, resources = { read: [`file:${id}`] }) => ({ node_id: id, route
 
 assert.equal(isComplexTeamTask(2), false)
 assert.equal(isComplexTeamTask(3), true)
+assert.equal(isTeamExecutionRequired({ implementationNodeCount: 3 }), true, ">=3 implementation nodes enter team mode")
+assert.equal(isTeamExecutionRequired({ multiProject: true }), true, "multi-project enters team mode")
+assert.equal(isTeamExecutionRequired({ hasCodeTestReview: true }), true, "code+test+review enters team mode")
+assert.equal(isTeamExecutionRequired({ hasIndependentPackages: true }), true, "independent packages enter team mode")
+assert.equal(shouldMustParallelize([read("m1"), read("m2")]), true, "2 ready non-conflicting nodes must parallelize")
+assert.equal(shouldMustParallelize([code("x", { write: ["same"] }), code("y", { write: ["same"] })]), false, "conflicting nodes are not forced concurrent")
+assert.equal(shouldMustParallelize([{ ...read("d1"), depends_on: ["upstream"] }, read("d2")]), true, "an already-ready independent node can parallelize")
+assert.equal(shouldMustParallelize([{ ...read("d1"), depends_on: ["upstream"] }, read("d2")], { completedNodeIds: [] }), false, "unsatisfied dependency is not forced concurrent")
 assert.equal(scheduleLaneWaves([read("r1"), read("r2")], policies)[0].length, 2, "2 reads share a wave")
 assert.equal(scheduleLaneWaves([code("c1", { write: ["a"] }), code("c2", { write: ["b"] }), code("c3", { write: ["c"] })], policies)[0].length, 3, "3 owned coding files share a wave")
 assert.equal(scheduleLaneWaves(Array.from({ length: 6 }, (_, i) => code(`c${i}`, { write: [`f${i}`] })), policies)[0].length, 6, "6 coding files share one wave")

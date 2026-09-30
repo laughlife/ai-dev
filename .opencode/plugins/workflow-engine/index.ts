@@ -848,6 +848,9 @@ export default {
         workflow: run?.workflow ?? planned.workflow,
         nodes: run?.nodes ?? [],
         waves: run?.waves ?? [],
+        team_execution_mode: run?.team_execution_mode ?? "SINGLE_TASK",
+        team_execution_required: run?.team_execution_required ?? false,
+        parallel_wave_policy: run?.parallel_wave_policy ?? null,
         rework_cycle: run?.rework_cycle ?? 0,
         verdicts: run?.verdicts ?? [],
         retries: run?.retries ?? [],
@@ -864,7 +867,7 @@ export default {
             ? { lifecycle_preflights: planned.lifecycle_preflights }
             : {}),
         },
-        note: "workflow_execute = workflow_plan + workflow_run (§69)",
+        note: "workflow_execute = workflow_plan + workflow_run (§69); Team Scheduler owns parallel waves",
       }
     }
 

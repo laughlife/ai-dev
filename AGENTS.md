@@ -196,6 +196,10 @@ Perform only the requested stage.
 
 Do not automatically implement future stages.
 
+## 9.1 Team Execution 并行安全（Plan 9 U3）
+
+复杂任务（>=3 implementation nodes、multi-project、code+test+review，或多个独立 read/coding/test package）必须进入 Workflow Engine 的 Team Execution Mode。独立 READY work 在依赖满足且 resources 无冲突时必须并行；没有依赖或资源冲突理由不得串行化。DAG/resources ownership 校验与 Wave 调度由 Workflow Engine / Team Scheduler 负责，主控和 Project Main 不得手工串行等待或施工普通 read/write/test。
+
 Examples:
 
 If asked to initialize folders:

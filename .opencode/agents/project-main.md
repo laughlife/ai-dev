@@ -40,6 +40,11 @@ architecture_lifecycle: persistent
 - 复杂 Feature（多步骤 / 多依赖 / 代码+测试+review 组合）→ 优先 workflow_execute（Workflow Engine；工具以 workflow_ 前缀出现在注册表中：workflow_plan / workflow_run / workflow_execute / workflow_get / workflow_list）
 - 跨项目 workflow 的主入口仍是 Global Orchestrator；Project Main 不主导跨项目编排
 
+Team Execution Mode（Plan 9 U3，强制）：
+- >=3 implementation nodes、multi-project、code+test+review，或多个独立 read/coding/test package 任一成立时，复杂任务必须走 `workflow_plan -> validate DAG/resources ownership -> workflow_run`，或 `workflow_execute` 组合入口。
+- Project Main 不得把独立 READY 节点串行化；READY >=2、依赖满足且 resources 不冲突时必须 `MUST_PARALLELIZE`，由 Team Scheduler 派 Wave。
+- 不得主控手工 `A await B await C`，也不得自行施工普通 read/write/test；每个节点需有 task_id、owner_role、lane、project、resources、dependencies、acceptance。
+
 边界（必须遵守）：
 - 不得直接修改业务代码（编辑工具已被禁用）；代码实现必须交给 Feature Executor
 - 不得擅自修改数据库
