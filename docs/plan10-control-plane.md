@@ -41,6 +41,10 @@ The acceptance harness verifies the dashboard, health, workflow, session,
 architecture, evidence, explicit-apply confirmation, workflow action refusal,
 and lifecycle lock routes against an isolated runtime fixture.
 
+An independent read-only review returned `PASS` after checking localhost
+binding, SQLite read-only access, compiler confirmation, workflow mutation
+boundaries, lifecycle locking, and the static UI/API syntax.
+
 Start it locally with:
 
 ```text

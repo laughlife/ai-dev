@@ -281,6 +281,9 @@ Delivered:
 Evidence:
 - `node --experimental-strip-types .opencode/tests/plan10-control-plane.mjs`
   → `PLAN10_CONTROL_PLANE_PASS`
+- Independent read-only Reviewer: PASS (localhost binding, SQLite read-only
+  projection, explicit architecture confirmation, workflow mutation boundary,
+  lifecycle lock, and UI/API syntax)
 
 Deferred to Plan 11:
 - production authentication and authorization
