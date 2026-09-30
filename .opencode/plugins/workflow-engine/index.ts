@@ -12,9 +12,9 @@
 // runtime/.workflow-test-hooks exists at plugin load (§84/§85, test-only;
 // production surface stays at exactly five tools, §33).
 //
-// Plan 8 T7 adds lifecycle preflight for the two SCOPED session kinds this
-// plugin owns (the workflow planner here + the workflow feature-executor in
-// ./scheduler.ts): before every scoped send, the createLifecycleCore facade
+// Plan 8 T7 adds lifecycle preflight for the scoped session kinds this plugin
+// owns (the workflow planner here + workflow feature-executor/project-reader
+// workers in ./scheduler.ts): before every scoped send, the createLifecycleCore facade
 // (.opencode/lib/lifecycle-core.ts) refreshes verified telemetry and
 // evaluates the framework-config/lifecycle.yaml bands; a rotation happens
 // ONLY when the evaluated lifecycle_state is ROTATE_PENDING/HARD_ROTATE AND
@@ -49,7 +49,7 @@
 //   never guessed, inherited or defaulted (§47).
 //
 // Authority boundaries:
-// - Architecture source of truth: diagrams/multi_agent_framework_v3_workspace.drawio
+// - Architecture source of truth: diagrams/multi_agent_framework_v4_completion_guard.drawio
 // - Runtime data sources (read fresh on every call, nothing hardcoded — §22):
 //   framework-config/workflow.yaml (planner.route, planner.json_repair_attempts)
 //   + projects.yaml / agents.yaml / routing.yaml / task-bus.yaml via bus.loadBusConfig()
@@ -1023,7 +1023,8 @@ export default {
           "nodes, groups them into parallel waves per framework-config/workflow.yaml (safe_routes concurrent, " +
           "project_serial_routes serialized per project via project:<pid>:write lock, global_serial_routes serialized " +
           "via global:<family> lock, unknown routes conservative; Promise.allSettled capped at scheduler.max_parallel), " +
-          "executes code_change/api_code_change nodes in the workflow-scoped feature-executor session and all other " +
+          "executes code_change/api_code_change nodes in scoped feature-executor workers (node-scoped in Team Mode), " +
+           "code_read nodes in scoped project-reader workers in Team Mode, and all other " +
           "routes via the Task Bus, applies execution-class safe retry (retry.safe_routes, max_retries, never-retry " +
           "list wins), runs the Reviewer PASS/FIX/REWORK loop (fresh reviewer session per round, deterministic " +
           "subgraph replay, rework_cycle capped at review.max_rework_cycles) and stops at a terminal state " +

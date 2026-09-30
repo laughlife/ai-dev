@@ -21,7 +21,7 @@
 // (ensureScopedSession / sendScopedSession / archiveScopedSession) on top of
 // the SAME `sessions` table (no ALTER, no new table). Workflow-scoped keys
 // (e.g. `workflow:<id>:planner`,
-// `workflow:<id>:project:<pid>:feature-executor`) are stored verbatim as
+// `workflow:<id>:project:<pid>:feature-executor[:node:<node_id>]`) are stored verbatim as
 // ordinary session_key values. runtime_id must ALWAYS be passed explicitly —
 // a scoped session never guesses, inherits or defaults a model (§47).
 // The existing project-main/project-reader API surface and the five
@@ -938,7 +938,7 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
   // project-main/project-reader surface above is untouched).
   //
   // - Scoped keys (e.g. `workflow:<id>:planner`,
-  //   `workflow:<id>:project:<pid>:feature-executor`) are stored VERBATIM as
+  //   `workflow:<id>:project:<pid>:feature-executor[:node:<node_id>]`) are stored VERBATIM as
   //   ordinary sessions.session_key values — same table, same composite
   //   primary key (session_key, generation), same replaced_by chain. No
   //   ALTER, no new table.

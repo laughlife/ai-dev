@@ -25,14 +25,20 @@ import { dispatchTeamWaves, normalizeTeamExecutionPolicy, isTeamExecutionRequire
 // - mixed waves still respect max_parallel (chunk size).
 //
 // Execution paths:
-// - route code_change / api_code_change → §46/§48 workflow-scoped
-//   feature-executor session (`workflow:<wf>:project:<pid>:feature-executor`,
-//   reused across attempts/rework; model strictly from
+// - route code_change / api_code_change → workflow-scoped feature-executor
+//   sessions. In Team Mode each node owns a stable independent key
+//   (`workflow:<wf>:project:<pid>:feature-executor:node:<node_id>`), reused
+//   across retry/FIX/REWORK. Outside Team Mode the legacy project key
+//   (`workflow:<wf>:project:<pid>:feature-executor`) remains unchanged. Model strictly from
 //   resolveTaskRoleModel — null ⇒ task BLOCKED / MODEL_UNASSIGNED, never
 //   guessed). Task RUNNING transition + sendScopedSession happen inside
 //   bus.withTaskLock(task_id); results are persisted with the shared
 //   bus.buildResult/persistResult/persistBlocked so tasks.db semantics are
 //   identical to the Task Bus.
+// - route code_read → in Team Mode a scoped project-reader worker with a
+//   stable node key; outside Team Mode it stays on bus.dispatchTask and the
+//   persistent project-reader session. Model strictly from the existing
+//   project-reader configuration; null ⇒ BLOCKED / MODEL_UNASSIGNED.
 // - every other route → bus.dispatchTask (existing persistent/ephemeral
 //   paths reused verbatim; reviewer rounds are naturally fresh sessions).
 //
@@ -50,8 +56,8 @@ import { dispatchTeamWaves, normalizeTeamExecutionPolicy, isTeamExecutionRequire
 // (workflow, node) short-circuits the node to FAILED with the forced code —
 // zero model consumption.
 //
-// Plan 8 T7 (lifecycle preflight): before the scoped feature-executor send,
-// executeScopedFeatureNode runs the injected deps.lifecyclePreflight (built
+// Plan 8 T7 (lifecycle preflight): before each scoped worker send,
+// executeScopedWorkerNode runs the injected deps.lifecyclePreflight (built
 // in index.ts on the createLifecycleCore facade) OUTSIDE the task/session
 // locks. It refreshes verified telemetry, evaluates the lifecycle.yaml bands
 // and rotates ONLY when the evaluated lifecycle_state is ROTATE_PENDING /
@@ -92,8 +98,67 @@ export const GLOBAL_ROUTE_FAMILIES: Record<string, string> = {
   long_term_memory_write: "memory",
 }
 
-// Routes executed in the workflow-scoped feature-executor session (§48)
+// Routes executed in workflow-scoped worker sessions (§48 plus Team Mode read)
 export const SCOPED_FEATURE_ROUTES = ["code_change", "api_code_change"]
+export const SCOPED_TEAM_READ_ROUTES = ["code_read"]
+
+/** Pure stable worker-key policy used by Team Mode and its retry/rework paths. */
+export function featureExecutorSessionKey(
+  workflowId: string,
+  projectId: string,
+  nodeId: string,
+  teamMode = false,
+): string {
+  const base = `workflow:${workflowId}:project:${projectId}:feature-executor`
+  return teamMode ? `${base}:node:${nodeId}` : base
+}
+
+export function projectReaderWorkerSessionKey(workflowId: string, projectId: string, nodeId: string): string {
+  return `workflow:${workflowId}:project:${projectId}:project-reader:node:${nodeId}`
+}
+
+export function workerSessionKeyForRoute(
+  workflowId: string,
+  projectId: string,
+  nodeId: string,
+  route: string,
+  teamMode = false,
+): string | null {
+  if (SCOPED_FEATURE_ROUTES.includes(route)) return featureExecutorSessionKey(workflowId, projectId, nodeId, teamMode)
+  if (teamMode && SCOPED_TEAM_READ_ROUTES.includes(route)) return projectReaderWorkerSessionKey(workflowId, projectId, nodeId)
+  return null
+}
+
+export function workerRoleForRoute(route: string, teamMode = false): "feature-executor" | "project-reader" | null {
+  if (SCOPED_FEATURE_ROUTES.includes(route)) return "feature-executor"
+  // code_read always resolves to the existing project-reader role; only the
+  // Team Mode execution scope changes from persistent to a worker key.
+  if (SCOPED_TEAM_READ_ROUTES.includes(route)) return "project-reader"
+  return null
+}
+
+/** Return exact registry keys for all scoped workers belonging to a workflow. */
+export function collectWorkflowWorkerSessionKeys(
+  workflowId: string,
+  planNodes: any[],
+  teamMode: boolean,
+  registryRows: any[] = [],
+): string[] {
+  const keys = new Set<string>()
+  for (const node of Array.isArray(planNodes) ? planNodes : []) {
+    const projectId = typeof node?.project_id === "string" ? node.project_id : ""
+    const nodeId = typeof node?.node_id === "string" ? node.node_id : ""
+    const route = typeof node?.route === "string" ? node.route : ""
+    const key = projectId && nodeId ? workerSessionKeyForRoute(workflowId, projectId, nodeId, route, teamMode) : null
+    if (key) keys.add(key)
+  }
+  const prefix = `workflow:${workflowId}:project:`
+  for (const row of Array.isArray(registryRows) ? registryRows : []) {
+    const key = typeof row?.session_key === "string" ? row.session_key : ""
+    if (key.startsWith(prefix) && (row?.role === "feature-executor" || row?.role === "project-reader")) keys.add(key)
+  }
+  return [...keys].sort()
+}
 
 const MAX_LOOP_ITERATIONS = 1000 // defensive guard; retry/rework budgets are the real bounds
 
@@ -351,7 +416,7 @@ export interface SchedulerDeps {
   // Plan 8 T7: (session_key, info?) -> preflight report; NEVER throws,
   // checkpoint failures are non-blocking; mandatory rotation failures block
   // the send. Called before scoped
-  // feature-executor sends only — never for bus.dispatchTask routes and
+  // scoped worker sends only — never for bus.dispatchTask routes and
   // never for reviewer ephemeral sessions.
   lifecyclePreflight?: ((sessionKey: string, info?: any) => Promise<any>) | null
 }
@@ -373,6 +438,15 @@ export function createScheduler(deps: SchedulerDeps) {
             "WHERE workflow_id = ? AND node_id = ?",
         ),
         taskGet: db.query("SELECT * FROM tasks WHERE task_id = ?"),
+        // Latest registry generation for every scoped worker under this
+        // workflow. The scheduler still archives by each exact key; this
+        // query prevents a project-only key assumption from losing workers.
+        scopedWorkerSessions: db.query(
+          "SELECT s.session_key, s.project_id, s.role, s.generation, s.status " +
+            "FROM sessions s JOIN (SELECT session_key, MAX(generation) AS generation FROM sessions GROUP BY session_key) latest " +
+            "ON latest.session_key = s.session_key AND latest.generation = s.generation " +
+            "WHERE s.role IN ('feature-executor', 'project-reader') AND s.session_key LIKE ? ORDER BY s.session_key",
+        ),
         // READY/BLOCKED → RUNNING is the legal §29 transition; guarded in SQL
         taskSetRunning: db.query("UPDATE tasks SET status = 'RUNNING', updated_at = ? WHERE task_id = ? AND status IN ('READY', 'BLOCKED')"),
       }
@@ -390,7 +464,7 @@ export function createScheduler(deps: SchedulerDeps) {
   // -------------------------------------------------------------------
   // Node execution (one node, inside its wave + lock). Never throws.
   // -------------------------------------------------------------------
-  async function executeNode(wfId: string, nodeRow: any, planNode: any, base: any): Promise<any> {
+  async function executeNode(wfId: string, nodeRow: any, planNode: any, base: any, teamMode: boolean): Promise<any> {
     const taskId = nodeRow.current_task_id
     const startedAt = nowIso()
     try {
@@ -426,9 +500,16 @@ export function createScheduler(deps: SchedulerDeps) {
         }
       }
 
-      // §46/§48: code_change / api_code_change → workflow-scoped feature-executor
+      // §46/§48: code_change / api_code_change → workflow-scoped feature-executor worker
       if (SCOPED_FEATURE_ROUTES.includes(route)) {
-        return await executeScopedFeatureNode(wfId, nodeRow, taskRow, envelope, route, base, startedAt)
+        return await executeScopedWorkerNode(wfId, nodeRow, taskRow, envelope, route, base, startedAt, teamMode, "feature-executor")
+      }
+
+      // Team Mode gives code_read its own scoped worker. Simple task_execute
+      // and non-Team workflow behavior intentionally remain on the Task Bus'
+      // persistent project-reader path below.
+      if (teamMode && SCOPED_TEAM_READ_ROUTES.includes(route)) {
+        return await executeScopedWorkerNode(wfId, nodeRow, taskRow, envelope, route, base, startedAt, true, "project-reader")
       }
 
       // all other routes → existing Task Bus dispatch (persistent/ephemeral)
@@ -461,7 +542,7 @@ export function createScheduler(deps: SchedulerDeps) {
     }
   }
 
-  async function executeScopedFeatureNode(
+  async function executeScopedWorkerNode(
     wfId: string,
     nodeRow: any,
     taskRow: any,
@@ -469,6 +550,8 @@ export function createScheduler(deps: SchedulerDeps) {
     route: string,
     base: any,
     startedAt: string,
+    teamMode: boolean,
+    workerRole: "feature-executor" | "project-reader",
   ): Promise<any> {
     const taskId = nodeRow.current_task_id
     const pid = String(envelope?.project_id ?? taskRow.project_id ?? "")
@@ -479,58 +562,67 @@ export function createScheduler(deps: SchedulerDeps) {
       return { ...base, task_id: taskId, started_at: startedAt, ended_at: nowIso(), kind: "infra", code: "CONFIG_LOAD_FAILED", detail: errMsg(e) }
     }
 
-    // §47: explicit model from config only — null ⇒ BLOCKED, never guess
-    const runtimeId: string | null = bus.resolveTaskRoleModel(cfg, pid, "feature-executor")
+    // §47: explicit model from the existing role configuration only — null
+    // ⇒ BLOCKED, never guess. project-reader resolves from agents[id] while
+    // feature-executor resolves from project_sessions.<project>, exactly as
+    // the Task Bus/runtime registry do.
+    const runtimeId: string | null = bus.resolveTaskRoleModel(cfg, pid, workerRole)
     if (!runtimeId) {
       bus.persistBlocked(
         taskRow,
         envelope,
-        "feature-executor",
+        workerRole,
         "MODEL_UNASSIGNED",
-        `${bus.taskRoleModelSource(pid, "feature-executor")} is null/missing for role 'feature-executor' of project '${pid}'; ` +
+        `${bus.taskRoleModelSource(pid, workerRole)} is null/missing for role '${workerRole}' of project '${pid}'; ` +
           "refusing to create a scoped session, inherit, guess or default a model (§47)",
       )
-      return { ...base, task_id: taskId, started_at: startedAt, ended_at: nowIso(), kind: "blocked", code: "MODEL_UNASSIGNED", detail: "feature-executor model unassigned" }
+      return { ...base, task_id: taskId, started_at: startedAt, ended_at: nowIso(), kind: "blocked", code: "MODEL_UNASSIGNED", detail: `${workerRole} model unassigned` }
     }
 
-    const sessionKey = `workflow:${wfId}:project:${pid}:feature-executor`
+    const sessionKey = workerRole === "feature-executor"
+      ? featureExecutorSessionKey(wfId, pid, nodeRow.node_id, teamMode)
+      : projectReaderWorkerSessionKey(wfId, pid, nodeRow.node_id)
     const project = core.findProject(cfg, pid)
     const ensured: any = await core.ensureScopedSession({
       session_key: sessionKey,
       project_id: pid,
-      role: "feature-executor",
+      role: workerRole,
       runtime_id: runtimeId,
       scope_context: [
         `PROJECT_ID: ${pid}`,
         `PROJECT_PATH: ${typeof project?.path === "string" ? project.path : ""}`,
         `WORKFLOW_ID: ${wfId}`,
         `TASK_ID: ${taskId}`,
-        `TARGET_ROLE: feature-executor`,
+        `TARGET_ROLE: ${workerRole}`,
+        `WORKFLOW_WORKER_NODE_ID: ${nodeRow.node_id}`,
         "",
         "Rules:",
-        "- workflow-scoped feature-executor session created by the workflow-engine plugin (Plan 7 §46/§48)",
+        `- workflow-scoped ${workerRole} worker created by the workflow-engine plugin`,
         `- session location stays at the framework root (${core.root}); project scope comes from this context`,
         `- obey ${core.root}\\AGENTS.md`,
         "- no git pull",
         "- no git push",
-        "- this session is reused across attempts/rework rounds of this workflow and ARCHIVED (not deleted) after the final PASS (§45/§49)",
+        ...(workerRole === "project-reader"
+          ? ["- read-only: no source changes, no DB writes/DDL, no Mem0 writes; stay within this project"]
+          : []),
+        "- this worker is reused across retry/FIX/REWORK for this node and ARCHIVED (not deleted) after workflow execution (§49)",
         "",
         "(Synthetic scope context written by the workflow-engine plugin, Plan 7.)",
       ].join("\n"),
-      title: `[workflow] feature-executor ${wfId.slice(0, 8)} ${pid}`,
+      title: `[workflow] ${workerRole} ${wfId.slice(0, 8)} ${pid} ${nodeRow.node_id}`,
     })
     if (!ensured?.ok) {
       const code = String(ensured?.code ?? ensured?.status ?? "SESSION_ENSURE_FAILED")
       const detail = String(ensured?.detail ?? "scoped session ensure failed")
       if (code === "MODEL_UNASSIGNED" || code === "RUNTIME_ID_UNPARSEABLE") {
-        bus.persistBlocked(taskRow, envelope, "feature-executor", code, detail)
+        bus.persistBlocked(taskRow, envelope, workerRole, code, detail)
         return { ...base, task_id: taskId, started_at: startedAt, ended_at: nowIso(), kind: "blocked", code, detail }
       }
-      persistTaskFailed(taskRow, envelope, route, code, detail, startedAt, nowIso())
+      persistTaskFailed(taskRow, envelope, route, code, detail, startedAt, nowIso(), sessionKey, ensured)
       return { ...base, task_id: taskId, started_at: startedAt, ended_at: nowIso(), kind: "failed", code, detail }
     }
 
-    // --- Plan 8 T7: lifecycle preflight for the scoped feature-executor
+    // --- Plan 8 T7: lifecycle preflight for the scoped worker
     // send. Runs AFTER ensureScopedSession (the sessions row must exist)
     // and BEFORE the task lock + send — never inside the session_key lock
     // (the public lifecycle wrappers acquire it themselves; the lock is
@@ -543,22 +635,24 @@ export function createScheduler(deps: SchedulerDeps) {
       let rep: any = null
       try {
         rep = await lifecyclePreflight(sessionKey, {
-          stage: "feature-executor",
+          stage: workerRole,
           workflow_id: wfId,
           node_id: nodeRow.node_id,
           task_id: taskId,
           project_id: pid,
+          worker_role: workerRole,
+          team_mode: teamMode,
           reused: ensured.reused === true,
         })
       } catch (e: any) {
         // contract says never throws — belt and braces for injected callbacks
-        rep = { ok: false, code: "PREFLIGHT_EXCEPTION", session_key: sessionKey, stage: "feature-executor", skipped: "PREFLIGHT_EXCEPTION", detail: errMsg(e) }
+        rep = { ok: false, code: "PREFLIGHT_EXCEPTION", session_key: sessionKey, stage: workerRole, skipped: "PREFLIGHT_EXCEPTION", detail: errMsg(e) }
       }
       if (isNotableLifecycleReport(rep)) lifecycleField = { lifecycle: compactLifecycleReport(rep) }
       if (rep?.ok === false) {
         const code = String(rep.code ?? "LIFECYCLE_ROTATION_FAILED")
         const detail = String(rep.detail ?? "lifecycle admission blocked this scoped task")
-        bus.persistBlocked(taskRow, envelope, "feature-executor", code, detail)
+        persistScopedBlocked(taskRow, envelope, workerRole, code, detail, sessionKey, ensured)
         return {
           ...base,
           task_id: taskId,
@@ -585,7 +679,7 @@ export function createScheduler(deps: SchedulerDeps) {
         taskId,
         projectId: pid,
         route,
-        targetRole: "feature-executor",
+        targetRole: workerRole,
         status: "COMPLETED",
         sessionId: sent.session_id ?? null,
         sessionGeneration: typeof sent.generation === "number" ? sent.generation : null,
@@ -600,28 +694,64 @@ export function createScheduler(deps: SchedulerDeps) {
     const code = String(sent?.code ?? sent?.status ?? "SEND_FAILED")
     const detail = String(sent?.detail ?? "scoped session send failed")
     if (code === "MODEL_UNASSIGNED") {
-      bus.persistBlocked(taskRow, envelope, "feature-executor", code, detail)
+      persistScopedBlocked(taskRow, envelope, workerRole, code, detail, sessionKey, sent)
       return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "blocked", code, detail, ...lifecycleField }
     }
-    persistTaskFailed(taskRow, envelope, route, code, detail, startedAt, endedAt)
+    persistTaskFailed(taskRow, envelope, route, code, detail, startedAt, endedAt, sessionKey, sent)
     return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "failed", code, detail, session_id: sent?.session_id ?? null, ...lifecycleField }
   }
 
-  function persistTaskFailed(taskRow: any, envelope: any, route: string, code: string, detail: string, startedAt: string, finishedAt: string) {
+  function persistScopedBlocked(
+    taskRow: any,
+    envelope: any,
+    targetRole: string,
+    code: string,
+    detail: string,
+    sessionKey: string,
+    session: any,
+  ) {
+    const ts = nowIso()
+    const result = bus.buildResult({
+      taskId: taskRow.task_id,
+      projectId: String(taskRow.project_id ?? envelope?.project_id ?? ""),
+      route: String(envelope?.route ?? ""),
+      targetRole,
+      status: "BLOCKED",
+      sessionId: session?.session_id ?? null,
+      sessionGeneration: typeof session?.generation === "number" ? session.generation : null,
+      outputText: "",
+      error: `${code}: ${detail}`,
+      startedAt: ts,
+      finishedAt: ts,
+    })
+    bus.persistResult(taskRow.task_id, "BLOCKED", sessionKey, result)
+  }
+
+  function persistTaskFailed(
+    taskRow: any,
+    envelope: any,
+    route: string,
+    code: string,
+    detail: string,
+    startedAt: string,
+    finishedAt: string,
+    sessionKey: string | null = null,
+    session: any = null,
+  ) {
     const result = bus.buildResult({
       taskId: taskRow.task_id,
       projectId: String(taskRow.project_id ?? envelope?.project_id ?? ""),
       route: String(envelope?.route ?? route ?? ""),
       targetRole: taskRow.target_role ?? null,
       status: "FAILED",
-      sessionId: null,
-      sessionGeneration: null,
+      sessionId: session?.session_id ?? null,
+      sessionGeneration: typeof session?.generation === "number" ? session.generation : null,
       outputText: "",
       error: `${code}: ${detail}`,
       startedAt,
       finishedAt,
     })
-    bus.persistResult(taskRow.task_id, "FAILED", taskRow.target_session_key ?? null, result)
+    bus.persistResult(taskRow.task_id, "FAILED", sessionKey ?? taskRow.target_session_key ?? null, result)
   }
 
   // Map a bus.dispatchTask response onto the node-outcome kinds.
@@ -876,22 +1006,6 @@ export function createScheduler(deps: SchedulerDeps) {
       if (ready.length === 0) {
         const allDone = nodeRows.every((r) => NODE_DONE_STATUSES.includes(r.status))
         if (allDone) {
-          // §49: archive every scoped feature-executor session of this
-          // workflow (registry rows ARCHIVED; OpenCode sessions kept).
-          const pids = new Set<string>()
-          for (const n of plan.nodes) {
-            if (SCOPED_FEATURE_ROUTES.includes(String(n?.route ?? "")) && typeof n?.project_id === "string") pids.add(n.project_id)
-          }
-          for (const pid of pids) {
-            const key = `workflow:${wfId}:project:${pid}:feature-executor`
-            let res: any = null
-            try {
-              res = core.archiveScopedSession({ session_key: key })
-            } catch (e: any) {
-              res = { ok: false, code: "ARCHIVE_EXCEPTION", detail: errMsg(e) }
-            }
-            runState.archived_sessions.push({ project_id: pid, session_key: key, archived: !!res?.ok, code: res?.code ?? null })
-          }
           // Reviewer PASS is an execution milestone, not delivery. The
           // Completion Guard owns the later delivery decision; never mark the
           // workflow COMPLETED at this point.
@@ -958,7 +1072,7 @@ export function createScheduler(deps: SchedulerDeps) {
               if (!nodeRow || nodeRow.status !== "READY") {
                 return { ...base, task_id: nodeRow?.current_task_id ?? null, started_at: nowIso(), ended_at: nowIso(), kind: "skipped", code: "NODE_NOT_READY", detail: `node state changed before dispatch (${nodeRow?.status ?? "missing"})` }
               }
-              return executeNode(wfId, nodeRow, planById.get(item.node_id), base)
+              return executeNode(wfId, nodeRow, planById.get(item.node_id), base, teamMode)
             }
             // §42/§43: serial-route executors run inside their lock; safe
             // routes run without any extra lock (true concurrency).
@@ -1048,6 +1162,25 @@ export function createScheduler(deps: SchedulerDeps) {
         stopDetail = `scheduler exceeded ${MAX_LOOP_ITERATIONS} iterations (defensive guard)`
         const ts = nowIso()
         q!.wfFinish.run("FAILED", ts, ts, wfId)
+      }
+    }
+    const finalStatus = q!.wfGet.get(wfId)?.status
+    if (finalStatus === "REVIEW_PASSED" || WORKFLOW_TERMINAL_STATUSES.includes(finalStatus)) {
+      // Archive exact scoped keys for every worker at execution end,
+      // including failures/rework limits, retry generations and legacy keys.
+      // BLOCKED remains resumable, so its workers stay ACTIVE for reuse.
+      const registryRows: any[] = q!.scopedWorkerSessions.all(`workflow:${wfId}:project:%`)
+      const active = new Map(registryRows.filter((r) => r.status === "ACTIVE").map((r) => [r.session_key, r]))
+      for (const key of collectWorkflowWorkerSessionKeys(wfId, plan.nodes, teamMode, registryRows)) {
+        const row: any = active.get(key)
+        if (!row) continue
+        let res: any = null
+        try {
+          res = await core.withLock(key, () => core.archiveScopedSession({ session_key: key }))
+        } catch (e: any) {
+          res = { ok: false, code: "ARCHIVE_EXCEPTION", detail: errMsg(e) }
+        }
+        runState.archived_sessions.push({ project_id: row.project_id, session_key: key, archived: !!res?.ok, code: res?.code ?? null })
       }
     }
     return buildResponse(wfId, runState, stopCode, stopDetail)

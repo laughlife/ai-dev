@@ -14,16 +14,16 @@
 //   (fresh session, old task untouched, review_history round+1); a second
 //   invalid result => caller marks the workflow FAILED / REVIEW_RESULT_INVALID.
 // - PASS (§55): node.last_verdict=PASS, node.status=REVIEW_PASSED. The
-//   caller detects "all nodes done" and archives the scoped feature-executor
-//   sessions (§49) before marking the workflow COMPLETED.
+//   caller detects "all nodes done" and archives all workflow-scoped worker
+//   sessions (§49) before closing execution.
 // - FIX/REWORK (§56-§58): applyRework() bumps rework_cycle (over
 //   workflow.yaml review.max_rework_cycles => REWORK_LIMIT, §59), computes
 //   the affected set with the deterministic computeDescendantSubgraph
 //   (target..gate only — unrelated parallel branches keep their COMPLETED
 //   state), and materializes ONE new task per affected node (findings
 //   appended to the objective, parent = previous task, attempt+1, node back
-//   to READY). The feature-executor scoped session is reused naturally by
-//   the scheduler (same session_key, §45/§56.6).
+//   to READY). The node-scoped worker session is reused naturally by the
+//   scheduler (same stable session_key, §45/§56.6).
 //
 // Test hooks (§84/§85): when a forceVerdict quota exists for the workflow,
 // NO reviewer is dispatched — a real reviewer task row is still created
