@@ -8,7 +8,7 @@ Lifecycle Engine 插件：持久会话的上下文遥测、阈值分带、checkp
 
 - Plugin id: `lifecycle-engine`
 - 工具 namespace：`lifecycle`（生产恰好 5 个工具；marker-gated 测试钩子不算生产工具，见下）
-- Architecture Source of Truth：`diagrams/multi_agent_framework_v3_workspace.drawio`
+- Architecture Source of Truth：`diagrams/multi_agent_framework_v4_completion_guard.drawio`
 - 遥测协议（normative）：`docs/runtime-context-telemetry.md`（OpenCode 2.0.20 实测 VERIFIED）
 - Checkpoint 合同：`templates/checkpoint.schema.json`（schema_version 1）
 - 阈值配置（每次现读、不硬编码）：`framework-config/lifecycle.yaml`

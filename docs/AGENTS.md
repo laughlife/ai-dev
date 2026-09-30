@@ -28,7 +28,7 @@ Do not use docs as a substitute for runtime/.
 
 Architecture descriptions must remain consistent with:
 
-`../diagrams/multi_agent_framework_v3_workspace.drawio`
+`../diagrams/multi_agent_framework_v4_completion_guard.drawio`
 
 When the diagram changes, identify documentation that may need updating.
 

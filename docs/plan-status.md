@@ -234,8 +234,10 @@ Current acceptance:
 - U2 code layer: PASS
 - U3 implementation: PASS
 - U3 static tests: PASS
-- U3 live runtime evidence: `TEAM_EXECUTION_RUNTIME_BLOCKED`
-- U3 final acceptance: BLOCKED pending coding live smoke, negative-control serialization evidence, and independent Reviewer PASS
+- U3 live read runtime evidence: PASS (Desktop V2 `2.0.20`)
+- U3 live coding runtime evidence: PASS (three node-scoped workers with overlap)
+- U3 conflict serialization runtime evidence: PASS (same-resource negative control)
+- U3 final acceptance: BLOCKED pending fresh independent Reviewer PASS only
 - U4–U6: NOT STARTED
 
 ## History Note

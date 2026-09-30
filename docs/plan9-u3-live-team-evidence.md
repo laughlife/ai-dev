@@ -16,36 +16,36 @@ Scope: Plan 9 U3 only. U4 is explicitly out of scope for this document.
 
 | Field | Value |
 | --- | --- |
-| Status | `TEAM_EXECUTION_RUNTIME_BLOCKED` |
-| Live OpenCode Runtime evidence | Desktop V2 session and read-team smoke recorded; coding/negative-control evidence pending |
+| Status | `U3_FINAL_ACCEPTANCE_BLOCKED` |
+| Live OpenCode Runtime evidence | Desktop V2 session, read-team, coding-team, and negative-control evidence complete |
 | Latest runtime probe | Desktop-managed OpenCode V2 `2.0.20`; the earlier PATH `1.1.53` probe is stale/non-V2 and invalid for U3 (see §2.1) |
 | Deterministic harness evidence | present (implementation-level only, see §4) |
-| Date of this assessment | 2026-09-30 |
+| Date of this assessment | 2026-10-01 |
 | Scope | Team Execution Mode parallel safety (U3) |
 
 ## 2. Exact blocker
 
-The Desktop V2 runtime has now executed and returned a qualifying read-team
-workflow. U3 remains blocked because the complete acceptance set has not yet
-been observed. The concrete remaining blockers are:
+The Desktop V2 runtime has now executed qualifying read, coding, and
+same-resource negative-control workflows. U3 final acceptance remains blocked
+only until the corrected evidence is independently reviewed and accepted. The
+remaining gate is:
 
-1. **Coding lane pending.** No qualifying real `code_change` workflow has yet
-   proved three node-scoped Feature Executor sessions in one overlapping wave.
-2. **Negative control pending.** Same-resource write serialization has not yet
-   been captured from a real workflow response.
-3. **Harness cannot substitute.** The available deterministic harnesses run
+1. **Independent final review pending.** Internal workflow validation and
+   reviewer nodes passed, but a fresh independent Reviewer must verify the
+   complete live evidence and documentation before U3 is closed.
+2. **Harness cannot substitute.** The available deterministic harnesses run
    under Node 24 (`--experimental-strip-types`); the DB-backed one imports the
    production `.ts` cores by remapping `bun:sqlite` to the Node `node:sqlite`
    adapter via `register-hooks.mjs`. They prove pure scheduling / contract
    correctness in isolation — not runtime-host dispatch, real scoped sessions,
    or real parallel waves.
-4. **Parallel evidence needs the host.** Acceptable parallel evidence is the
+3. **Parallel evidence needs the host.** Acceptable parallel evidence is the
    runtime-produced `waves[]` (node_ids / parallelism / `started_at` /
    `ended_at`) with genuinely overlapping timestamps between independent,
    non-conflicting lanes. An isolated harness cannot produce or reconstruct
    that observation.
 
-Until (1) and (2) are satisfied with the facts required in §3, the U3 live gate stays
+Until (1) is satisfied with the facts required in §3, the U3 final gate stays
 blocked and must be recorded as `TEAM_EXECUTION_RUNTIME_BLOCKED`. Do not
 down-grade this to a PASS by inference, simulation, or harness output.
 
@@ -70,8 +70,8 @@ Interpretation:
 
 - The earlier `1.1.53` failure (`socket connection was closed unexpectedly`) is
   not evidence about the Desktop V2 runtime.
-- The Desktop V2 session and tool path are healthy. A qualifying read-team run
-  is recorded in §3; coding and negative-control evidence remain outstanding.
+- The Desktop V2 session and tool path are healthy. Qualifying read-team,
+  coding-team, and negative-control runs are recorded in §3.
 
 ## 3. Live evidence template (fill only from a real runtime run)
 
@@ -80,9 +80,9 @@ dry-run, model-synthesised or harness-only results must never be entered here.
 
 | # | workflow_id | Date | Runtime version | Qualifying signal | Waves observed | Overlapping timestamps | Scoped sessions (pid/route) | Reviewer verdict | Evidence pointer |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `0d3835e2-797f-4bf4-b408-e50d3c32b8ef` | 2026-09-30 | OpenCode 2.0.20 | 3 independent non-conflicting `code_read` nodes; `TEAM_EXECUTION` | wave 0; parallelism 3 | 15:20:09.265Z–15:20:48.446Z; all three intervals overlap | 3 scoped `project-reader` workers; task/session details below | Runtime result `REVIEW_PASSED`; independent U3 Reviewer pending | Desktop V2 session record; `workflow_get` + `task_get` |
-| 2 | | | | | | | | | |
-| 3 | | | | | | | | | |
+| 1 | `0d3835e2-797f-4bf4-b408-e50d3c32b8ef` | 2026-09-30 | OpenCode 2.0.20 | 3 independent non-conflicting `code_read` nodes; `TEAM_EXECUTION` | wave 0; parallelism 3 | 15:20:09.265Z–15:20:48.446Z; all three intervals overlap | 3 scoped `project-reader` workers; task/session details below | Runtime `REVIEW_PASSED`; independent final review pending | Desktop V2 session record; `workflow_get` + `task_get` |
+| 2 | `cfc83688-d03d-48ab-b1a0-377e504e1e13` | 2026-09-30 | OpenCode 2.0.20 | 3 independent non-conflicting `code_change` nodes; `TEAM_EXECUTION` | wave 0; parallelism 3 | 15:33:13.634Z–15:39:10.260Z; all three intervals overlap | 3 scoped `feature-executor` workers; details below | Runtime `REVIEW_PASSED`; V1/V2/V3 PASS; independent final review pending | Desktop V2 workflow result |
+| 3 | `9cf538e4-160c-4293-9ba3-b0285e34d4fd` | 2026-09-30 | OpenCode 2.0.20 | same-resource write negative control; `TEAM_EXECUTION` | N1 wave 0, N2 wave 1; parallelism 1 each | N1 end `15:55:02.042Z` < N2 start `15:55:02.043Z` | 2 scoped `feature-executor` workers on identical `resources.write` | Runtime `REVIEW_PASSED`; delivery pending; independent final review pending | Desktop V2 negative-control result |
 
 ### 3.1 Read-team worker evidence
 
@@ -92,9 +92,47 @@ dry-run, model-synthesised or harness-only results must never be entered here.
 | `read-infra-module` | `f5e37d1b-7627-4530-a800-46fc62996f22` | `workflow:0d3835e2-797f-4bf4-b408-e50d3c32b8ef:project:ruoyi-vue-pro:project-reader:node:read-infra-module` | `ses_f0d192ac9ffebz6636TEHj4rgm` | `2026-09-30T15:20:09.267Z` | `2026-09-30T15:20:48.446Z` |
 | `read-admin-vue3-source` | `8130138b-2366-431f-80f7-a72634e5ed5e` | `workflow:0d3835e2-797f-4bf4-b408-e50d3c32b8ef:project:ruoyi-vue-pro:project-reader:node:read-admin-vue3-source` | `ses_f0d192ac8ffeeurjgb9Jr2aQGt` | `2026-09-30T15:20:09.268Z` | `2026-09-30T15:20:37.357Z` |
 
-This is real Desktop V2 runtime evidence for the **read lane only**. It does
-not close U3 by itself: coding overlap, same-resource serialization, archive
-verification, and independent Reviewer PASS remain required.
+This is real Desktop V2 runtime evidence for the **read lane**. Final U3
+closure still requires the independent Reviewer decision below.
+
+### 3.2 Coding-team worker evidence
+
+Workflow `cfc83688-d03d-48ab-b1a0-377e504e1e13` completed with `REVIEW_PASSED`
+in the Desktop V2 runtime. The first wave contained exactly `C1`, `C2`, and
+`C3`, with parallelism `3`, no dependencies, and distinct `resources.write`.
+The runtime wave interval was `2026-09-30T15:33:13.634Z`–
+`2026-09-30T15:39:10.260Z`; all three worker intervals overlap.
+
+| node_id | task_id | scoped session_key | session_id | worker interval |
+| --- | --- | --- | --- | --- |
+| `C1` | `5536cb1c-daba-471f-853c-fcab24fb8967` | `workflow:cfc83688-d03d-48ab-b1a0-377e504e1e13:project:ruoyi-vue-pro:feature-executor:node:C1` | `ses_f0d0d32d8ffeCOqyta3wTiq81A` | `15:33:13.634Z`–`15:37:02.413Z` |
+| `C2` | `f476b464-3c56-4c99-b2d7-1141cff0f923` | `workflow:cfc83688-d03d-48ab-b1a0-377e504e1e13:project:ruoyi-vue-pro:feature-executor:node:C2` | `ses_f0d0d32d7ffehLowzqTDCzlcrf` | `15:33:13.636Z`–`15:37:35.502Z` |
+| `C3` | `8b0993f0-892e-416d-8a70-3c9d63f36b5b` | `workflow:cfc83688-d03d-48ab-b1a0-377e504e1e13:project:ruoyi-vue-pro:feature-executor:node:C3` | `ses_f0d0d32d6ffeLi0C46lO30GGFm` | `15:33:13.637Z`–`15:39:10.260Z` |
+
+All six workflow-scoped worker sessions (three Feature Executors and three
+validation Readers) were returned as `archived: true`. The validation nodes
+V1/V2/V3 each received Reviewer `PASS`. The workers wrote only the temporary
+framework fixtures under `runtime/u3-live-fixtures`; the live results reported
+no business-repository tracked/source changes.
+
+The separate same-resource negative-control workflow
+`9cf538e4-160c-4293-9ba3-b0285e34d4fd` completed with runtime
+`REVIEW_PASSED`. N1 and N2 were assigned to different waves and the recorded
+intervals do not overlap. Its delivery gate remains pending; this document
+does not treat that delivery state as an independent U3 Reviewer verdict.
+
+### 3.3 Negative-control worker evidence
+
+Both nodes declared the identical `resources.write` value:
+`D:/ai-dev/runtime/u3-live-fixtures/fixture-conflict.txt`.
+
+| node_id | task_id | scoped session_key | session_id | wave | interval | archive status |
+| --- | --- | --- | --- | --- | --- | --- |
+| `N1` | `2f9c78bd-8226-499a-976a-181c799b9f7e` | `workflow:9cf538e4-160c-4293-9ba3-b0285e34d4fd:project:ruoyi-vue-pro:feature-executor:node:N1` | `ses_f0cfcbbf8ffeyyOZbW72Y5XiXi` | 0 | `2026-09-30T15:51:12.645Z`–`15:55:02.042Z` | `ARCHIVED` |
+| `N2` | `c79511a4-b615-43c9-a09f-ef0a7dc9e417` | `workflow:9cf538e4-160c-4293-9ba3-b0285e34d4fd:project:ruoyi-vue-pro:feature-executor:node:N2` | `ses_f0cf93be2ffeUaSxwu6gWdvId4` | 1 | `2026-09-30T15:55:02.043Z`–`15:56:27.887Z` | `ARCHIVED` |
+
+The runtime proof is `N1.end < N2.start`; same-resource writes were safely
+serialized in separate waves.
 
 Required per-row facts:
 
@@ -136,10 +174,9 @@ claimed as live OpenCode Runtime or production-session observations.
 
 ## 6. How to unblock
 
-1. Provide a live OpenCode Runtime host with the workflow-engine plugin loaded
+1. A live OpenCode Runtime host with the workflow-engine plugin loaded
    and the required role models configured in `framework-config/agents.yaml`.
-   Health alone is insufficient; the session / workflow tool path must actually
-   accept an invocation (the 2026-09-30 probe in §2.1 failed at this step).
+   has been verified in §2.1; health alone is insufficient.
 2. Invoke `workflow_execute` on a plan that satisfies at least one Team
    Execution Mode complexity signal.
 3. Require the **real `workflow_execute` response** as the only admissible
@@ -153,8 +190,8 @@ claimed as live OpenCode Runtime or production-session observations.
    Nothing else substitutes for these fields. A health check, a session-creation
    attempt, a harness run, or a hand-written value is not admissible.
 4. Enter each observation in the §3 template with an evidence pointer.
-5. Obtain an independent Reviewer PASS over the filled evidence, then update
-   the status field. Do not change the status before step 5.
+5. Obtain an independent Reviewer PASS over the filled evidence, then change
+   the status to `PASS`. The current status remains blocked until step 5.
 
 ## 7. Sign-off
 

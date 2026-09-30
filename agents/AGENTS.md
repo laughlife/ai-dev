@@ -8,7 +8,7 @@ Before creating or modifying any Agent definition:
 
 read:
 
-`../diagrams/multi_agent_framework_v3_workspace.drawio`
+`../diagrams/multi_agent_framework_v4_completion_guard.drawio`
 
 Agent definitions must correspond to the architecture declared by the diagram.
 

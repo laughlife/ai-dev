@@ -9,7 +9,7 @@ Envelope**. Agents are never required to emit JSON themselves.
 
 - Plugin id: `task-bus`
 - Tool namespace: `task` (exactly 5 tools — plan §30)
-- Architecture source of truth: `diagrams/multi_agent_framework_v3_workspace.drawio`
+- Architecture source of truth: `diagrams/multi_agent_framework_v4_completion_guard.drawio`
 - Envelope contracts: `templates/task-envelope.schema.json`,
   `templates/result-envelope.schema.json` (schema_version 1)
 - Config sources (read fresh on every call, nothing hardcoded — §22):
