@@ -216,7 +216,7 @@ Acceptance evidence:
 
 ## Plan 9 Part A + Part B (upper half)
 
-Status: U3_PASS / U4_PASS / U5_PASS / U6 NOT_STARTED
+Status: U3_PASS / U4_PASS / U5_PASS / U6_PASS
 
 Scope:
 - v4 Completion Guard architecture and deterministic execution/delivery checks
@@ -252,7 +252,8 @@ Current acceptance:
 - U5 hardening tests: PASS (`architecture-compiler-hardening.mjs`)
 - U5 independent read-only review: PASS (fallback model used because the
   architecture-defined Reviewer provider was unavailable in the local CLI)
-- U6: NOT STARTED
+- U6 final acceptance: PASS (`PLAN9_FINAL_ACCEPTANCE_PASS`)
+- Execution Kernel v1: FROZEN
 
 ## History Note
 
@@ -263,4 +264,5 @@ Commit messages were rewritten to Chinese on 2026-09-29. Hashes after e0bc30c di
 - persistent Session Registry: implemented in Plan 5
 - full Task Bus runtime: implemented in Plan 6 (core; DAG scheduler implemented in Plan 7 Workflow Engine)
 - Plan 8 live Desktop UI evidence and dedicated real-runtime rotation evidence
-- Plan 9 lower half: Documentation/Memory PASS automation, production E2E, WMS feature E2E, rollback exercise, final v1 release gate
+- Plan 10: Control Plane/UI
+- Plan 11: production acceptance and Framework v1 release gate
