@@ -1700,7 +1700,13 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
     let latest: any = q.latest.get(key)
     if (latest && latest.status === "ACTIVE") {
       const alive = await probeSessionAlive(latest.opencode_session_id)
-      if (alive && input?.force !== true) {
+      // Restore is a recovery path, never a replacement path.  Even an
+      // explicit force request must not create a successor while the latest
+      // ACTIVE OpenCode session is alive; callers that intentionally replace
+      // a live generation must use rotateSession instead.  Keeping this
+      // guard before checkpoint loading also guarantees no session is created
+      // and no orphan can be left behind.
+      if (alive) {
         return {
           ok: false,
           status: "RESTORE_NOT_NEEDED",
@@ -1708,7 +1714,7 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
           session_key: key,
           session_id: latest.opencode_session_id,
           generation: latest.generation,
-          detail: "latest generation is ACTIVE and its OpenCode session is alive; restore would create a needless generation",
+          detail: "latest generation is ACTIVE and its OpenCode session is alive; restore never replaces a live generation (use lifecycle_rotate)",
         }
       }
       if (!alive) {
