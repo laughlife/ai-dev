@@ -813,7 +813,7 @@ export function createRotationCore(ctx: any, runtimeCore: any, options?: Rotatio
         generation: toGeneration,
         opencode_session_id: successorId,
         event_type: "ROTATION_COMMITTED",
-        context_pct,
+        context_pct: contextPct,
         checkpoint_path: checkpointPath,
         details: {
           rotation_id: rotationId,

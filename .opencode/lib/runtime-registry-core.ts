@@ -163,6 +163,53 @@ function migrateSessionsToV2(db: any): string[] {
   }
 }
 
+const LIFECYCLE_EVENT_COLUMNS = [
+  "event_id", "session_key", "generation", "opencode_session_id", "event_type",
+  "context_pct", "checkpoint_path", "details_json", "created_at",
+]
+const LIFECYCLE_ROTATION_COLUMNS = [
+  "rotation_id", "session_key", "from_generation", "from_session_id", "to_generation",
+  "checkpoint_path", "successor_session_id", "status", "error", "created_at", "updated_at",
+]
+
+function tableColumns(db: any, table: string): Set<string> {
+  return new Set((db.prepare(`PRAGMA table_info(${table})`).all() as any[]).map((c: any) => String(c?.name)))
+}
+
+/** Repair only empty incompatible draft lifecycle tables; never discard audit data. */
+function ensureLifecycleSchema(db: any, schemaFile: string): { applied: boolean; repaired: boolean; detail: string | null } {
+  if (!fs.existsSync(schemaFile)) return { applied: false, repaired: false, detail: `file not found: ${schemaFile}` }
+  const sql = fs.readFileSync(schemaFile, "utf8")
+  db.exec(sql)
+  const events = tableColumns(db, "lifecycle_events")
+  const rotations = tableColumns(db, "lifecycle_rotations")
+  const shapeOk = LIFECYCLE_EVENT_COLUMNS.every((c) => events.has(c)) && LIFECYCLE_ROTATION_COLUMNS.every((c) => rotations.has(c))
+  if (shapeOk) return { applied: true, repaired: false, detail: null }
+
+  const eventCount = Number(db.query("SELECT COUNT(*) AS count FROM lifecycle_events").get()?.count ?? 0)
+  const rotationCount = Number(db.query("SELECT COUNT(*) AS count FROM lifecycle_rotations").get()?.count ?? 0)
+  if (eventCount > 0 || rotationCount > 0) {
+    throw new Error(`LIFECYCLE_SCHEMA_DIVERGED: incompatible lifecycle tables contain data (events=${eventCount}, rotations=${rotationCount}); refusing destructive migration`)
+  }
+
+  db.exec("BEGIN IMMEDIATE")
+  try {
+    db.exec("DROP TABLE IF EXISTS lifecycle_events")
+    db.exec("DROP TABLE IF EXISTS lifecycle_rotations")
+    db.exec(sql)
+    const repairedEvents = tableColumns(db, "lifecycle_events")
+    const repairedRotations = tableColumns(db, "lifecycle_rotations")
+    if (!LIFECYCLE_EVENT_COLUMNS.every((c) => repairedEvents.has(c)) || !LIFECYCLE_ROTATION_COLUMNS.every((c) => repairedRotations.has(c))) {
+      throw new Error("LIFECYCLE_SCHEMA_DIVERGED: schema file did not create required Plan 8 columns")
+    }
+    db.exec("COMMIT")
+    return { applied: true, repaired: true, detail: "recreated empty incompatible lifecycle tables" }
+  } catch (e) {
+    try { db.exec("ROLLBACK") } catch {}
+    throw e
+  }
+}
+
 // Plan 8 §6 migration evidence. Missing workflow tables are represented as
 // null because the workflow plugin may not have initialized them yet; rows in
 // tables that do exist are counted before and after the additive migration.
@@ -312,6 +359,7 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     schema_version: string
     sessions_columns_added: string[]
     lifecycle_schema_applied: boolean
+    lifecycle_schema_repaired: boolean
     lifecycle_schema_skipped_reason: string | null
     row_counts_before: Record<string, number | null>
     row_counts_after: Record<string, number | null>
@@ -319,6 +367,7 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     schema_version: SCHEMA_VERSION,
     sessions_columns_added: [],
     lifecycle_schema_applied: false,
+    lifecycle_schema_repaired: false,
     lifecycle_schema_skipped_reason: null,
     row_counts_before: {},
     row_counts_after: {},
@@ -339,14 +388,10 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     // existing v1 databases gain ONLY the missing columns via ALTER TABLE
     // ADD COLUMN inside BEGIN IMMEDIATE (row data never touched).
     schemaMigration.sessions_columns_added = migrateSessionsToV2(db)
-    // Plan 8 T3: lifecycle tables (all CREATE ... IF NOT EXISTS). A missing
-    // schema file is not an error — existing plugins keep working unchanged.
-    if (fs.existsSync(lifecycleSchemaFile)) {
-      db.exec(fs.readFileSync(lifecycleSchemaFile, "utf8"))
-      schemaMigration.lifecycle_schema_applied = true
-    } else {
-      schemaMigration.lifecycle_schema_skipped_reason = `file not found: ${lifecycleSchemaFile}`
-    }
+    const lifecycleSchema = ensureLifecycleSchema(db, lifecycleSchemaFile)
+    schemaMigration.lifecycle_schema_applied = lifecycleSchema.applied
+    schemaMigration.lifecycle_schema_repaired = lifecycleSchema.repaired
+    schemaMigration.lifecycle_schema_skipped_reason = lifecycleSchema.detail
     schemaMigration.row_counts_after = snapshotRowCounts(db)
     // stamped LAST: schema_version = 2 is only recorded after the base
     // schema, the sessions migration and the lifecycle tables all succeeded

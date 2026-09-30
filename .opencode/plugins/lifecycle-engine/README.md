@@ -24,7 +24,7 @@ Lifecycle Engine 插件：持久会话的上下文遥测、阈值分带、checkp
 
 共享实现（非本插件私有）：
 .opencode/lib/lifecycle-core.ts       T4 facade：telemetry / 分带 / checkpoint / rotation / restore / reconcile
-.opencode/lib/lifecycle/*.ts          拆分模块（C 系列：telemetry / state-machine / checkpoint / rotation / reconcile）
+.opencode/lib/lifecycle/*.ts          state-machine / rotation / reconcile 共享模块；telemetry、checkpoint、types 保留为离线合同与测试参考，生产 facade 的兼容边界仍在 lifecycle-core.ts
 .opencode/lib/global-lock.ts          进程级 per-session_key 锁（与 runtime core withLock 同一把锁）
 ```
 
@@ -56,7 +56,7 @@ Lifecycle Engine 插件：持久会话的上下文遥测、阈值分带、checkp
   pct = `Math.round(total/limit*100)` — 与 Desktop UI 逐字节同式。
 - 明确禁止（`approximation_allowed: false` 为 Plan 8 常设规则）：字符/4、
   本地 tokenizer、session 累计 tokens 当上下文、按模型名猜窗口、任何
-  fallback 数值。拿不到就返回 `null` / `TELEMETRY_UNAVAILABLE`，
+  fallback 数值。拿不到就返回 `null` / `TELEMETRY_UNAVAILABLE` 状态（保留上次已验证列值），
   **永不伪造数字**；实测缺失时不清掉上一次已验证样本。
 - 分带阈值只在 `framework-config/lifecycle.yaml`（60 / 60-70 / 70 / 80），
   每次调用现读；配置缺失/非法即结构化失败，代码内无任何 band 字面量。
@@ -136,7 +136,8 @@ lifecycle 换代只针对 `framework.yaml` 声明的持久管理角色
 共用 `runtime/tasks.db`（经共享 runtime core 的既有 db 句柄；不另开库、不改
 `sessions` / `tasks` 结构）。
 
-- `lifecycle_events`：append-only 账本（TELEMETRY_SAMPLE / TELEMETRY_UNAVAILABLE /
+- `lifecycle_events`：append-only 账本（当前实现统一写入 `TELEMETRY_SAMPLE`，其中
+  `stored:false` 表示本次无法取得完整验证值；另有 checkpoint/rotation 状态事件 /
   LIFECYCLE_STATE_CHANGED / CHECKPOINT_WRITTEN / CHECKPOINT_REUSED /
   ROTATION_STARTED / ROTATION_COMMITTED / ROTATION_FAILED / ROTATION_RECONCILED /
   SESSION_RESTORED / SESSION_RESTORE_FAILED），行只插入不更新；事件插入失败
@@ -156,7 +157,6 @@ lifecycle 换代只针对 `framework.yaml` 声明的持久管理角色
 | ROTATION_TELEMETRY_UNAVAILABLE / ROTATION_NOT_DUE | 无验证 pct 且未 force；分带未达换代线 |
 | ROTATION_CHECKPOINT_FAILED / MODEL_UNASSIGNED / SESSION_CREATE_FAILED / SESSION_INIT_FAILED / ROTATION_COMMIT_FAILED | 换代各阶段失败；旧代保持 ACTIVE，rotation 落 FAILED |
 | RESTORE_NOT_NEEDED / RESTORE_CHECKPOINT_NOT_FOUND / RESTORE_CHECKPOINT_FILE_MISSING / RESTORE_CHECKPOINT_UNPARSEABLE / RESTORE_CHECKPOINT_INVALID / RESTORE_STATE_CONFLICT / RESTORE_REGISTER_FAILED | 恢复前置与校验（无 checkpoint 不恢复；非 v1/非本 key 拒用） |
-| HOOK_NOT_ENABLED | 无标记文件时调用 hook 处理器（理论不可达：工具未注册） |
 
 ## 契约
 

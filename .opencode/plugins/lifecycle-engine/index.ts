@@ -28,8 +28,8 @@
 //   on every evaluation (the 60/70/80 bands are never hardcoded here).
 // - Checkpoint contract: templates/checkpoint.schema.json v1; instances live
 //   under runtime/checkpoints/<sanitized-session-key>/gen-XXXX-<id>.json.
-// - MANUAL API only (T5A): no hooks, no event subscriptions, nothing rotates
-//   automatically (framework.yaml automatic_lifecycle_rotation stays false).
+// - Manual lifecycle API plus observation-only context/compaction hooks (T5C):
+//   hooks never rotate or block prompts; automatic rotation remains disabled.
 // - Mem0 is never called (checkpoints carry mem0 restore REFERENCES only);
 //   git access inside the core is strictly read-only.
 //
@@ -313,7 +313,8 @@ export default {
         name: "lifecycle_rotate",
         description:
           "Rotate a session generation (the MANUAL Plan 8 rotation API): forced fresh checkpoint -> successor " +
-          "OpenCode session (create -> switchAgent -> switchModel from the stored model_runtime_id -> synthetic " +
+          "OpenCode session (create -> switchAgent -> resolve the configured runtime model, falling back to the stored " +
+          "model_runtime_id -> synthetic " +
           "ROTATION_HANDOFF message built from the checkpoint file) -> register the successor row (status " +
           "ACTIVE, lifecycle_state HANDOFF_READY) -> archive the old generation (replaced_by + checkpoint_path " +
           "set) -> rotation COMMITTED. Progress is persisted phase-by-phase in lifecycle_rotations " +
@@ -361,9 +362,8 @@ export default {
         name: "lifecycle_reconcile",
         description:
           "Crash recovery for the rotation ledger: resolves every incomplete rotation (status PREPARING / " +
-          "SUCCESSOR_CREATED / INITIALIZED). Rules: COMMIT when the successor generation row is already " +
-          "registered (ledger settled), ADOPT an INITIALIZED successor only when its OpenCode session is " +
-          "verifiably alive (register the row, archive the old generation, COMMITTED); otherwise ABANDON " +
+          "SUCCESSOR_CREATED / INITIALIZED). Rules: COMMIT only when the successor generation row is already " +
+          "registered and matches the ledger's successor session id; otherwise ABANDON safely " +
           "(rotation FAILED, old generation stays ACTIVE with lifecycle_state ROTATION_FAILED). Never creates a " +
           "new successor and never deletes a session — half-initialized successors are kept for audit. Each " +
           "affected session_key is processed under the process-global lock and every rotation row is re-read " +
@@ -424,8 +424,8 @@ export default {
     // Teardown: close the ONE shared runtime core (it owns the runtime/tasks.db
     // handle). The lifecycle core never opens its own database, so there is
     // nothing else to close.
-    return () => {
-      void disposeLifecycleObservationHooks(observationHooks)
+    return async () => {
+      await disposeLifecycleObservationHooks(observationHooks)
       core.close()
     }
   },

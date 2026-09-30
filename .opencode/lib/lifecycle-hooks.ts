@@ -28,18 +28,26 @@ export async function registerLifecycleObservationHooks(ctx: any, lifecycleCore:
 
   if (typeof ctx?.session?.hook !== "function") return registrations
 
-  const contextRegistration = await ctx.session.hook("context", async (event: any) => {
-    await sampleSession(event?.sessionID, "context-hook")
-  })
-  if (contextRegistration) registrations.push(contextRegistration)
+  try {
+    const contextRegistration = await ctx.session.hook("context", async (event: any) => {
+      await sampleSession(event?.sessionID, "context-hook")
+    })
+    if (contextRegistration) registrations.push(contextRegistration)
+  } catch (e: any) {
+    console.warn(`[lifecycle-hooks] context hook unavailable: ${e?.message ?? String(e)}`)
+  }
 
-  const compactionRegistration = await ctx.session.hook("compaction", async (event: any) => {
-    // This is intentionally an observation before the compaction request. The
-    // following context hook samples the post-compaction view; no stale sample
-    // is used for rotation and no hook performs threshold mutation.
-    await sampleSession(event?.sessionID, "compaction-boundary-hook")
-  })
-  if (compactionRegistration) registrations.push(compactionRegistration)
+  try {
+    const compactionRegistration = await ctx.session.hook("compaction", async (event: any) => {
+      // This is intentionally an observation before the compaction request. The
+      // following context hook samples the post-compaction view; no stale sample
+      // is used for rotation and no hook performs threshold mutation.
+      await sampleSession(event?.sessionID, "compaction-boundary-hook")
+    })
+    if (compactionRegistration) registrations.push(compactionRegistration)
+  } catch (e: any) {
+    console.warn(`[lifecycle-hooks] compaction hook unavailable: ${e?.message ?? String(e)}`)
+  }
 
   return registrations
 }

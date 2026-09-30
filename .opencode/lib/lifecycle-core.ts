@@ -58,6 +58,7 @@ import { globalWithLock } from "./global-lock.ts"
 import { parseRuntimeId } from "./runtime-registry-core.ts"
 import { createRotationCore } from "./lifecycle/rotation.ts"
 import { createReconcileCore } from "./lifecycle/reconcile.ts"
+import { parseThresholds, classifyLifecycleState } from "./lifecycle/state-machine.ts"
 
 // --- Plan 8 vocabulary (exported for the future plugin/tools & tests) ---
 export const LIFECYCLE_STATES = [
@@ -166,14 +167,14 @@ export function sanitizeSessionKey(key: string): string {
 // TokenUsage.Info sum per the VERIFIED UI-identical formula:
 // input + output + reasoning + cache.read + cache.write (disjoint counters;
 // cache.write is added even though it measured 0 across the installed DB —
-// docs/runtime-context-telemetry.md §3/§3.1). Returns null when no tokens
-// object is present (in-flight/streaming assistant messages), never 0-as-
-// fabrication: missing sub-fields of a PRESENT tokens object coerce to 0
-// exactly like the UI's arithmetic on the same shape.
+// docs/runtime-context-telemetry.md §3/§3.1). Returns null when the usage
+// object is absent or malformed; a partial token payload is never completed
+// with guessed zeroes under the no-estimation policy.
 export function sumTokenUsage(tokens: any): number | null {
   if (!tokens || typeof tokens !== "object") return null
-  const n = (v: any) => (typeof v === "number" && Number.isFinite(v) ? v : 0)
-  return n(tokens.input) + n(tokens.output) + n(tokens.reasoning) + n(tokens.cache?.read) + n(tokens.cache?.write)
+  const values = [tokens.input, tokens.output, tokens.reasoning, tokens.cache?.read, tokens.cache?.write]
+  if (values.some((v) => typeof v !== "number" || !Number.isFinite(v))) return null
+  return values.reduce((sum, value) => sum + value, 0)
 }
 
 // findLast(type == "assistant" && !!tokens) — the exact UI lookup
@@ -210,26 +211,15 @@ export function computeContextPercent(tokens: number | null, limit: number | nul
 // Returns null when ANY band value is missing/non-numeric — there are no
 // defaults and no hardcoded 60/70/80 anywhere in this file.
 export function parseLifecycleThresholds(cfg: any): LifecycleThresholds | null {
-  const cr = cfg?.context_rotation
-  if (!cr || typeof cr !== "object") return null
-  const t: Record<string, number | null> = {
-    continue_reuse_below_percent: num(cr.continue_reuse_below_percent),
-    checkpoint_from_percent: num(cr.checkpoint_prepare?.from_percent),
-    checkpoint_to_percent: num(cr.checkpoint_prepare?.to_percent),
-    rotate_after_atomic_step_at_percent: num(cr.rotate_after_atomic_step_at_percent),
-    hard_stop_new_tasks_at_percent: num(cr.hard_stop_new_tasks_at_percent),
+  const parsed = parseThresholds(cfg)
+  if (!parsed.ok) return null
+  return {
+    continue_reuse_below_percent: parsed.thresholds.continue_reuse_below_percent,
+    checkpoint_from_percent: parsed.thresholds.checkpoint_prepare_from_percent,
+    checkpoint_to_percent: parsed.thresholds.checkpoint_prepare_to_percent,
+    rotate_after_atomic_step_at_percent: parsed.thresholds.rotate_after_atomic_step_at_percent,
+    hard_stop_new_tasks_at_percent: parsed.thresholds.hard_stop_new_tasks_at_percent,
   }
-  for (const v of Object.values(t)) if (v == null) return null
-  const values = t as unknown as LifecycleThresholds
-  if (
-    !(values.continue_reuse_below_percent > 0) ||
-    values.continue_reuse_below_percent !== values.checkpoint_from_percent ||
-    values.checkpoint_from_percent > values.checkpoint_to_percent ||
-    values.checkpoint_to_percent > values.rotate_after_atomic_step_at_percent ||
-    values.rotate_after_atomic_step_at_percent > values.hard_stop_new_tasks_at_percent ||
-    !(values.hard_stop_new_tasks_at_percent < 100)
-  ) return null
-  return values
 }
 
 // Map a verified context_pct onto the configured bands. Pure function of
@@ -240,19 +230,33 @@ export function resolveLifecycleBand(
   pct: number | null,
   t: LifecycleThresholds,
 ): { band: string; state: string | null; recommended_action: string } {
-  if (pct == null || !Number.isFinite(pct)) {
+  const classification = classifyLifecycleState(pct, {
+    continue_reuse_below_percent: t.continue_reuse_below_percent,
+    checkpoint_prepare_from_percent: t.checkpoint_from_percent,
+    checkpoint_prepare_to_percent: t.checkpoint_to_percent,
+    rotate_after_atomic_step_at_percent: t.rotate_after_atomic_step_at_percent,
+    hard_stop_new_tasks_at_percent: t.hard_stop_new_tasks_at_percent,
+  })
+  if (classification.state === null) {
     return { band: "UNKNOWN", state: null, recommended_action: "NONE_TELEMETRY_UNAVAILABLE" }
   }
-  if (pct < t.checkpoint_from_percent) {
-    return { band: "BELOW_CHECKPOINT_BAND", state: "ACTIVE", recommended_action: "CONTINUE_REUSE" }
+  const bandByState: Record<string, string> = {
+    ACTIVE: "BELOW_CHECKPOINT_BAND",
+    CHECKPOINT_READY: "CHECKPOINT_PREPARE",
+    ROTATE_PENDING: "ROTATE_AFTER_ATOMIC_STEP",
+    HARD_ROTATE: "HARD_STOP_NEW_TASKS",
   }
-  if (pct < t.rotate_after_atomic_step_at_percent) {
-    return { band: "CHECKPOINT_PREPARE", state: "CHECKPOINT_READY", recommended_action: "PREPARE_CHECKPOINT" }
+  const actionByState: Record<string, string> = {
+    ACTIVE: "CONTINUE_REUSE",
+    CHECKPOINT_READY: "PREPARE_CHECKPOINT",
+    ROTATE_PENDING: "ROTATE_AFTER_ATOMIC_STEP",
+    HARD_ROTATE: "HARD_ROTATE",
   }
-  if (pct < t.hard_stop_new_tasks_at_percent) {
-    return { band: "ROTATE_AFTER_ATOMIC_STEP", state: "ROTATE_PENDING", recommended_action: "ROTATE_AFTER_ATOMIC_STEP" }
+  return {
+    band: bandByState[classification.state] ?? "UNKNOWN",
+    state: classification.state,
+    recommended_action: actionByState[classification.state] ?? "NONE_TELEMETRY_UNAVAILABLE",
   }
-  return { band: "HARD_STOP_NEW_TASKS", state: "HARD_ROTATE", recommended_action: "HARD_ROTATE" }
 }
 
 // Best-effort secret scrubbing for anything derived from conversation text
@@ -321,7 +325,22 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
     }
   }
 
-  const lifecycleTablesReady = tableExists("lifecycle_events") && tableExists("lifecycle_rotations")
+  function columns(name: string): Set<string> {
+    if (!db) return new Set()
+    try {
+      return new Set((db.prepare(`PRAGMA table_info(${name})`).all() as any[]).map((c: any) => String(c?.name)))
+    } catch {
+      return new Set()
+    }
+  }
+
+  const lifecycleEventCols = columns("lifecycle_events")
+  const lifecycleRotationCols = columns("lifecycle_rotations")
+  const lifecycleTablesReady =
+    tableExists("lifecycle_events") &&
+    tableExists("lifecycle_rotations") &&
+    ["event_id", "session_key", "generation", "opencode_session_id", "event_type", "context_pct", "checkpoint_path", "details_json", "created_at"].every((c) => lifecycleEventCols.has(c)) &&
+    ["rotation_id", "session_key", "from_generation", "from_session_id", "to_generation", "checkpoint_path", "successor_session_id", "status", "error", "created_at", "updated_at"].every((c) => lifecycleRotationCols.has(c))
   const sessionsCols = sessionsColumns()
   const telemetryColumnsReady = [
     "context_tokens",
@@ -455,8 +474,8 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
     if (!lifecycleTablesReady) {
       return failure(
         "LIFECYCLE_SCHEMA_UNAVAILABLE",
-        "lifecycle_events / lifecycle_rotations are missing in runtime/tasks.db " +
-          "(apply .opencode/plugins/lifecycle-engine/schema.sql via the shared runtime core first — Plan 8 T3)",
+        "lifecycle_events / lifecycle_rotations are missing or schema-diverged in runtime/tasks.db " +
+          "(apply the Plan 8 lifecycle schema via the shared runtime core; non-empty incompatible tables are refused)",
       )
     }
     if (!telemetryColumnsReady) {
@@ -697,6 +716,7 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
       model_key: m.model_key,
       reason: m.reason,
       stored: m.context_tokens != null,
+      observation_source: typeof input?.observation_source === "string" ? input.observation_source : null,
     })
     const measured = m.context_tokens != null
     return {
@@ -1001,7 +1021,7 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
           "",
           digest,
         ].join("\n")
-           const res: any = await ctx.session.generate({ sessionID: row.opencode_session_id, prompt })
+           const res: any = await ctx.session.generate({ prompt })
         const text = extractGenerateText(res)
         if (text) {
           const summary = redactSecrets(text).slice(0, SUMMARY_MAX_CHARS)
