@@ -1,6 +1,6 @@
-// Deterministic Completion Guard (Plan 9 Part A).
-// It reads runtime state and returns evidence; it never invokes an Agent and
-// never mutates the workflow/task database.
+// Deterministic Completion Guard (Plan 9 Part A + U4).
+// It never invokes an Agent. Read-only checks return evidence; the explicit
+// finalize operation is the sole guarded workflow-closing mutation.
 
 const NODE_SUCCESS = new Set(["COMPLETED", "REVIEW_PASSED"])
 const ACTIVE_TASK = new Set(["READY", "RUNNING", "BLOCKED"])
