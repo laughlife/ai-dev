@@ -52,9 +52,12 @@ export function createCompletionCore(runtimeCore: any) {
         const depRow: any = byId.get(dep)
         if (!depRow || !NODE_SUCCESS.has(depRow.status)) missing.push({ node_id: nodeId, dependency: dep, reason: "DEPENDENCY_NOT_COMPLETE" })
       }
-      if (row?.current_task_id) {
+      if (!row?.current_task_id) {
+        missing.push({ node_id: nodeId, reason: "NODE_TASK_MISSING" })
+      } else {
         const task: any = db.query("SELECT task_id,status FROM tasks WHERE task_id = ?").get(row.current_task_id)
-        if (task && !TERMINAL_TASK.has(task.status)) missing.push({ node_id: nodeId, task_id: task.task_id, status: task.status, reason: ACTIVE_TASK.has(task.status) ? "ACTIVE_CHILD_TASK" : "CHILD_TASK_NOT_SUCCESS" })
+        if (!task) missing.push({ node_id: nodeId, task_id: row.current_task_id, reason: "NODE_TASK_MISSING" })
+        else if (!TERMINAL_TASK.has(task.status)) missing.push({ node_id: nodeId, task_id: task.task_id, status: task.status, reason: ACTIVE_TASK.has(task.status) ? "ACTIVE_CHILD_TASK" : "CHILD_TASK_NOT_SUCCESS" })
       }
     }
     for (const row of rows) if (!planById.has(row.node_id)) missing.push({ node_id: row.node_id, reason: "UNPLANNED_WORKFLOW_NODE" })

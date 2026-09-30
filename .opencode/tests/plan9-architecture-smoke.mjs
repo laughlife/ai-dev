@@ -29,6 +29,9 @@ for (const [id, status, task] of [["t1", "COMPLETED", "q1"], ["t2", "RUNNING", "
 const dbAdapter = { query(sql) { const statement = db.prepare(sql); return { get: (...args) => statement.get(...args), all: (...args) => statement.all(...args) } } }
 const guard = createCompletionCore({ db: dbAdapter })
 assert.notEqual(guard.executionCheck({ workflow_id: "wf" }).status, "EXECUTION_COMPLETE")
+db.prepare("UPDATE workflow_nodes SET current_task_id='missing' WHERE workflow_id='wf' AND node_id='t1'").run()
+assert.notEqual(guard.executionCheck({ workflow_id: "wf" }).status, "EXECUTION_COMPLETE")
+db.prepare("UPDATE workflow_nodes SET current_task_id='q1' WHERE workflow_id='wf' AND node_id='t1'").run()
 db.prepare("UPDATE workflows SET status='REVIEW_PASSED' WHERE workflow_id='wf'").run()
 db.prepare("UPDATE workflow_nodes SET status='REVIEW_PASSED', last_verdict='PASS' WHERE workflow_id='wf'").run()
 db.prepare("UPDATE tasks SET status='COMPLETED'").run()

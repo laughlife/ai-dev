@@ -21,7 +21,12 @@ export function generateFrameworkConfig(root: string, ir: any, semantic: string,
   lifecycle.roles ??= {}; for (const a of ir.agents) lifecycle.roles[a.id] = { ...(lifecycle.roles[a.id] ?? {}), lifecycle: a.lifecycle }
   const projects = read(root, "projects.yaml")
   const projectIds = new Set((projects.projects ?? []).map((x: any) => x.id))
-  for (const p of ir.projects) if (!projectIds.has(p.id)) throw new Error(`PROJECT_MAPPING_MISSING:${p.id}`)
+  for (const p of ir.projects) {
+    if (!projectIds.has(p.id)) throw new Error(`PROJECT_MAPPING_MISSING:${p.id}`)
+    const target: any = (projects.projects ?? []).find((x: any) => x.id === p.id)
+    if (p.path) target.path = p.path
+    if (p.project_type) target.project_type = p.project_type
+  }
   const routing = read(root, "routing.yaml")
   routing.routes ??= {}
   for (const r of ir.routes) {

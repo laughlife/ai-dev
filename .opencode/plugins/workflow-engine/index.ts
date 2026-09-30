@@ -142,6 +142,7 @@ export default {
             ),
             setPlanJson: core.db.query("UPDATE workflows SET plan_json = ?, updated_at = ? WHERE workflow_id = ?"),
             markReady: core.db.query("UPDATE workflows SET status = 'READY', updated_at = ? WHERE workflow_id = ?"),
+            setBlocked: core.db.query("UPDATE workflows SET status = 'BLOCKED', updated_at = ? WHERE workflow_id = ?"),
             markFailed: core.db.query(
               "UPDATE workflows SET status = 'FAILED', updated_at = ?, finished_at = ? WHERE workflow_id = ?",
             ),
@@ -446,7 +447,7 @@ export default {
         return { ok: false, status: "FAILED", code, detail, workflow_id: workflowId, ...(extra ?? {}) }
       }
       const markBlocked = (code: string, detail: string, extra?: Record<string, unknown>) => {
-        try { wq!.wfSetStatus.run("BLOCKED", nowIso(), workflowId) } catch {}
+        wq!.setBlocked.run(nowIso(), workflowId)
         return { ok: false, status: "BLOCKED", code, detail, workflow_id: workflowId, ...(extra ?? {}) }
       }
 
