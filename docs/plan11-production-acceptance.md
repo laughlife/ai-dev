@@ -1,0 +1,41 @@
+# Plan 11 — Production Acceptance + Framework v1
+
+Status: `BLOCKED`
+
+The deterministic release gate is implemented and currently fails closed. It
+does not treat local Node harnesses or the Control Plane screenshot as live
+production evidence.
+
+## Gate checks
+
+Run:
+
+```text
+node --experimental-strip-types tools/production-acceptance/gate.mjs
+```
+
+Current result:
+
+```text
+PLAN11_PRODUCTION_GATE_BLOCKED {"missing":["PLAN8_DESKTOP_UI_SAMPLES","PLAN8_ROTATION_EVIDENCE","PRODUCTION_BUSINESS_FEATURE_E2E"],"architecture":"IN_SYNC","plan9":"PASS"}
+```
+
+The gate verifies the Plan 9 close, architecture synchronization, business
+repository isolation, lifecycle/recovery harness presence, and compiler
+rollback harness presence. It requires three explicit evidence files before it
+can return `RELEASE_READY`:
+
+- `docs/plan8-live-ui-evidence.json` — three Desktop UI/runtime samples with
+  session, UI percentage, runtime percentage, and delta.
+- `docs/plan8-rotation-evidence.json` — dedicated real-runtime rotation,
+  restore, and reconcile evidence.
+- `docs/plan11-business-feature-e2e.json` — a real feature execution in an
+  independent business repository, with test and Reviewer evidence.
+
+Each file must be a user-reviewed JSON object with `status: "PASS"`; the gate
+does not synthesize or infer these records. This preserves the Plan 8 matrix's
+manual evidence requirement and prevents a static harness from being presented
+as a production observation.
+
+Once those records exist, rerun the gate and the full regression suite. A
+`RELEASE_READY` result is the final Framework v1 release gate.

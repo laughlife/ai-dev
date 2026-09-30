@@ -119,10 +119,10 @@ Plan 9 U4: PASS（Completion Guard 实现、Desktop V2 运行时验收、独立 
 Plan 9 U5: PASS（Architecture Compiler Final Hardening）
 Plan 9 U6: PASS（Plan 9 Final Acceptance，Execution Kernel v1 Frozen）
 Plan 10: PASS（AI-Dev Control Plane / UI，本地只读与受控门面）
-Plan 11: not started
+Plan 11: BLOCKED（生产证据门禁已实现，等待真实 UI / 轮换 / 业务 Feature E2E 证据）
 
 Next planned stage:
-Plan 11 Production Acceptance + Framework v1
+Plan 11 Production Acceptance + Framework v1（当前门禁阻断）
 ```
 
 当前尚未实现：

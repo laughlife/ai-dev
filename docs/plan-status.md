@@ -287,3 +287,18 @@ Deferred to Plan 11:
 - browser-level production evidence
 - crash/recovery and rollback drills
 - Framework v1 release gate
+
+## Plan 11 — Production Acceptance + Framework v1
+
+Status: BLOCKED (deterministic gate implemented; live evidence required)
+
+Evidence:
+- `node --experimental-strip-types .opencode/tests/plan11-production-acceptance.mjs`
+  → `PLAN11_PRODUCTION_GATE_BLOCKED`
+- `node --experimental-strip-types tools/production-acceptance/gate.mjs`
+  → `framework_v1: NOT_READY`
+
+Missing user-reviewed evidence:
+- three live Desktop UI/runtime lifecycle samples
+- dedicated real-runtime rotation/restore/reconcile evidence
+- real business Feature E2E with Reviewer PASS
