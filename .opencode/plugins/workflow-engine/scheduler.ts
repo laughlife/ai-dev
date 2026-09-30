@@ -45,6 +45,21 @@
 // Test hooks (§84/§85): before any dispatch, a forceFailure quota for
 // (workflow, node) short-circuits the node to FAILED with the forced code —
 // zero model consumption.
+//
+// Plan 8 T7 (lifecycle preflight): before the scoped feature-executor send,
+// executeScopedFeatureNode runs the injected deps.lifecyclePreflight (built
+// in index.ts on the createLifecycleCore facade) OUTSIDE the task/session
+// locks. It refreshes verified telemetry, evaluates the lifecycle.yaml bands
+// and rotates ONLY when the evaluated lifecycle_state is ROTATE_PENDING /
+// HARD_ROTATE AND framework.yaml workflow_engine.automatic_lifecycle_rotation
+// is strictly true (it currently stays false). A committed rotation keeps the
+// SAME session_key and the SAME task ids — the send below simply resolves the
+// successor generation, so this scheduler, the reviewer loop and rework
+// replays stay generation-transparent (no code here ever branches on a
+// generation value). Preflight is fail-open and notable-only reporting keeps
+// the existing response shapes unchanged in the common case; bus.dispatchTask
+// routes (including every reviewer round) get NO lifecycle logic. When
+// deps.lifecyclePreflight is absent, behavior is IDENTICAL to Plan 7.
 
 export const NODE_DONE_STATUSES = ["COMPLETED", "REVIEW_PASSED"]
 export const WORKFLOW_TERMINAL_STATUSES = ["COMPLETED", "FAILED", "REWORK_LIMIT"]
@@ -226,6 +241,48 @@ export function countAttemptRetries(history: any, attempt: number): number {
 }
 
 // =====================================================================
+// Plan 8 T7: lifecycle preflight report helpers (pure). The preflight
+// itself lives in index.ts (createLifecycleCore facade + framework.yaml
+// flag); these shape its report for outcomes/responses. "Notable" =
+// rotated, rotation due (enabled or not) or skipped/failed — routine
+// CONTINUE_REUSE / UNKNOWN measurements stay in the lifecycle_events
+// ledger only, so existing response shapes are unchanged in the common
+// case (no lifecycle field at all).
+// =====================================================================
+export function isNotableLifecycleReport(rep: any): boolean {
+  if (!rep || typeof rep !== "object") return false
+  return rep.rotated === true || rep.rotation_due === true || typeof rep.skipped === "string"
+}
+
+export function compactLifecycleReport(rep: any): any | null {
+  if (!rep || typeof rep !== "object") return null
+  const out: any = {}
+  if (typeof rep.stage === "string" && rep.stage) out.stage = rep.stage
+  if (typeof rep.band === "string") out.band = rep.band
+  if (rep.context_pct != null) out.context_pct = rep.context_pct
+  if (typeof rep.lifecycle_state === "string") out.lifecycle_state = rep.lifecycle_state
+  if (typeof rep.recommended_action === "string") out.recommended_action = rep.recommended_action
+  if (rep.rotation_due === true) out.rotation_due = true
+  if (rep.rotation_enabled === true) out.rotation_enabled = true
+  if (rep.rotated === true) out.rotated = true
+  if (rep.rotation && typeof rep.rotation === "object") out.rotation = rep.rotation
+  if (typeof rep.skipped === "string") out.skipped = rep.skipped
+  if (typeof rep.detail === "string" && rep.detail) out.detail = rep.detail
+  return out
+}
+
+export function notableLifecycleReports(list: any[]): any[] {
+  if (!Array.isArray(list)) return []
+  const out: any[] = []
+  for (const rep of list) {
+    if (!isNotableLifecycleReport(rep)) continue
+    const c = compactLifecycleReport(rep)
+    if (c) out.push(c)
+  }
+  return out
+}
+
+// =====================================================================
 // Pure readiness (§39): node.status READY and every depends_on node in a
 // done state (COMPLETED / REVIEW_PASSED).
 // =====================================================================
@@ -261,7 +318,9 @@ function rowToWorkflow(row: any) {
 // =====================================================================
 // Scheduler factory. deps: shared cores, marker-gated hooks (null in
 // production), the reviewer loop (./review.ts) and the workflow.yaml
-// loader from index.ts.
+// loader from index.ts. Plan 8 T7 adds the OPTIONAL lifecyclePreflight
+// callback (built in index.ts on the createLifecycleCore facade); when
+// absent, scheduling behavior is IDENTICAL to Plan 7.
 // =====================================================================
 export interface SchedulerDeps {
   core: any
@@ -269,10 +328,16 @@ export interface SchedulerDeps {
   hooks: any | null
   reviewer: any
   loadWorkflowConfig: () => any
+  // Plan 8 T7: (session_key, info?) -> preflight report; NEVER throws,
+  // never blocks the send (fail-open). Called before scoped
+  // feature-executor sends only — never for bus.dispatchTask routes and
+  // never for reviewer ephemeral sessions.
+  lifecyclePreflight?: ((sessionKey: string, info?: any) => Promise<any>) | null
 }
 
 export function createScheduler(deps: SchedulerDeps) {
   const { core, bus, hooks, reviewer, loadWorkflowConfig } = deps
+  const lifecyclePreflight = typeof deps?.lifecyclePreflight === "function" ? deps.lifecyclePreflight : null
   const db = core?.db
   const q = db
     ? {
@@ -444,6 +509,33 @@ export function createScheduler(deps: SchedulerDeps) {
       return { ...base, task_id: taskId, started_at: startedAt, ended_at: nowIso(), kind: "failed", code, detail }
     }
 
+    // --- Plan 8 T7: lifecycle preflight for the scoped feature-executor
+    // send. Runs AFTER ensureScopedSession (the sessions row must exist)
+    // and BEFORE the task lock + send — never inside the session_key lock
+    // (the public lifecycle wrappers acquire it themselves; the lock is
+    // NON-REENTRANT). Generation-transparent: a COMMITTED rotation keeps
+    // the SAME session_key and the SAME task id — sendScopedSession below
+    // simply resolves the new latest ACTIVE generation. Fail-open: any
+    // skipped/failed preflight proceeds to the send unchanged. ---
+    let lifecycleField: any = {}
+    if (lifecyclePreflight) {
+      let rep: any = null
+      try {
+        rep = await lifecyclePreflight(sessionKey, {
+          stage: "feature-executor",
+          workflow_id: wfId,
+          node_id: nodeRow.node_id,
+          task_id: taskId,
+          project_id: pid,
+          reused: ensured.reused === true,
+        })
+      } catch (e: any) {
+        // contract says never throws — belt and braces for injected callbacks
+        rep = { session_key: sessionKey, stage: "feature-executor", skipped: "PREFLIGHT_EXCEPTION", detail: errMsg(e) }
+      }
+      if (isNotableLifecycleReport(rep)) lifecycleField = { lifecycle: compactLifecycleReport(rep) }
+    }
+
     // task RUNNING + send inside the per-task lock (same serialization as
     // bus.dispatchTask; READY/BLOCKED → RUNNING is the legal transition)
     const sent: any = await bus.withTaskLock(taskId, async () => {
@@ -466,16 +558,16 @@ export function createScheduler(deps: SchedulerDeps) {
         finishedAt: endedAt,
       })
       bus.persistResult(taskId, "COMPLETED", sessionKey, result)
-      return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "completed", session_id: sent.session_id ?? null, session_key: sessionKey }
+      return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "completed", session_id: sent.session_id ?? null, session_key: sessionKey, ...lifecycleField }
     }
     const code = String(sent?.code ?? sent?.status ?? "SEND_FAILED")
     const detail = String(sent?.detail ?? "scoped session send failed")
     if (code === "MODEL_UNASSIGNED") {
       bus.persistBlocked(taskRow, envelope, "feature-executor", code, detail)
-      return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "blocked", code, detail }
+      return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "blocked", code, detail, ...lifecycleField }
     }
     persistTaskFailed(taskRow, envelope, route, code, detail, startedAt, endedAt)
-    return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "failed", code, detail, session_id: sent?.session_id ?? null }
+    return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "failed", code, detail, session_id: sent?.session_id ?? null, ...lifecycleField }
   }
 
   function persistTaskFailed(taskRow: any, envelope: any, route: string, code: string, detail: string, startedAt: string, finishedAt: string) {
@@ -821,9 +913,36 @@ export function createScheduler(deps: SchedulerDeps) {
             ...(outcome.code ? { code: outcome.code } : {}),
             ...(outcome.detail ? { detail: outcome.detail } : {}),
             ...(outcome.forced_by_hook ? { forced_by_hook: true } : {}),
+            ...(outcome.lifecycle ? { lifecycle: outcome.lifecycle } : {}),
             started_at: outcome.started_at ?? waveStarted,
             ended_at: outcome.ended_at ?? waveEnded,
           })
+          // Plan 8 T7: surface notable lifecycle preflight outcomes as run
+          // notes (rotation committed / due-but-disabled / failed / skipped).
+          if (outcome.lifecycle) {
+            const lc = outcome.lifecycle
+            if (lc.rotated) {
+              runState.notes.push(
+                `node '${outcome.node_id}' lifecycle preflight: scoped session rotated ` +
+                  `(generation ${lc.rotation?.from_generation ?? "?"} → ${lc.rotation?.to_generation ?? "?"}, same session_key and task ids); ` +
+                  "the send ran on the successor generation",
+              )
+            } else if (lc.rotation_due && lc.rotation_enabled && lc.skipped) {
+              runState.notes.push(
+                `node '${outcome.node_id}' lifecycle preflight: rotation due (${lc.lifecycle_state} @ ${lc.context_pct ?? "?"}%) and enabled, ` +
+                  `but the rotation failed (${lc.skipped}): ${lc.detail ?? "no detail"}; the send proceeded on the current generation`,
+              )
+            } else if (lc.rotation_due) {
+              runState.notes.push(
+                `node '${outcome.node_id}' lifecycle preflight: rotation due (${lc.lifecycle_state} @ ${lc.context_pct ?? "?"}%) but ` +
+                  "framework.yaml workflow_engine.automatic_lifecycle_rotation is not true; the send proceeded on the current generation",
+              )
+            } else if (lc.skipped) {
+              runState.notes.push(
+                `node '${outcome.node_id}' lifecycle preflight skipped (${lc.skipped}): ${lc.detail ?? "no detail"}; the send proceeded unchanged`,
+              )
+            }
+          }
           if (outcome.kind === "skipped") {
             runState.notes.push(`node '${outcome.node_id}' skipped in wave: ${outcome.detail}`)
             continue

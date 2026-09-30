@@ -12,6 +12,25 @@
 // runtime/.workflow-test-hooks exists at plugin load (§84/§85, test-only;
 // production surface stays at exactly five tools, §33).
 //
+// Plan 8 T7 adds lifecycle preflight for the two SCOPED session kinds this
+// plugin owns (the workflow planner here + the workflow feature-executor in
+// ./scheduler.ts): before every scoped send, the createLifecycleCore facade
+// (.opencode/lib/lifecycle-core.ts) refreshes verified telemetry and
+// evaluates the framework-config/lifecycle.yaml bands; a rotation happens
+// ONLY when the evaluated lifecycle_state is ROTATE_PENDING/HARD_ROTATE AND
+// framework.yaml workflow_engine.automatic_lifecycle_rotation is strictly
+// true (it currently stays false — preflight then only measures, evaluates
+// and records). A committed rotation keeps the SAME session_key and the
+// SAME task ids (the successor is generation+1 of the same key), so the
+// scheduler, the reviewer loop and rework replays stay generation-
+// transparent. Reviewer rounds keep their ephemeral fresh sessions with NO
+// lifecycle logic (./review.ts untouched); the runtime core's Plan 8 T6
+// seam covers only the persistent project-main/project-reader send() path
+// and is a separate wiring owned by the runtime plugins. Preflight is
+// fail-open: a skipped or failed preflight never blocks a send (existing
+// tool behavior preserved); notable outcomes surface as additive response
+// fields / run notes only.
+//
 // §34/§67: workflow_plan ONLY does Planner → DAG → validate → materialize.
 // It NEVER starts execution — a successfully planned workflow stays READY
 // until workflow_run (T7b) is invoked.
@@ -53,9 +72,11 @@ import * as fs from "node:fs"
 import * as path from "node:path"
 import { createRuntimeRegistryCore } from "../../lib/runtime-registry-core.ts"
 import { createTaskBusCore } from "../../lib/task-bus-core.ts"
+import { wireLifecyclePreflight } from "../../lib/lifecycle-preflight.ts"
+import { createLifecycleCore } from "../../lib/lifecycle-core.ts"
 import { validateWorkflowPlan, extractJsonObject } from "./dag.ts"
 import { buildPlannerPrompt, buildRepairPrompt } from "./planning.ts"
-import { createScheduler } from "./scheduler.ts"
+import { createScheduler, notableLifecycleReports } from "./scheduler.ts"
 import { createReviewer } from "./review.ts"
 import { createWorkflowTestHooks, testHooksEnabled, HOOK_VERDICTS } from "./hooks.ts"
 
@@ -90,9 +111,10 @@ export default {
     // runtime-registry/schema.sql (base tables registry_meta/sessions/tasks),
     // then THIS plugin idempotently adds its own §31 workflow tables on the
     // same shared handle below.
-    const core = createRuntimeRegistryCore(ctx)
+    const core = createRuntimeRegistryCore(ctx, {
+      lifecycleSchemaFile: path.join(import.meta.dir, "..", "lifecycle-engine", "schema.sql"),
+    })
     const bus = createTaskBusCore(ctx, core)
-
     // --- §31: workflow schema on the shared runtime/tasks.db (idempotent) ---
     let schemaError: string | null = null
     if (core.db) {
@@ -134,6 +156,13 @@ export default {
           }
         : null
 
+    // Create lifecycle after workflow tables are applied so checkpoint
+    // collection can prepare its active-workflow statements on first load.
+    // The callback is still wired to this plugin's runtime core before any
+    // planner or scheduler call can dispatch a prompt.
+    const lifecycle = createLifecycleCore(ctx, core)
+    wireLifecyclePreflight(core, lifecycle)
+
     function guardWf() {
       if (!core.db || !wq) {
         return failure("SQLITE_RUNTIME_UNAVAILABLE", schemaError ?? core.dbError ?? "workflow database unavailable")
@@ -153,6 +182,126 @@ export default {
       return B.YAML.parse(fs.readFileSync(path.join(core.root, "framework-config", "workflow.yaml"), "utf8"))
     }
 
+    // --- Plan 8 T7: automatic rotation admission flag. framework.yaml
+    // workflow_engine.automatic_lifecycle_rotation, read FRESH on every
+    // evaluation (§22 — nothing cached, nothing hardcoded). STRICT true
+    // check: false / missing / unreadable all keep automatic rotation
+    // DISABLED (it currently IS false; this code never enables it). ---
+    function loadAutomaticLifecycleRotation(): { enabled: boolean; reason: string | null } {
+      const file = path.join(core.root, "framework-config", "framework.yaml")
+      try {
+        const B = (globalThis as any).Bun
+        if (typeof B?.YAML?.parse !== "function") {
+          return { enabled: false, reason: "Bun.YAML.parse is not present in this runtime" }
+        }
+        const fw = B.YAML.parse(fs.readFileSync(file, "utf8"))
+        const v = fw?.workflow_engine?.automatic_lifecycle_rotation
+        if (v === true) return { enabled: true, reason: null }
+        return {
+          enabled: false,
+          reason: `workflow_engine.automatic_lifecycle_rotation is ${v === undefined ? "missing" : JSON.stringify(v)}, not true (${file})`,
+        }
+      } catch (e: any) {
+        return { enabled: false, reason: `framework.yaml could not be read: ${errMsg(e)} (${file})` }
+      }
+    }
+
+    // --- Plan 8 T7: lifecycle preflight for SCOPED workflow sessions (the
+    // planner below + the feature-executor in ./scheduler.ts via deps).
+    // Runs BEFORE core.sendScopedSession and OUTSIDE the session_key lock
+    // (sendScopedSession acquires that lock itself per send, and the lock is
+    // NON-REENTRANT), so the lock-acquiring public lifecycle wrappers
+    // (rotateSession) are the correct variants here. Policy mirrors the T6
+    // seam reference in the runtime core header: refresh verified telemetry
+    // → evaluate the lifecycle.yaml bands → rotate ONLY when the evaluated
+    // lifecycle_state is ROTATE_PENDING/HARD_ROTATE AND the framework.yaml
+    // flag above is strictly true. FAIL-OPEN by design: a skipped or failed
+    // preflight (storage unavailable, evaluation error, failed rotation —
+    // the lifecycle core keeps the OLD generation ACTIVE and serviceable)
+    // never blocks the send, preserving existing tool behavior; every
+    // outcome is reported for the additive response fields / run notes and
+    // the lifecycle_events ledger. A committed rotation preserves the SAME
+    // session_key and task ids — the following send resolves the successor
+    // generation transparently. Reviewer rounds are NEVER preflighted.
+    // This function NEVER throws. ---
+    async function lifecyclePreflight(sessionKey: string, info?: any): Promise<any> {
+      const report: any = {
+        session_key: sessionKey,
+        stage: typeof info?.stage === "string" ? info.stage : null,
+        task_id: typeof info?.task_id === "string" ? info.task_id : null,
+        at: nowIso(),
+        evaluated: false,
+        band: null,
+        lifecycle_state: null,
+        context_pct: null,
+        recommended_action: null,
+        rotation_due: false,
+        rotation_enabled: false,
+        rotated: false,
+      }
+      try {
+        const diag: any = lifecycle?.diagnostics
+        if (!diag?.db_ready || !diag?.lifecycle_tables_ready || !diag?.telemetry_columns_ready) {
+          report.skipped = "LIFECYCLE_STORAGE_UNAVAILABLE"
+          report.detail = diag
+            ? `db_ready=${diag.db_ready} lifecycle_tables_ready=${diag.lifecycle_tables_ready} ` +
+              `telemetry_columns_ready=${diag.telemetry_columns_ready}`
+            : "lifecycle core unavailable"
+          return report
+        }
+        const ev: any = await lifecycle.evaluateThreshold({ session_key: sessionKey, refresh: true })
+        if (!ev?.ok) {
+          report.skipped = ev?.code ?? "LIFECYCLE_EVALUATE_FAILED"
+          report.detail = ev?.detail ?? "evaluateThreshold returned no detail"
+          return report
+        }
+        report.evaluated = true
+        report.band = ev.band ?? null
+        report.lifecycle_state = ev.lifecycle_state ?? null
+        report.context_pct = typeof ev.context_pct === "number" ? ev.context_pct : null
+        report.recommended_action = ev.recommended_action ?? null
+        report.generation = typeof ev.generation === "number" ? ev.generation : null
+        // admission by evaluated band STATE (never a raw pct comparison —
+        // the 60/70/80 bands live only in lifecycle.yaml / lifecycle-core)
+        report.rotation_due = ev.lifecycle_state === "ROTATE_PENDING" || ev.lifecycle_state === "HARD_ROTATE"
+        if (!report.rotation_due) return report
+        const flag = loadAutomaticLifecycleRotation()
+        report.rotation_enabled = flag.enabled
+        if (!flag.enabled) {
+          report.detail =
+            `rotation due (${ev.lifecycle_state} @ context_pct=${report.context_pct}) but automatic rotation is disabled: ${flag.reason}`
+          return report
+        }
+        // non-forced: rotateSessionLocked re-verifies the stored telemetry
+        // and the due band INSIDE the session_key lock (TOCTOU-safe)
+        const rot: any = await lifecycle.rotateSession({
+          session_key: sessionKey,
+          reason: `workflow-preflight:${report.stage ?? "scoped"} ${ev.lifecycle_state} @ ${report.context_pct}%`,
+          force: false,
+        })
+        if (!rot?.ok) {
+          // fail-open: the old generation stays ACTIVE and serviceable
+          report.skipped = rot?.code ?? "ROTATION_FAILED"
+          report.detail = rot?.detail ?? "rotation failed; the old generation stays ACTIVE and the send proceeds"
+          return report
+        }
+        // COMMITTED: same session_key, generation+1, same task ids
+        report.rotated = true
+        report.rotation = {
+          rotation_id: rot.rotation_id ?? null,
+          from_generation: rot.from_generation ?? null,
+          to_generation: rot.to_generation ?? null,
+          successor_session_id: rot.successor_session_id ?? null,
+          checkpoint_path: rot.checkpoint_path ?? null,
+        }
+        return report
+      } catch (e: any) {
+        report.skipped = "PREFLIGHT_EXCEPTION"
+        report.detail = errMsg(e)
+        return report
+      }
+    }
+
     // --- T7b (§84/§85): marker-gated test hooks + reviewer loop + scheduler.
     // The marker file runtime/.workflow-test-hooks is checked ONCE at plugin
     // load; without it, hooks stay null (scheduler/reviewer consume nothing)
@@ -161,7 +310,7 @@ export default {
     const hooksEnabled = testHooksEnabled(core.root)
     const hooks = hooksEnabled ? createWorkflowTestHooks() : null
     const reviewer = createReviewer({ core, bus, hooks, loadWorkflowConfig })
-    const scheduler = createScheduler({ core, bus, hooks, reviewer, loadWorkflowConfig })
+    const scheduler = createScheduler({ core, bus, hooks, reviewer, loadWorkflowConfig, lifecyclePreflight })
 
     function rowToWorkflow(row: any) {
       return {
@@ -333,6 +482,16 @@ export default {
       const plannerSessionId: string = ensured.session_id
       wq!.setPlannerSession.run(plannerSessionId, nowIso(), workflowId)
 
+      // --- Plan 8 T7: lifecycle preflight reports for the scoped planner
+      // sends below (initial prompt + each repair round). Only NOTABLE
+      // reports (rotated / rotation due / skipped) reach the response, so
+      // the common case keeps the exact pre-Plan-8 result shape. ---
+      const lifecyclePreflights: any[] = []
+      const lifecycleExtras = () => {
+        const notable = notableLifecycleReports(lifecyclePreflights)
+        return notable.length ? { lifecycle_preflights: notable } : {}
+      }
+
       // --- planning prompt (§35) with live route/project lists ---
       const availableRoutes: string[] =
         cfg.routing?.routes && typeof cfg.routing.routes === "object" ? Object.keys(cfg.routing.routes).sort() : []
@@ -349,15 +508,24 @@ export default {
         available_routes: availableRoutes,
         registered_projects: registeredProjects,
       })
+      // Plan 8 T7: lifecycle preflight before EVERY scoped planner send
+      // (fail-open; a fresh just-created session simply measures nothing).
+      lifecyclePreflights.push(
+        await lifecyclePreflight(sessionKey, { stage: "planner", workflow_id: workflowId, task_id: plannerTaskId }),
+      )
       const startedAt = nowIso()
       const sent: any = await core.sendScopedSession({ session_key: sessionKey, text: prompt })
       if (!sent?.ok) {
         return markFailed(
           sent?.code ?? sent?.status ?? "PLANNER_SEND_FAILED",
           `planner session send failed: ${sent?.detail ?? sent?.status ?? "unknown"}`,
-          { planner_task_id: plannerTaskId, planner_session_id: plannerSessionId },
+          { planner_task_id: plannerTaskId, planner_session_id: plannerSessionId, ...lifecycleExtras() },
         )
       }
+      // the send that produced the plan text (replaced by a successful
+      // repair send below) — its session_id/generation are the truthful
+      // Result Envelope values even if a preflight rotation ever commits
+      let lastSend: any = sent
 
       // --- deterministic parse + validate + bounded repair loop (§36) ---
       const ctxInfo = {
@@ -386,6 +554,17 @@ export default {
         if (attempt >= repairAttempts) break
         // §36: the errors go back to the SAME planner scoped session — one
         // repair round per budget, never a new session, never infinite.
+        // Plan 8 T7: preflight again — the repair boundary is an atomic-step
+        // boundary; with automatic rotation disabled (current config) this
+        // only measures/evaluates and the SAME session answers the repair.
+        lifecyclePreflights.push(
+          await lifecyclePreflight(sessionKey, {
+            stage: "planner-repair",
+            round: attempt + 1,
+            workflow_id: workflowId,
+            task_id: plannerTaskId,
+          }),
+        )
         const repair: any = await core.sendScopedSession({
           session_key: sessionKey,
           text: buildRepairPrompt(errors, attempt + 1, repairAttempts),
@@ -395,9 +574,10 @@ export default {
           return markFailed(
             repair?.code ?? repair?.status ?? "PLANNER_REPAIR_SEND_FAILED",
             `planner repair send failed: ${repair?.detail ?? repair?.status ?? "unknown"}`,
-            { planner_task_id: plannerTaskId, planner_session_id: plannerSessionId, errors, repair_attempts_used: repairsUsed },
+            { planner_task_id: plannerTaskId, planner_session_id: plannerSessionId, errors, repair_attempts_used: repairsUsed, ...lifecycleExtras() },
           )
         }
+        lastSend = repair
         rawText = String(repair.output_text ?? "")
       }
       if (!plan) {
@@ -408,7 +588,7 @@ export default {
           "PLAN_INVALID",
           `workflow plan failed deterministic validation after ${repairsUsed} repair attempt(s) ` +
             `(budget planner.json_repair_attempts=${repairAttempts}); no tasks were materialized`,
-          { planner_task_id: plannerTaskId, planner_session_id: plannerSessionId, errors, repair_attempts_used: repairsUsed },
+          { planner_task_id: plannerTaskId, planner_session_id: plannerSessionId, errors, repair_attempts_used: repairsUsed, ...lifecycleExtras() },
         )
       }
 
@@ -425,8 +605,16 @@ export default {
         route: plannerRoute,
         targetRole: plannerRole,
         status: "COMPLETED",
-        sessionId: plannerSessionId,
-        sessionGeneration: typeof ensured.generation === "number" ? ensured.generation : null,
+        // Plan 8 T7: the send that produced the plan text is authoritative
+        // (identical to plannerSessionId/ensured.generation unless a
+        // preflight rotation ever committed — generation-transparent).
+        sessionId: lastSend?.session_id ?? plannerSessionId,
+        sessionGeneration:
+          typeof lastSend?.generation === "number"
+            ? lastSend.generation
+            : typeof ensured.generation === "number"
+              ? ensured.generation
+              : null,
         outputText: JSON.stringify(plan),
         error: null,
         startedAt,
@@ -502,7 +690,7 @@ export default {
           "MATERIALIZE_FAILED",
           `task materialization failed and was rolled back atomically: ${errMsg(e)}; ` +
             "the validated plan stays in workflows.plan_json for audit; no node tasks exist",
-          { planner_task_id: plannerTaskId, planner_session_id: plannerSessionId },
+          { planner_task_id: plannerTaskId, planner_session_id: plannerSessionId, ...lifecycleExtras() },
         )
       }
 
@@ -515,6 +703,7 @@ export default {
         planner_task_id: plannerTaskId,
         planner_session_id: plannerSessionId,
         repair_attempts_used: repairsUsed,
+        ...lifecycleExtras(),
         note:
           "workflow planned, validated and materialized with status READY; workflow_plan never starts execution " +
           "(§67) — scheduling and the reviewer loop land in T7b (workflow_run)",
@@ -633,6 +822,9 @@ export default {
           planner_session_id: planned.planner_session_id ?? null,
           repair_attempts_used: planned.repair_attempts_used ?? 0,
           materialized_nodes: planned.nodes ?? [],
+          ...(Array.isArray(planned.lifecycle_preflights) && planned.lifecycle_preflights.length
+            ? { lifecycle_preflights: planned.lifecycle_preflights }
+            : {}),
         },
         note: "workflow_execute = workflow_plan + workflow_run (§69)",
       }
@@ -931,7 +1123,12 @@ export default {
     console.log(
       `[workflow-engine] loaded root=${core.root} db=${core.db ? "ok" : "unavailable:" + core.dbError} ` +
         `schema=${schemaError ? "failed:" + schemaError : "ok"} config=${core.configReady} ` +
-        `test-hooks=${hooksEnabled ? "ENABLED (marker runtime/.workflow-test-hooks present; workflow_test_hook registered)" : "disabled (5 tools)"}`,
+        `test-hooks=${hooksEnabled ? "ENABLED (marker runtime/.workflow-test-hooks present; workflow_test_hook registered)" : "disabled (5 tools)"} ` +
+        `lifecycle-preflight=${
+          lifecycle?.diagnostics?.db_ready && lifecycle?.diagnostics?.lifecycle_tables_ready && lifecycle?.diagnostics?.telemetry_columns_ready
+            ? "ready (scoped planner + feature-executor sends; rotation only when framework.yaml workflow_engine.automatic_lifecycle_rotation is true)"
+            : "storage unavailable (preflight will skip; sends unaffected)"
+        }`,
     )
 
     return () => {
