@@ -32,7 +32,7 @@ const checks = {
   architecture: architecture(),
   plan9: /Status: U3_PASS \/ U4_PASS \/ U5_PASS \/ U6_PASS/.test(statusDoc) ? "PASS" : "NOT_READY",
   business_repositories_isolated: businessRepositoriesIsolated(),
-  recovery_drill: fs.existsSync(file(".opencode/tests/lifecycle-smoke.mjs")) && fs.existsSync(file(".opencode/tests/plan9-final-acceptance.mjs")) ? "STATIC_EVIDENCE_PRESENT" : "MISSING",
+  recovery_drill: fs.existsSync(file(".opencode/tests/lifecycle-smoke.mjs")) && fs.existsSync(file(".opencode/tests/plan9-final-acceptance.mjs")) && fs.existsSync(file(".opencode/tests/plan11-recovery-rollback.mjs")) ? "STATIC_EVIDENCE_PRESENT" : "MISSING",
   rollback_drill: fs.existsSync(file(".opencode/tests/architecture-compiler-hardening.mjs")) ? "STATIC_EVIDENCE_PRESENT" : "MISSING",
 }
 const missing = []
