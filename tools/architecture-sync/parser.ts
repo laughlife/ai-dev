@@ -63,7 +63,7 @@ export function parseDrawio(file: string): any {
   }
   const byKind = (kind: string) => meta.filter((c) => c.attrs["data-arch-kind"] === kind)
   const agents = byKind("agent").map((c) => ({ id: c.attrs["data-arch-id"], role: c.attrs["data-role"], model_key: c.attrs["data-model-key"], lifecycle: c.attrs["data-lifecycle"] }))
-  const projects = byKind("project").map((c) => ({ id: c.attrs["data-arch-id"] }))
+  const projects = byKind("project").map((c) => ({ id: c.attrs["data-arch-id"], path: c.attrs["data-project-path"] ?? null, project_type: c.attrs["data-project-type"] ?? null }))
   const routes = byKind("route").map((c) => ({ id: c.attrs["data-route-id"], target: c.attrs["data-target"] }))
   const lifecycleCell = byKind("lifecycle")[0]
   const lifecycle = lifecycleCell ? { thresholds: { continue_reuse_below_percent: Number(lifecycleCell.attrs["data-continue-below"]), checkpoint_from_percent: Number(lifecycleCell.attrs["data-checkpoint-from"]), checkpoint_to_percent: Number(lifecycleCell.attrs["data-checkpoint-to"]), rotate_after_atomic_step_at_percent: Number(lifecycleCell.attrs["data-rotate-at"]), hard_stop_new_tasks_at_percent: Number(lifecycleCell.attrs["data-hard-stop-at"]) }, roles: Object.fromEntries(agents.map((a: any) => [a.id, { lifecycle: a.lifecycle }])) } : { thresholds: {}, roles: {} }

@@ -35,6 +35,12 @@ function analyze() {
   }
   const routing: any = readYaml(path.join(configDir, "routing.yaml"))
   for (const r of ir.routes) if (routing.routes?.[r.id]?.target !== r.target) changes.push({ path: `routing.routes.${r.id}.target`, kind: "ARCHITECTURE_DRIFT", old: routing.routes?.[r.id]?.target ?? null, new: r.target })
+  const projectsConfig: any = readYaml(path.join(configDir, "projects.yaml"))
+  for (const p of ir.projects) {
+    const current = (projectsConfig.projects ?? []).find((x: any) => x.id === p.id)
+    if (!current) changes.push({ path: `projects.${p.id}`, kind: "ARCHITECTURE_DRIFT", old: null, new: p })
+    else if (p.path && current.path !== p.path) changes.push({ path: `projects.${p.id}.path`, kind: "ARCHITECTURE_DRIFT", old: current.path, new: p.path })
+  }
   const workflow: any = readYaml(path.join(configDir, "workflow.yaml"))
   for (const lane of ir.execution_lanes) {
     const current = workflow.scheduler?.lanes?.[lane.id]

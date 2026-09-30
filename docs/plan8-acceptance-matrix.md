@@ -38,5 +38,7 @@ medium  |         |             |
 high    |         |             |
 ```
 
-The existing isolated Node smoke is valid implementation evidence but is not
-claimed as a live Desktop UI or production-session observation.
+The existing isolated **Node 24** smoke uses
+`--import ./.opencode/tests/register-hooks.mjs` to map the production
+`bun:sqlite` import to the Node adapter. It is valid implementation evidence
+but is not claimed as a live Desktop UI or production-session observation.
