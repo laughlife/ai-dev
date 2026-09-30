@@ -11,7 +11,7 @@ permissions:
 
 <!-- ARCH-GENERATED:BEGIN -->
 description: api-runner architecture contract
-mode: subagent
+architecture_runtime_mode: subagent
 architecture_id: api-runner
 architecture_role: api-runner
 architecture_model_key: deepseek-v4.1-flash

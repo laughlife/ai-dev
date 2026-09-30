@@ -7,7 +7,7 @@ model: openai/gpt-5.6-sol-fast#high
 
 <!-- ARCH-GENERATED:BEGIN -->
 description: memory-agent architecture contract
-mode: subagent
+architecture_runtime_mode: subagent
 architecture_id: memory-agent
 architecture_role: memory-governance
 architecture_model_key: gpt-5.6-sol-fast

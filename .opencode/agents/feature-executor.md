@@ -6,7 +6,7 @@ mode: subagent
 
 <!-- ARCH-GENERATED:BEGIN -->
 description: feature-executor architecture contract
-mode: subagent
+architecture_runtime_mode: subagent
 architecture_id: feature-executor
 architecture_role: executor
 architecture_model_key: project-session

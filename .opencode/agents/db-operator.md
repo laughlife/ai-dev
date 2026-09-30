@@ -7,7 +7,7 @@ model: bailian-token-plan/qwen3.8-max
 
 <!-- ARCH-GENERATED:BEGIN -->
 description: db-operator architecture contract
-mode: subagent
+architecture_runtime_mode: subagent
 architecture_id: db-operator
 architecture_role: database-operator
 architecture_model_key: qwen3.8-max

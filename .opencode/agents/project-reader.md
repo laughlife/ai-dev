@@ -14,7 +14,7 @@ permissions:
 
 <!-- ARCH-GENERATED:BEGIN -->
 description: project-reader architecture contract
-mode: subagent
+architecture_runtime_mode: all
 architecture_id: project-reader
 architecture_role: reader
 architecture_model_key: deepseek-v4.1-flash

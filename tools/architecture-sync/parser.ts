@@ -62,7 +62,7 @@ export function parseDrawio(file: string): any {
     if (entityIds.has(entityKey)) throw new Error(`ARCH_METADATA_DUPLICATE:${entityKey}`); entityIds.add(entityKey)
   }
   const byKind = (kind: string) => meta.filter((c) => c.attrs["data-arch-kind"] === kind)
-  const agents = byKind("agent").map((c) => ({ id: c.attrs["data-arch-id"], role: c.attrs["data-role"], model_key: c.attrs["data-model-key"], lifecycle: c.attrs["data-lifecycle"] }))
+  const agents = byKind("agent").map((c) => ({ id: c.attrs["data-arch-id"], role: c.attrs["data-role"], model_key: c.attrs["data-model-key"], lifecycle: c.attrs["data-lifecycle"], runtime_mode: c.attrs["data-runtime-mode"] ?? "subagent" }))
   const projects = byKind("project").map((c) => ({ id: c.attrs["data-arch-id"], path: c.attrs["data-project-path"] ?? null, project_type: c.attrs["data-project-type"] ?? null }))
   const routes = byKind("route").map((c) => ({ id: c.attrs["data-route-id"], target: c.attrs["data-target"] }))
   const lifecycleCell = byKind("lifecycle")[0]

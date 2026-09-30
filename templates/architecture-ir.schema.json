@@ -8,7 +8,21 @@
   "properties": {
     "ir_version": { "const": 1 },
     "source": { "type": "object" },
-    "agents": { "type": "array" },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "role", "model_key", "lifecycle"],
+        "properties": {
+          "id": { "type": "string" },
+          "role": { "type": "string" },
+          "model_key": { "type": "string" },
+          "lifecycle": { "type": "string" },
+          "runtime_mode": { "enum": ["primary", "all", "subagent"] }
+        },
+        "additionalProperties": false
+      }
+    },
     "projects": { "type": "array" },
     "routes": { "type": "array" },
     "lifecycle": { "type": "object" },

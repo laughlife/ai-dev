@@ -8,7 +8,7 @@ The AI-Dev Framework is a multi-agent development framework designed to provide 
 
 ## Sources of Truth
 
-- **Architecture Source of Truth**: `diagrams/multi_agent_framework_v3_workspace.drawio`. Architecture decisions (agents, models, lifecycle, routing) follow this diagram.
+- **Architecture Source of Truth**: `diagrams/multi_agent_framework_v4_completion_guard.drawio`. Architecture decisions (agents, models, lifecycle, routing) follow this diagram.
 - **Governance Source of Truth**: `AGENTS.md`. Git boundaries, directory responsibilities, file ownership, and safety rules follow AGENTS.md.
 - On conflict: architecture topics follow the drawio; governance topics follow AGENTS.md; when classification is ambiguous, stop and report instead of silently choosing.
 
@@ -22,7 +22,7 @@ ai-dev/
 │   └── AGENTS.md
 ├── diagrams/                    # Architecture diagrams (Architecture Source of Truth)
 │   ├── AGENTS.md
-│   └── multi_agent_framework_v3_workspace.drawio
+│   └── multi_agent_framework_v4_completion_guard.drawio
 ├── docs/                        # Persistent framework documentation (incl. plan-status.md)
 │   └── AGENTS.md
 ├── framework-config/            # Machine-readable derived mirror of the architecture
@@ -136,7 +136,7 @@ ls -la
 ```
 
 ### Guiding Principles
-1. **Architecture Authority**: Architecture decisions follow `diagrams/multi_agent_framework_v3_workspace.drawio`; governance rules follow `AGENTS.md`
+1. **Architecture Authority**: Architecture decisions follow `diagrams/multi_agent_framework_v4_completion_guard.drawio`; governance rules follow `AGENTS.md`
 2. **Change Management**: Modifying the framework must follow the `Modification Rule`
 3. **Knowledge Separation**: Clearly distinguish between runtime knowledge and persistent knowledge
 4. **Boundary Adherence**: Strictly comply with business project boundary definitions

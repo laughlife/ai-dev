@@ -41,7 +41,7 @@ permissions:
 
 <!-- ARCH-GENERATED:BEGIN -->
 description: global-orchestrator architecture contract
-mode: subagent
+architecture_runtime_mode: primary
 architecture_id: global-orchestrator
 architecture_role: orchestrator
 architecture_model_key: gpt-6-sol-fast

@@ -6,7 +6,7 @@ import { semanticHash } from "./semantic-hash.ts"
 import { validateIR } from "./validate.ts"
 import { parseYaml } from "./yaml.ts"
 import { generateFrameworkConfig } from "./generators/framework-config.ts"
-import { generateAgentContracts } from "./generators/opencode-agents.ts"
+import { generateAgentContracts, generatedAgentBlock, extractGeneratedBlock } from "./generators/opencode-agents.ts"
 
 const root = path.resolve(process.env.AI_DEV_ROOT ?? process.cwd())
 const source = path.join(root, "diagrams", "multi_agent_framework_v4_completion_guard.drawio")
@@ -31,6 +31,7 @@ function analyze() {
       if (c.role !== a.role) changes.push({ path: `agents.${a.id}.role`, kind: "ARCHITECTURE_DRIFT", old: c.role, new: a.role })
       if ((c.model?.display_name ?? null) !== modelDisplay(a.model_key)) changes.push({ path: `agents.${a.id}.model.display_name`, kind: "ARCHITECTURE_DRIFT", old: c.model?.display_name ?? null, new: modelDisplay(a.model_key) })
       if (c.lifecycle?.type !== a.lifecycle) changes.push({ path: `agents.${a.id}.lifecycle.type`, kind: "ARCHITECTURE_DRIFT", old: c.lifecycle?.type, new: a.lifecycle })
+      if ((c.runtime_mode ?? "subagent") !== (a.runtime_mode ?? "subagent")) changes.push({ path: `agents.${a.id}.runtime_mode`, kind: "ARCHITECTURE_DRIFT", old: c.runtime_mode ?? "subagent", new: a.runtime_mode ?? "subagent" })
     }
   }
   const routing: any = readYaml(path.join(configDir, "routing.yaml"))
@@ -58,10 +59,15 @@ function analyze() {
   const profileDrift: string[] = []
   for (const a of ir.agents) {
     const file = path.join(root, ".opencode", "agents", `${a.id}.md`)
-    if (fs.existsSync(file) && !fs.readFileSync(file, "utf8").includes("ARCH-GENERATED:BEGIN")) profileDrift.push(`.opencode/agents/${a.id}.md`)
+    if (!fs.existsSync(file)) continue
+    const text = fs.readFileSync(file, "utf8")
+    const expectedBlock = generatedAgentBlock(a)
+    const actualBlock = extractGeneratedBlock(text)
+    const mode = text.match(/^mode:\s*([^\r\n]+)/m)?.[1]?.trim()
+    if (actualBlock !== expectedBlock || mode !== (a.runtime_mode ?? "subagent")) profileDrift.push(`.opencode/agents/${a.id}.md`)
   }
   if (profileDrift.length) changes.push({ kind: "PROFILE_DRIFT", paths: profileDrift })
-  let status = errors.length ? "PARSE_ERROR" : (changes.length ? "ARCHITECTURE_DRIFT" : "IN_SYNC")
+  let status = errors.length ? "PARSE_ERROR" : (profileDrift.length ? "PROFILE_DRIFT" : (changes.length ? "ARCHITECTURE_DRIFT" : "IN_SYNC"))
   if (!errors.length && oldSemantic === semantic && sync.architecture_source?.raw_sha256 !== raw) status = "VISUAL_ONLY_CHANGE"
   return { status, source: path.relative(root, source), raw_sha256: raw, semantic_sha256: semantic, errors, changes, ir }
 }

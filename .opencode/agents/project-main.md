@@ -13,7 +13,7 @@ permissions:
 
 <!-- ARCH-GENERATED:BEGIN -->
 description: project-main architecture contract
-mode: subagent
+architecture_runtime_mode: all
 architecture_id: project-main
 architecture_role: project-coordinator
 architecture_model_key: project-session

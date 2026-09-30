@@ -11,7 +11,7 @@ permissions:
 
 <!-- ARCH-GENERATED:BEGIN -->
 description: test-runner architecture contract
-mode: subagent
+architecture_runtime_mode: subagent
 architecture_id: test-runner
 architecture_role: test-runner
 architecture_model_key: deepseek-v4.1-flash

@@ -14,7 +14,7 @@ permissions:
 
 <!-- ARCH-GENERATED:BEGIN -->
 description: reviewer architecture contract
-mode: subagent
+architecture_runtime_mode: subagent
 architecture_id: reviewer
 architecture_role: reviewer
 architecture_model_key: gpt-5.6-sol

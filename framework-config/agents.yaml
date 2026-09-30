@@ -25,6 +25,7 @@ agents:
       - avoid-large-scale-direct-code-reading
       - avoid-direct-business-code-implementation
     role: orchestrator
+    runtime_mode: primary
   -
     display_name: 'Project Main'
     id: project-main
@@ -53,6 +54,7 @@ agents:
       - do-not-directly-implement-feature
       - use-feature-executor-for-code-change
     role: project-coordinator
+    runtime_mode: all
   -
     display_name: 'Project Reader'
     id: project-reader
@@ -84,6 +86,7 @@ agents:
       - no-ddl
       - no-dml-write
     role: reader
+    runtime_mode: all
   -
     display_name: Planner
     id: planner
@@ -103,6 +106,7 @@ agents:
       - define-acceptance-criteria
       - rework-planning
     role: planner
+    runtime_mode: subagent
   -
     display_name: 'Lifecycle Agent'
     id: lifecycle-agent
@@ -126,6 +130,7 @@ agents:
       - manage-feature-executor-lifecycle
       - manage-planner-lifecycle
     role: governance
+    runtime_mode: subagent
   -
     display_name: 'Feature Executor'
     id: feature-executor
@@ -144,6 +149,7 @@ agents:
       - produce-git-diff
       - report-changed-files
     role: executor
+    runtime_mode: subagent
   -
     display_name: 'DB Operator'
     id: db-operator
@@ -173,6 +179,7 @@ agents:
       default_database_target: mysql-local
       server_database_target: mysql-server
       server_target_requires_explicit_request: true
+    runtime_mode: subagent
   -
     display_name: 'API Runner'
     id: api-runner
@@ -192,6 +199,7 @@ agents:
       - api-regression
       - integration-debugging
     role: api-runner
+    runtime_mode: subagent
   -
     display_name: 'Test Runner'
     id: test-runner
@@ -211,6 +219,7 @@ agents:
       - sql-explain
       - log-check
     role: test-runner
+    runtime_mode: subagent
   -
     display_name: Reviewer
     id: reviewer
@@ -234,6 +243,7 @@ agents:
     restrictions:
       - executor-must-not-self-review
     role: reviewer
+    runtime_mode: subagent
   -
     display_name: 'Documentation Agent'
     id: documentation-agent
@@ -250,6 +260,7 @@ agents:
       - maintain-changelog
       - maintain-checkpoint-docs
     role: documentation
+    runtime_mode: subagent
     triggers:
       - reviewer-pass
       - api-contract-change
@@ -273,6 +284,7 @@ agents:
     restrictions:
       - no-temporary-task-state-in-mem0
     role: memory-governance
+    runtime_mode: subagent
     triggers:
       - reviewer-pass
 project_sessions:

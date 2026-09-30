@@ -1,9 +1,9 @@
 architecture_source:
   file: ../diagrams/multi_agent_framework_v4_completion_guard.drawio
   parser_version: architecture-sync-v1
-  raw_sha256: 195b00cfa631bbcd1f91232b1dee15a3d592019b184f12ab42040faa87951b20
-  semantic_sha256: b0e0e65be17f9da1ed706a5bace7610be86be5060cabf17b72d952323b8d4f73
-  sha256: 195b00cfa631bbcd1f91232b1dee15a3d592019b184f12ab42040faa87951b20
+  raw_sha256: 92bf18a64e2193e472a59bc715da1e071d8555811df82948d0050307c7cd912f
+  semantic_sha256: 9705b46ca0308e27717d2d23c946c11d1dbcbe56f377a9824b7b81ef467cd452
+  sha256: 92bf18a64e2193e472a59bc715da1e071d8555811df82948d0050307c7cd912f
 automatic_sync:
   apply_mode: explicit
   implemented: true

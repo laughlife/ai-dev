@@ -7,7 +7,7 @@ model: deepseek/deepseek-flash
 
 <!-- ARCH-GENERATED:BEGIN -->
 description: documentation-agent architecture contract
-mode: subagent
+architecture_runtime_mode: subagent
 architecture_id: documentation-agent
 architecture_role: documentation
 architecture_model_key: deepseek-v4.1-flash

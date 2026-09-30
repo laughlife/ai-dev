@@ -11,6 +11,7 @@ export function generateFrameworkConfig(root: string, ir: any, semantic: string,
   for (const a of ir.agents) {
     const target: any = byId.get(a.id); if (!target) continue
     target.role = a.role; target.display_name = target.display_name ?? a.id
+    target.runtime_mode = a.runtime_mode ?? "subagent"
     target.model ??= {}
     if (modelDisplay[a.model_key] !== undefined) target.model.display_name = modelDisplay[a.model_key]
     target.lifecycle ??= {}; target.lifecycle.type = a.lifecycle

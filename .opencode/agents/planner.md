@@ -11,7 +11,7 @@ permissions:
 
 <!-- ARCH-GENERATED:BEGIN -->
 description: planner architecture contract
-mode: subagent
+architecture_runtime_mode: subagent
 architecture_id: planner
 architecture_role: planner
 architecture_model_key: gpt-6-sol-fast

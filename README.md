@@ -8,7 +8,7 @@ AI-Dev Framework 是一个多智能体开发框架，旨在为 AI 驱动的软�
 
 ## 真相源（Source of Truth）
 
-- **架构真相源（Architecture Source of Truth）**：`diagrams/multi_agent_framework_v3_workspace.drawio`。Agent、模型、生命周期、路由等架构决策以该流程图为准。
+- **架构真相源（Architecture Source of Truth）**：`diagrams/multi_agent_framework_v4_completion_guard.drawio`。Agent、模型、生命周期、路由等架构决策以该流程图为准。
 - **治理真相源（Governance Source of Truth）**：`AGENTS.md`。Git 边界、目录职责、文件归属、安全规则等治理内容以 AGENTS.md 为准。
 - 两者冲突时：架构问题以 drawio 为准，治理问题以 AGENTS.md 为准；无法分类时暂停并报告，不静默选择。
 
@@ -22,7 +22,7 @@ ai-dev/
 │   └── AGENTS.md
 ├── diagrams/                    # 架构图表（架构真相源）
 │   ├── AGENTS.md
-│   └── multi_agent_framework_v3_workspace.drawio
+│   └── multi_agent_framework_v4_completion_guard.drawio
 ├── docs/                        # 持久框架文档（含 plan-status.md）
 │   └── AGENTS.md
 ├── framework-config/            # 机器可读派生配置（drawio 的镜像，非第二真相源）
@@ -136,7 +136,7 @@ ls -la
 ```
 
 ### 遵循的原则
-1. **架构权威**: 架构决策以 `diagrams/multi_agent_framework_v3_workspace.drawio` 为准；治理规则以 `AGENTS.md` 为准
+1. **架构权威**: 架构决策以 `diagrams/multi_agent_framework_v4_completion_guard.drawio` 为准；治理规则以 `AGENTS.md` 为准
 2. **变更管理**: 修改框架需遵循 `Modification Rule`
 3. **知识分离**: 明确区分运行时知识和持久知识
 4. **边界遵守**: 严格遵守业务项目边界定义
