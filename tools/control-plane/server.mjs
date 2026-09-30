@@ -117,6 +117,14 @@ function configSnapshot() {
   }
 }
 
+function completionSnapshot(snapshot) {
+  return snapshot.workflows.map((workflow) => {
+    const finalized = workflow.status === "COMPLETED" && workflow.finished_at && workflow.finished_at === workflow.completion_guard_finalized_at
+    const reviewPass = snapshot.nodes.some((node) => node.workflow_id === workflow.workflow_id && node.last_verdict === "PASS")
+    return { workflow_id: workflow.workflow_id, status: finalized ? "FINAL_REPORT_ALLOWED" : (reviewPass ? "DELIVERY_PENDING" : "REVIEW_PENDING"), reviewer_pass: reviewPass, finalized }
+  })
+}
+
 async function health() {
   return {
     status: "OK",
@@ -134,6 +142,7 @@ async function dashboard() {
   const config = configSnapshot()
   const healthData = await health()
   const workflowStatuses = snapshot.workflows.reduce((map, row) => { map[row.status] = (map[row.status] ?? 0) + 1; return map }, {})
+  const liveTeam = snapshot.sessions.map((session) => ({ agent_id: session.agent_id, role: session.role, project_id: session.project_id, model_runtime_id: session.model_runtime_id, session_key: session.session_key, generation: session.generation, context_pct: session.context_pct, lifecycle_state: session.lifecycle_state, status: session.status }))
   return {
     ...healthData,
     agents: config.agents,
@@ -141,6 +150,8 @@ async function dashboard() {
     lanes: config.lanes,
     counts: { workflows: snapshot.workflows.length, tasks: snapshot.tasks.length, sessions: snapshot.sessions.length, workflow_status: workflowStatuses },
     workflow_status: workflowStatuses,
+    completion: completionSnapshot(snapshot),
+    live_team: liveTeam,
   }
 }
 
