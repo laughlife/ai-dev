@@ -297,6 +297,8 @@ Evidence:
   → `PLAN11_PRODUCTION_GATE_BLOCKED`
 - `node --experimental-strip-types tools/production-acceptance/gate.mjs`
   → `framework_v1: NOT_READY`
+- `node --experimental-strip-types .opencode/tests/plan11-recovery-rollback.mjs`
+  → `PLAN11_RECOVERY_ROLLBACK_PASS`
 
 Missing user-reviewed evidence:
 - three live Desktop UI/runtime lifecycle samples

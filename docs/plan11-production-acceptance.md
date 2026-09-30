@@ -37,5 +37,11 @@ does not synthesize or infer these records. This preserves the Plan 8 matrix's
 manual evidence requirement and prevents a static harness from being presented
 as a production observation.
 
+The local recovery/rollback drill is executable and currently passes:
+
+```text
+PLAN11_RECOVERY_ROLLBACK_PASS {"restart":"IN_SYNC","rollback":"PASS"}
+```
+
 Once those records exist, rerun the gate and the full regression suite. A
 `RELEASE_READY` result is the final Framework v1 release gate.
