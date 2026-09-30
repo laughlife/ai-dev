@@ -120,10 +120,13 @@ export default {
     if (core.db) {
       try {
         core.db.exec(fs.readFileSync(path.join(import.meta.dir, "schema.sql"), "utf8"))
-        const workflowColumns = new Set((core.db.prepare("PRAGMA table_info(workflows)").all() as any[]).map((c: any) => String(c?.name)))
-        if (!workflowColumns.has("completion_guard_finalized_at")) {
-          core.db.exec("ALTER TABLE workflows ADD COLUMN completion_guard_finalized_at TEXT")
-        }
+        if (typeof core.db.transaction !== "function") throw new Error("workflow schema migration requires SQLite transaction support")
+        core.db.transaction(() => {
+          const workflowColumns = new Set((core.db.prepare("PRAGMA table_info(workflows)").all() as any[]).map((c: any) => String(c?.name)))
+          if (!workflowColumns.has("completion_guard_finalized_at")) {
+            core.db.exec("ALTER TABLE workflows ADD COLUMN completion_guard_finalized_at TEXT")
+          }
+        })()
       } catch (e: any) {
         schemaError = errMsg(e)
       }
