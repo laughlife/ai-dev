@@ -11,7 +11,7 @@
 // lifecycle_events / lifecycle_rotations).
 //
 // Authority boundaries:
-// - Architecture source of truth: diagrams/multi_agent_framework_v3_workspace.drawio
+// - Architecture source of truth: diagrams/multi_agent_framework_v4_completion_guard.drawio
 // - Telemetry protocol (normative): docs/runtime-context-telemetry.md
 //   (VERIFIED on OpenCode 2.0.20): context usage = the LATEST assistant
 //   message that carries `tokens`, summed input+output+reasoning+

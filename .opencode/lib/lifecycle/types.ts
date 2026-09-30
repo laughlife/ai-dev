@@ -13,7 +13,7 @@
 //                                                          as runtime-registry-core.ts / task-bus-core.ts)
 //
 // Authority boundaries:
-// - Architecture source of truth: diagrams/multi_agent_framework_v3_workspace.drawio
+// - Architecture source of truth: diagrams/multi_agent_framework_v4_completion_guard.drawio
 // - Telemetry measurement protocol (normative): docs/runtime-context-telemetry.md
 //   (T1 verified, OpenCode 2.0.20): values are RECORDED observations, never
 //   estimated; when no exact measurement exists the value is null.

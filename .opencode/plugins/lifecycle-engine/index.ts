@@ -19,7 +19,7 @@
 // tool is a test hook.
 //
 // Authority boundaries (inherited from lifecycle-core — do not claim more):
-// - Architecture source of truth: diagrams/multi_agent_framework_v3_workspace.drawio
+// - Architecture source of truth: diagrams/multi_agent_framework_v4_completion_guard.drawio
 // - Telemetry protocol (normative): docs/runtime-context-telemetry.md —
 //   verified measurements only (ctx.session.context last-assistant tokens +
 //   ctx.model.list limit.context); NO estimation, NO defaults. Missing

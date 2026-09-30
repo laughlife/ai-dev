@@ -24,7 +24,7 @@
 // caller (thin tool wrappers / future Workflow Engine).
 //
 // Authority boundaries (unchanged from Plan 6):
-// - Architecture source of truth: diagrams/multi_agent_framework_v3_workspace.drawio
+// - Architecture source of truth: diagrams/multi_agent_framework_v4_completion_guard.drawio
 // - Runtime data sources (read fresh on every call, nothing hardcoded — §22):
 //   framework-config/projects.yaml / agents.yaml / routing.yaml / task-bus.yaml
 // - Envelope contracts: templates/task-envelope.schema.json +

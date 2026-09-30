@@ -12,7 +12,7 @@
 // error semantics are unchanged from Plan 5.
 //
 // Authority boundaries:
-// - Architecture source of truth: diagrams/multi_agent_framework_v3_workspace.drawio
+// - Architecture source of truth: diagrams/multi_agent_framework_v4_completion_guard.drawio
 // - Runtime data source: framework-config/projects.yaml + framework-config/agents.yaml
 //   (read fresh on every call; nothing project- or model-specific is hardcoded here)
 //

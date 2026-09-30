@@ -1,14 +1,14 @@
 # Plan 9 U3 — Live Team Execution Runtime Evidence
 
-Status: `TEAM_EXECUTION_RUNTIME_BLOCKED`
+Status: `U3_FINAL_ACCEPTANCE_BLOCKED`
 
 This document is the collection template for the Plan 9 U3 acceptance item
 (Team Execution Mode parallel safety; see root `AGENTS.md` §9.1 and
 `../diagrams/multi_agent_framework_v4_completion_guard.drawio`).
 
-It is **not** evidence by itself. It defines the exact live evidence that must
-be observed on the OpenCode Runtime host, and it records the current blocker
-while that evidence does not exist.
+It records the exact live evidence observed on the OpenCode Runtime host. The
+runtime evidence is complete; the current blocker is only the independent
+final Reviewer decision.
 
 Scope: Plan 9 U3 only. U4 is explicitly out of scope for this document.
 
@@ -46,8 +46,8 @@ remaining gate is:
    that observation.
 
 Until (1) is satisfied with the facts required in §3, the U3 final gate stays
-blocked and must be recorded as `TEAM_EXECUTION_RUNTIME_BLOCKED`. Do not
-down-grade this to a PASS by inference, simulation, or harness output.
+`U3_FINAL_ACCEPTANCE_BLOCKED`. Do not downgrade this to a PASS by inference,
+simulation, or harness output.
 
 ## 2.1 Runtime target correction and qualifying Desktop V2 probe (2026-09-30)
 
@@ -82,7 +82,7 @@ dry-run, model-synthesised or harness-only results must never be entered here.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | `0d3835e2-797f-4bf4-b408-e50d3c32b8ef` | 2026-09-30 | OpenCode 2.0.20 | 3 independent non-conflicting `code_read` nodes; `TEAM_EXECUTION` | wave 0; parallelism 3 | 15:20:09.265Z–15:20:48.446Z; all three intervals overlap | 3 scoped `project-reader` workers; task/session details below | Runtime `REVIEW_PASSED`; independent final review pending | Desktop V2 session record; `workflow_get` + `task_get` |
 | 2 | `cfc83688-d03d-48ab-b1a0-377e504e1e13` | 2026-09-30 | OpenCode 2.0.20 | 3 independent non-conflicting `code_change` nodes; `TEAM_EXECUTION` | wave 0; parallelism 3 | 15:33:13.634Z–15:39:10.260Z; all three intervals overlap | 3 scoped `feature-executor` workers; details below | Runtime `REVIEW_PASSED`; V1/V2/V3 PASS; independent final review pending | Desktop V2 workflow result |
-| 3 | `9cf538e4-160c-4293-9ba3-b0285e34d4fd` | 2026-09-30 | OpenCode 2.0.20 | same-resource write negative control; `TEAM_EXECUTION` | N1 wave 0, N2 wave 1; parallelism 1 each | N1 end `15:55:02.042Z` < N2 start `15:55:02.043Z` | 2 scoped `feature-executor` workers on identical `resources.write` | Runtime `REVIEW_PASSED`; delivery pending; independent final review pending | Desktop V2 negative-control result |
+| 3 | `9cf538e4-160c-4293-9ba3-b0285e34d4fd` | 2026-09-30 | OpenCode 2.0.20 | same-resource write negative control; `TEAM_EXECUTION` | N1 wave 0, N2 wave 1; parallelism 1 each | N1 end `15:55:02.042Z` < N2 start `15:55:02.043Z` | 2 scoped `feature-executor` workers on identical `resources.write` | Runtime `REVIEW_PASSED`; independent final review pending | Desktop V2 negative-control result |
 
 ### 3.1 Read-team worker evidence
 
@@ -118,8 +118,8 @@ no business-repository tracked/source changes.
 The separate same-resource negative-control workflow
 `9cf538e4-160c-4293-9ba3-b0285e34d4fd` completed with runtime
 `REVIEW_PASSED`. N1 and N2 were assigned to different waves and the recorded
-intervals do not overlap. Its delivery gate remains pending; this document
-does not treat that delivery state as an independent U3 Reviewer verdict.
+intervals do not overlap. This document does not treat the workflow's internal
+review as the independent U3 Reviewer verdict.
 
 ### 3.3 Negative-control worker evidence
 
