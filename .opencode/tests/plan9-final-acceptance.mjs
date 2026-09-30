@@ -16,11 +16,26 @@ const compilerResult = JSON.parse(compiler)
 assert.equal(compilerResult.status, "IN_SYNC")
 assert.deepEqual(compilerResult.errors, [])
 assert.deepEqual(compilerResult.changes, [])
+const diff = execFileSync(process.execPath, ["--experimental-strip-types", "tools/architecture-sync/cli.ts", "diff", "--format=json"], { cwd: root, encoding: "utf8" })
+const diffResult = JSON.parse(diff)
+assert.equal(diffResult.status, "IN_SYNC")
+assert.deepEqual(diffResult.errors, [])
+assert.deepEqual(diffResult.changes, [])
 
 const hardening = execFileSync(process.execPath, ["--experimental-strip-types", ".opencode/tests/architecture-compiler-hardening.mjs"], { cwd: root, encoding: "utf8" })
 assert.match(hardening, /ARCHITECTURE_COMPILER_HARDENING_EXPECTED_PASS/)
 const compilerTest = execFileSync(process.execPath, ["--experimental-strip-types", ".opencode/tests/architecture-compiler.mjs"], { cwd: root, encoding: "utf8" })
 assert.match(compilerTest, /ARCHITECTURE_COMPILER_PASS/)
+
+const harnesses = [
+  [["--experimental-strip-types", "--test", ".opencode/tests/completion-guard-hard-gate.mjs"], /COMPLETION_GUARD_HARD_GATE_TEST_PASS/],
+  [["--experimental-strip-types", "--import", "./.opencode/tests/register-hooks.mjs", ".opencode/tests/plan9-architecture-smoke.mjs"], /PLAN9_ARCHITECTURE_SMOKE_PASS/],
+  [["--experimental-strip-types", "--import", "./.opencode/tests/register-hooks.mjs", ".opencode/tests/lifecycle-smoke.mjs"], /PLAN8_LIFECYCLE_SMOKE_PASS/],
+  [["--experimental-strip-types", ".opencode/tests/team-execution-coordinator.mjs"], /TEAM_EXECUTION_COORDINATOR_TEST_PASS/],
+  [["--experimental-strip-types", ".opencode/tests/u3-team-execution-contract.mjs"], /U3_TEAM_EXECUTION_CONTRACT_TEST_PASS/],
+  [["--experimental-strip-types", ".opencode/tests/workflow-team-worker-sessions.mjs"], /WORKFLOW_TEAM_WORKER_SESSIONS_TEST_PASS/],
+]
+for (const [args, marker] of harnesses) assert.match(execFileSync(process.execPath, args, { cwd: root, encoding: "utf8" }), marker)
 
 for (const file of [
   ".opencode/tests/completion-guard-hard-gate.mjs",
