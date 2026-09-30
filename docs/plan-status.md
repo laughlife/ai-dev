@@ -216,7 +216,7 @@ Acceptance evidence:
 
 ## Plan 9 Part A + Part B (upper half)
 
-Status: IMPLEMENTED_PENDING_INDEPENDENT_REVIEW
+Status: U3_FINAL_ACCEPTANCE_BLOCKED
 
 Scope:
 - v4 Completion Guard architecture and deterministic execution/delivery checks
@@ -229,6 +229,14 @@ Evidence:
 - `architecture-sync check` → `IN_SYNC`
 - `architecture-compiler.mjs` → `ARCHITECTURE_COMPILER_PASS`
 - `plan9-architecture-smoke.mjs` → `PLAN9_ARCHITECTURE_SMOKE_PASS`
+
+Current acceptance:
+- U2 code layer: PASS
+- U3 implementation: PASS
+- U3 static tests: PASS
+- U3 live runtime evidence: `TEAM_EXECUTION_RUNTIME_BLOCKED`
+- U3 final acceptance: BLOCKED pending coding live smoke, negative-control serialization evidence, and independent Reviewer PASS
+- U4–U6: NOT STARTED
 
 ## History Note
 

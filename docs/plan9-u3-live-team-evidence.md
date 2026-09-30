@@ -17,59 +17,61 @@ Scope: Plan 9 U3 only. U4 is explicitly out of scope for this document.
 | Field | Value |
 | --- | --- |
 | Status | `TEAM_EXECUTION_RUNTIME_BLOCKED` |
-| Live OpenCode Runtime evidence | none recorded |
-| Latest runtime probe | health reachable (version `1.1.53`); no usable session / workflow smoke (see §2.1) |
+| Live OpenCode Runtime evidence | Desktop V2 session and read-team smoke recorded; coding/negative-control evidence pending |
+| Latest runtime probe | Desktop-managed OpenCode V2 `2.0.20`; the earlier PATH `1.1.53` probe is stale/non-V2 and invalid for U3 (see §2.1) |
 | Deterministic harness evidence | present (implementation-level only, see §4) |
 | Date of this assessment | 2026-09-30 |
 | Scope | Team Execution Mode parallel safety (U3) |
 
 ## 2. Exact blocker
 
-Team Execution Mode (>= 3 implementation nodes / multi-project / code + test +
-review / independent packages) has never been executed and observed on the live
-OpenCode Runtime host. The concrete blockers are:
+The Desktop V2 runtime has now executed and returned a qualifying read-team
+workflow. U3 remains blocked because the complete acceptance set has not yet
+been observed. The concrete remaining blockers are:
 
-1. **No hosted run.** No real `workflow_execute` / `workflow_run` invocation on
-   a qualifying plan has been recorded from the OpenCode runtime host. The
-   parallel-safety behavior is therefore unobserved outside isolated harnesses.
-2. **Harness cannot substitute.** The available deterministic harnesses run
+1. **Coding lane pending.** No qualifying real `code_change` workflow has yet
+   proved three node-scoped Feature Executor sessions in one overlapping wave.
+2. **Negative control pending.** Same-resource write serialization has not yet
+   been captured from a real workflow response.
+3. **Harness cannot substitute.** The available deterministic harnesses run
    under Node 24 (`--experimental-strip-types`); the DB-backed one imports the
    production `.ts` cores by remapping `bun:sqlite` to the Node `node:sqlite`
    adapter via `register-hooks.mjs`. They prove pure scheduling / contract
    correctness in isolation — not runtime-host dispatch, real scoped sessions,
    or real parallel waves.
-3. **Parallel evidence needs the host.** Acceptable parallel evidence is the
+4. **Parallel evidence needs the host.** Acceptable parallel evidence is the
    runtime-produced `waves[]` (node_ids / parallelism / `started_at` /
    `ended_at`) with genuinely overlapping timestamps between independent,
    non-conflicting lanes. An isolated harness cannot produce or reconstruct
    that observation.
 
-Until (1) is satisfied with the facts required in §3, the U3 live gate stays
+Until (1) and (2) are satisfied with the facts required in §3, the U3 live gate stays
 blocked and must be recorded as `TEAM_EXECUTION_RUNTIME_BLOCKED`. Do not
 down-grade this to a PASS by inference, simulation, or harness output.
 
-## 2.1 Latest OpenCode Runtime probe (2026-09-30) — BLOCKED, not live evidence
+## 2.1 Runtime target correction and qualifying Desktop V2 probe (2026-09-30)
 
-A read-only probe of the local OpenCode V2 runtime host was performed on
-2026-09-30. No credentials, API keys, tokens, or private response bodies were
-captured or recorded.
+A prior probe targeted the PATH `opencode` npm shim (`1.1.53`) and is **stale,
+non-V2, and invalid U3 evidence**. It must not be used to diagnose the Desktop
+runtime. The qualifying probe targeted the Desktop-managed service through the
+Desktop CLI and its authenticated local service endpoint. No credentials, API
+keys, tokens, or private response bodies were captured or recorded.
 
 | Probe step | Target | Observation |
 | --- | --- | --- |
-| Server health | `GET /global/health` on the local runtime host | reachable; reports `healthy: true` and version `1.1.53` |
-| Session creation (runtime HTTP) | `POST /session` (route present in the runtime `/doc` OpenAPI listing) | no usable smoke session could be established |
-| Workflow tool path | session-based `workflow_execute` tool dispatch | no usable smoke invocation could be established |
-| Failure shape | — | request failed with `UnknownError`, message: `socket connection was closed unexpectedly` |
+| Runtime identity | Desktop-managed CLI / service | OpenCode `2.0.20`; service endpoint `http://127.0.0.1:49374`; Desktop service process identity confirmed |
+| API identity | `GET /api/info` via Desktop CLI | `{"version":"2.0.20", ...}` |
+| Plugin load | Desktop service log, workspace `D:\\ai-dev` | `workflow-engine`, Task Bus, Runtime Registry and Lifecycle plugins loaded |
+| Tool visibility | V2 session tool namespace | `workflow_plan`, `workflow_run`, `workflow_execute`, `workflow_get`, `workflow_list` visible |
+| Session path | Desktop V2 `POST /api/session` + prompt + session/message read | succeeded; session `ses_f0d20cfa6ffedPAjdrI1MOxm90`, assistant returned `V2_SESSION_SMOKE_OK` |
+| Stale probe | PATH `opencode --version` / old `/global/health` target | `1.1.53`; explicitly rejected as non-V2 evidence |
 
 Interpretation:
 
-- The runtime process itself is reachable, so the blocker is **not** "no runtime
-  on the host". The blocker is that no usable workflow invocation could be
-  established through the runtime session / tool path from this client.
-- This probe is a connectivity and blocker observation only. It produced **no**
-  `workflow_id`, **no** `waves[]`, and **no** scoped-session evidence.
-- It therefore must **not** be entered into the §3 template and must **not** be
-  reported as a live PASS. `Status` stays `TEAM_EXECUTION_RUNTIME_BLOCKED`.
+- The earlier `1.1.53` failure (`socket connection was closed unexpectedly`) is
+  not evidence about the Desktop V2 runtime.
+- The Desktop V2 session and tool path are healthy. A qualifying read-team run
+  is recorded in §3; coding and negative-control evidence remain outstanding.
 
 ## 3. Live evidence template (fill only from a real runtime run)
 
@@ -78,9 +80,21 @@ dry-run, model-synthesised or harness-only results must never be entered here.
 
 | # | workflow_id | Date | Runtime version | Qualifying signal | Waves observed | Overlapping timestamps | Scoped sessions (pid/route) | Reviewer verdict | Evidence pointer |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | | | | | | | | | |
+| 1 | `0d3835e2-797f-4bf4-b408-e50d3c32b8ef` | 2026-09-30 | OpenCode 2.0.20 | 3 independent non-conflicting `code_read` nodes; `TEAM_EXECUTION` | wave 0; parallelism 3 | 15:20:09.265Z–15:20:48.446Z; all three intervals overlap | 3 scoped `project-reader` workers; task/session details below | Runtime result `REVIEW_PASSED`; independent U3 Reviewer pending | Desktop V2 session record; `workflow_get` + `task_get` |
 | 2 | | | | | | | | | |
 | 3 | | | | | | | | | |
+
+### 3.1 Read-team worker evidence
+
+| node_id | task_id | session_key | session_id | started_at | ended_at |
+| --- | --- | --- | --- | --- | --- |
+| `read-system-module` | `957d1c5c-fa53-432e-935d-2b3471c38cac` | `workflow:0d3835e2-797f-4bf4-b408-e50d3c32b8ef:project:ruoyi-vue-pro:project-reader:node:read-system-module` | `ses_f0d192acaffe4MmlQrRPCLONVu` | `2026-09-30T15:20:09.265Z` | `2026-09-30T15:20:36.794Z` |
+| `read-infra-module` | `f5e37d1b-7627-4530-a800-46fc62996f22` | `workflow:0d3835e2-797f-4bf4-b408-e50d3c32b8ef:project:ruoyi-vue-pro:project-reader:node:read-infra-module` | `ses_f0d192ac9ffebz6636TEHj4rgm` | `2026-09-30T15:20:09.267Z` | `2026-09-30T15:20:48.446Z` |
+| `read-admin-vue3-source` | `8130138b-2366-431f-80f7-a72634e5ed5e` | `workflow:0d3835e2-797f-4bf4-b408-e50d3c32b8ef:project:ruoyi-vue-pro:project-reader:node:read-admin-vue3-source` | `ses_f0d192ac8ffeeurjgb9Jr2aQGt` | `2026-09-30T15:20:09.268Z` | `2026-09-30T15:20:37.357Z` |
+
+This is real Desktop V2 runtime evidence for the **read lane only**. It does
+not close U3 by itself: coding overlap, same-resource serialization, archive
+verification, and independent Reviewer PASS remain required.
 
 Required per-row facts:
 

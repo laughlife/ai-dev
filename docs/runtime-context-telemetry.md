@@ -7,7 +7,7 @@ session context usage (`context_pct`) against the installed OpenCode runtime.
 It is the evidence base for Plan 8 lifecycle thresholds
 (60 / 70 / 80, see `../framework-config/lifecycle.yaml`) and for the
 Runtime Registry `context_pct` field shown in
-`../diagrams/multi_agent_framework_v3_workspace.drawio`.
+`../diagrams/multi_agent_framework_v4_completion_guard.drawio`.
 
 ## 1. Runtime version and provenance
 
