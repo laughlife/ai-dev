@@ -5,6 +5,7 @@
 const NODE_SUCCESS = new Set(["COMPLETED", "REVIEW_PASSED"])
 const ACTIVE_TASK = new Set(["READY", "RUNNING", "BLOCKED"])
 const EXECUTION_ALLOWED_WORKFLOW_STATES = new Set(["REVIEW_PASSED", "DELIVERY_PENDING", "DELIVERY_COMPLETE", "COMPLETED"])
+const DELIVERY_FINALIZABLE_WORKFLOW_STATES = new Set(["REVIEW_PASSED", "DELIVERY_PENDING", "DELIVERY_COMPLETE"])
 const TERMINAL_TASK = new Set(["COMPLETED"])
 
 function parse(value: any): any {
@@ -99,11 +100,93 @@ export function createCompletionCore(runtimeCore: any) {
     return { ok: complete, status: complete ? "DELIVERY_COMPLETE" : "DELIVERY_PENDING", phase: "DELIVERY", workflow_id: id, execution: exec, missing: pending, reviewer_pass: reviewMissing.length === 0 }
   }
 
+  function finalReportPermission(input: any = {}) {
+    const g = guard(); if (g) return g
+    const id = typeof input.workflow_id === "string" ? input.workflow_id : ""
+    if (!id) return failure("INVALID_INPUT", "workflow_id is required")
+    const wf: any = db.query("SELECT * FROM workflows WHERE workflow_id = ?").get(id)
+    if (!wf) return failure("WORKFLOW_NOT_FOUND", `workflow '${id}' does not exist`)
+    const delivery: any = deliveryCheck({ workflow_id: id })
+    if (wf.status === "COMPLETED" && !wf.finished_at) {
+      return {
+        ok: false,
+        status: "FINAL_REPORT_BLOCKED",
+        code: "COMPLETION_GUARD_BLOCKED",
+        detail: "workflow is COMPLETED without a Completion Guard finalization timestamp; failing closed",
+        workflow_id: id,
+        permission: false,
+        delivery,
+      }
+    }
+    if (delivery.ok !== true) {
+      return {
+        ok: false,
+        status: "FINAL_REPORT_BLOCKED",
+        code: "COMPLETION_GUARD_BLOCKED",
+        detail: "delivery completion guard has not passed",
+        workflow_id: id,
+        permission: false,
+        delivery,
+      }
+    }
+    return {
+      ok: true,
+      status: "FINAL_REPORT_ALLOWED",
+      workflow_id: id,
+      permission: true,
+      already_finalized: wf.status === "COMPLETED",
+      delivery,
+    }
+  }
+
+  function finalize(input: any = {}) {
+    const g = guard(); if (g) return g
+    const id = typeof input.workflow_id === "string" ? input.workflow_id : ""
+    if (!id) return failure("INVALID_INPUT", "workflow_id is required")
+    const permission: any = finalReportPermission({ workflow_id: id })
+    if (permission.ok !== true) return permission
+    const wf: any = db.query("SELECT * FROM workflows WHERE workflow_id = ?").get(id)
+    if (wf.status === "COMPLETED") return { ...permission, status: "COMPLETED", final_report_permission: true }
+    if (!DELIVERY_FINALIZABLE_WORKFLOW_STATES.has(String(wf.status))) {
+      return {
+        ok: false,
+        status: "FINAL_REPORT_BLOCKED",
+        code: "WORKFLOW_STATE_INVALID",
+        detail: `workflow status '${wf.status}' is not finalizable by the Completion Guard`,
+        workflow_id: id,
+        permission: false,
+      }
+    }
+    const now = new Date().toISOString()
+    const updated: any = db.query(
+      "UPDATE workflows SET status = 'COMPLETED', updated_at = ?, finished_at = ? " +
+        "WHERE workflow_id = ? AND status IN ('REVIEW_PASSED', 'DELIVERY_PENDING', 'DELIVERY_COMPLETE')",
+    ).run(now, now, id)
+    if (!updated || Number(updated.changes ?? 0) !== 1) {
+      return {
+        ok: false,
+        status: "FINAL_REPORT_BLOCKED",
+        code: "WORKFLOW_STATE_CHANGED",
+        detail: "workflow state changed before guarded finalization; re-read completion status",
+        workflow_id: id,
+        permission: false,
+      }
+    }
+    return {
+      ok: true,
+      status: "COMPLETED",
+      workflow_id: id,
+      final_report_permission: true,
+      delivery_status: "DELIVERY_COMPLETE",
+      finalized_at: now,
+    }
+  }
+
   function status(input: any = {}) {
     const exec = executionCheck(input)
     const delivery = exec?.ok ? deliveryCheck(input) : { ok: false, status: "DELIVERY_PENDING", phase: "DELIVERY", execution: exec }
     return { ok: exec?.ok === true && delivery?.ok === true, workflow_id: input.workflow_id, execution: exec, delivery }
   }
 
-  return { executionCheck, deliveryCheck, status }
+  return { executionCheck, deliveryCheck, finalReportPermission, finalize, status }
 }

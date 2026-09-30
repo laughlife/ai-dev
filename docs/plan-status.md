@@ -216,7 +216,7 @@ Acceptance evidence:
 
 ## Plan 9 Part A + Part B (upper half)
 
-Status: U3_FINAL_ACCEPTANCE_BLOCKED
+Status: U3_PASS / U4_IMPLEMENTATION_COMPLETE_RUNTIME_ACCEPTANCE_PENDING
 
 Scope:
 - v4 Completion Guard architecture and deterministic execution/delivery checks
@@ -238,7 +238,9 @@ Current acceptance:
 - U3 live coding runtime evidence: PASS (three node-scoped workers with overlap)
 - U3 conflict serialization runtime evidence: PASS (same-resource negative control)
 - U3 final acceptance: PASS (independent Reviewer PASS on 2026-10-01)
-- U4–U6: NOT STARTED
+- U4 implementation: PASS (deterministic Completion Guard hard gate)
+- U4 live runtime acceptance: PENDING (Desktop V2 `completion_finalize` smoke)
+- U5–U6: NOT STARTED
 
 ## History Note
 

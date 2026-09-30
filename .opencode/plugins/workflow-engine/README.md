@@ -38,7 +38,9 @@ workflow_execute 组合入口）。
 - §60-§62 safe retry：仅执行类错误码 × retry.safe_routes × 预算内；
   BLOCKED 类绝不重试；never_retry_routes 绝不重试
 - §68/§69 workflow_run / workflow_execute（plan + run 组合，Global
-  Orchestrator 标准入口）
+  Orchestrator 标准入口）；执行完成后只停在 `REVIEW_PASSED` /
+  `DELIVERY_PENDING`，最终 `COMPLETED` 必须经过 Completion Guard
+  `completion_finalize`
 - §70/§71 workflow_get / workflow_list（纯 DB read，有界）
 - §84/§85 测试钩子（marker-gated，见下）
 
@@ -64,7 +66,9 @@ workflow_get / workflow_list。仅当插件加载时存在标记文件
 Workflow（§32，workflows.status）：
 
 ```text
-PLANNING → READY → RUNNING → (REVIEWING ⇄ REWORKING) → COMPLETED
+PLANNING → READY → RUNNING → (REVIEWING ⇄ REWORKING) → REVIEW_PASSED
+                                                → DELIVERY_PENDING
+                                                → COMPLETED（Completion Guard）
                      │                                    
                      ├→ FAILED（node 失败/REVIEW_RESULT_INVALID 等，写 finished_at）
                      ├→ BLOCKED（node BLOCKED / 基础设施故障；不写 finished_at，
@@ -73,6 +77,9 @@ PLANNING → READY → RUNNING → (REVIEWING ⇄ REWORKING) → COMPLETED
 ```
 
 - terminal：COMPLETED / FAILED / REWORK_LIMIT（workflow_run 不重跑，返回现态）
+- `REVIEW_PASSED` / `DELIVERY_PENDING` 是可交付但未最终关闭状态；只有
+  `completion_final_report_permission` 通过后，`completion_finalize` 才能
+  将 Workflow 关闭为 `COMPLETED`
 - 可续跑：READY / RUNNING（陈旧）/ BLOCKED / REVIEWING / REWORKING
 - PLANNING → workflow_run 返回 WORKFLOW_NOT_READY
 - 同 workflow 已有活跃调度循环 → WORKFLOW_ALREADY_RUNNING（fail-fast，

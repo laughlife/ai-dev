@@ -29,6 +29,24 @@ export default {
         options: { namespace: "completion" },
         execute: async (input: any) => ({ content: JSON.stringify(completion.status(input)) }),
       })
+      editor.add({
+        name: "completion_final_report_permission",
+        description:
+          "Deterministic final-report permission gate. Returns FINAL_REPORT_ALLOWED only when execution, " +
+          "required reviewer PASS evidence, required delivery routes and child-task completion all pass.",
+        input: { type: "object", properties: { workflow_id: { type: "string" } }, required: ["workflow_id"], additionalProperties: false },
+        options: { namespace: "completion" },
+        execute: async (input: any) => ({ content: JSON.stringify(completion.finalReportPermission(input)) }),
+      })
+      editor.add({
+        name: "completion_finalize",
+        description:
+          "Hard Completion Guard transition. Atomically changes a workflow to COMPLETED only after " +
+          "completion_final_report_permission passes; otherwise the workflow state is left unchanged.",
+        input: { type: "object", properties: { workflow_id: { type: "string" } }, required: ["workflow_id"], additionalProperties: false },
+        options: { namespace: "completion" },
+        execute: async (input: any) => ({ content: JSON.stringify(completion.finalize(input)) }),
+      })
     })
     return () => runtime.close()
   },
