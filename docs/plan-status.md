@@ -216,7 +216,7 @@ Acceptance evidence:
 
 ## Plan 9 Part A + Part B (upper half)
 
-Status: U3_PASS / U4_PASS / U5–U6 NOT_STARTED
+Status: U3_PASS / U4_PASS / U5_PASS / U6 NOT_STARTED
 
 Scope:
 - v4 Completion Guard architecture and deterministic execution/delivery checks
@@ -248,7 +248,11 @@ Current acceptance:
   `2026-09-30T18:01:41.595Z`)
 - U4 independent Reviewer acceptance: PASS (fresh Reviewer session
   `ses_f0c83473affeJajCq8vyqDfCMD`)
-- U5–U6: NOT STARTED
+- U5 implementation: PASS (Architecture Compiler Final Hardening)
+- U5 hardening tests: PASS (`architecture-compiler-hardening.mjs`)
+- U5 independent read-only review: PASS (fallback model used because the
+  architecture-defined Reviewer provider was unavailable in the local CLI)
+- U6: NOT STARTED
 
 ## History Note
 

@@ -116,10 +116,11 @@ Plan 7: completed
 Plan 8: final acceptance blocked (manual Desktop UI / live runtime evidence required)
 Plan 9 U3: PASS
 Plan 9 U4: PASS (Completion Guard implementation, Desktop V2 runtime acceptance, and independent review)
-Plan 9 U5–U6: not started
+Plan 9 U5: PASS (Architecture Compiler Final Hardening)
+Plan 9 U6: not started
 
 Next planned stage:
-Plan 9 U5 Architecture Compiler Final Hardening
+Plan 9 U6
 ```
 
 Not implemented yet:

@@ -116,10 +116,11 @@ Plan 7: completed
 Plan 8: final acceptance blocked（等待人工 Desktop UI / 真实 runtime 证据）
 Plan 9 U3: PASS
 Plan 9 U4: PASS（Completion Guard 实现、Desktop V2 运行时验收、独立 Reviewer 均通过）
-Plan 9 U5–U6: not started
+Plan 9 U5: PASS（Architecture Compiler Final Hardening）
+Plan 9 U6: not started
 
 Next planned stage:
-Plan 9 U5 Architecture Compiler Final Hardening
+Plan 9 U6
 ```
 
 当前尚未实现：
