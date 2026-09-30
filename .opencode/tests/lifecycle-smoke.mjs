@@ -102,6 +102,11 @@ assert(generated.length > 0 && generated.at(-1).sessionID === undefined, "summar
 const checkpointJson = JSON.parse(fs.readFileSync(path.join(tempRoot, checkpoint.checkpoint_path), "utf8"))
 assert(checkpointJson.schema_version === 1 && checkpointJson.session_key === key, "checkpoint matches v1 contract")
 
+const rowsBeforeForceRestore = core.db.query("SELECT COUNT(*) AS n FROM sessions WHERE session_key=?").get(key).n
+const forcedLiveRestore = await lifecycle.restoreSession({ session_key: key, force: true, checkpoint_path: checkpoint.checkpoint_path })
+assert(!forcedLiveRestore.ok && forcedLiveRestore.code === "RESTORE_NOT_NEEDED", "force restore never replaces a live active session")
+assert(core.db.query("SELECT COUNT(*) AS n FROM sessions WHERE session_key=?").get(key).n === rowsBeforeForceRestore, "live force restore creates no successor row or orphan registry record")
+
 const rotated = await lifecycle.rotateSession({ session_key: key, force: true, reason: "smoke" })
 assert(rotated.ok && rotated.to_generation === 2, "rotation creates generation plus one")
 assert(core.db.query("SELECT COUNT(*) AS n FROM sessions WHERE session_key=? AND status='ACTIVE'").get(key).n === 1, "rotation leaves one active generation")

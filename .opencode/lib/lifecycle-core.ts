@@ -1183,9 +1183,21 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
 
     if (!opts?.force && typeof row.checkpoint_path === "string" && row.checkpoint_path) {
       const abs = absCheckpointPath(row.checkpoint_path)
-      if (fs.existsSync(abs)) {
+      const approvedDir = path.resolve(checkpointsDir)
+      const resolved = path.resolve(abs)
+      let existingValid = false
+      if (resolved.startsWith(approvedDir + path.sep) && fs.existsSync(abs)) {
+        try {
+          const existing = JSON.parse(fs.readFileSync(abs, "utf8"))
+          existingValid = existing?.schema_version === 1 && existing?.session_key === key &&
+            Number(existing?.generation) === Number(row.generation) && validateCheckpointShape(existing).length === 0
+        } catch {
+          existingValid = false
+        }
+      }
+      if (existingValid) {
         insertEvent(key, row.generation, row.opencode_session_id, "CHECKPOINT_REUSED", num(row.context_pct), row.checkpoint_path, {
-          reason: "existing checkpoint file present; force=false",
+          reason: "existing v1 checkpoint validated; force=false",
         })
         return {
           ok: true,
@@ -1197,6 +1209,9 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
           reused: true,
         }
       }
+      insertEvent(key, row.generation, row.opencode_session_id, "CHECKPOINT_EXISTING_INVALID", num(row.context_pct), row.checkpoint_path, {
+        reason: "recorded checkpoint failed containment, JSON, session_key, generation, or v1 schema validation; writing a fresh checkpoint",
+      })
     }
 
     // fresh verified measurement — a checkpoint NEVER stores estimated or

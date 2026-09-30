@@ -27,9 +27,9 @@
 // lifecycle logic (./review.ts untouched); the runtime core's Plan 8 T6
 // seam covers only the persistent project-main/project-reader send() path
 // and is a separate wiring owned by the runtime plugins. Preflight is
-// fail-open: a skipped or failed preflight never blocks a send (existing
-// tool behavior preserved); notable outcomes surface as additive response
-// fields / run notes only.
+// checkpoint preparation failures are non-blocking; mandatory rotation
+// failures are fail-closed for scoped sends. Notable outcomes surface as
+// additive response fields / run notes.
 //
 // §34/§67: workflow_plan ONLY does Planner → DAG → validate → materialize.
 // It NEVER starts execution — a successfully planned workflow stays READY
@@ -439,6 +439,10 @@ export default {
         } catch {}
         return { ok: false, status: "FAILED", code, detail, workflow_id: workflowId, ...(extra ?? {}) }
       }
+      const markBlocked = (code: string, detail: string, extra?: Record<string, unknown>) => {
+        try { wq!.wfSetStatus.run("BLOCKED", nowIso(), workflowId) } catch {}
+        return { ok: false, status: "BLOCKED", code, detail, workflow_id: workflowId, ...(extra ?? {}) }
+      }
 
       // --- Planner task (Task Bus envelope; route from workflow.yaml) ---
       const created: any = bus.createTask({
@@ -534,11 +538,12 @@ export default {
         available_routes: availableRoutes,
         registered_projects: registeredProjects,
       })
-      // Plan 8 T7: lifecycle preflight before EVERY scoped planner send
-      // (fail-open; a fresh just-created session simply measures nothing).
-      lifecyclePreflights.push(
-        await lifecyclePreflight(sessionKey, { stage: "planner", workflow_id: workflowId, task_id: plannerTaskId }),
-      )
+      // Plan 8 T7: lifecycle preflight before EVERY scoped planner send.
+      // A mandatory rotation failure is resumably BLOCKED; it must never send
+      // a new planning prompt to the old generation.
+      const initialPreflight: any = await lifecyclePreflight(sessionKey, { stage: "planner", workflow_id: workflowId, task_id: plannerTaskId })
+      lifecyclePreflights.push(initialPreflight)
+      if (initialPreflight?.ok === false) return markBlocked(initialPreflight.code ?? "LIFECYCLE_PREFLIGHT_FAILED", initialPreflight.detail ?? "planner lifecycle admission failed", { planner_task_id: plannerTaskId, ...lifecycleExtras() })
       const startedAt = nowIso()
       const sent: any = await core.sendScopedSession({ session_key: sessionKey, text: prompt })
       if (!sent?.ok) {
@@ -583,14 +588,14 @@ export default {
         // Plan 8 T7: preflight again — the repair boundary is an atomic-step
         // boundary; with automatic rotation disabled (current config) this
         // only measures/evaluates and the SAME session answers the repair.
-        lifecyclePreflights.push(
-          await lifecyclePreflight(sessionKey, {
+        const repairPreflight: any = await lifecyclePreflight(sessionKey, {
             stage: "planner-repair",
             round: attempt + 1,
             workflow_id: workflowId,
             task_id: plannerTaskId,
-          }),
-        )
+          })
+        lifecyclePreflights.push(repairPreflight)
+        if (repairPreflight?.ok === false) return markBlocked(repairPreflight.code ?? "LIFECYCLE_PREFLIGHT_FAILED", repairPreflight.detail ?? "planner repair lifecycle admission failed", { planner_task_id: plannerTaskId, errors, ...lifecycleExtras() })
         const repair: any = await core.sendScopedSession({
           session_key: sessionKey,
           text: buildRepairPrompt(errors, attempt + 1, repairAttempts),
@@ -1153,7 +1158,7 @@ export default {
         `lifecycle-preflight=${
           lifecycle?.diagnostics?.db_ready && lifecycle?.diagnostics?.lifecycle_tables_ready && lifecycle?.diagnostics?.telemetry_columns_ready
             ? "ready (scoped planner + feature-executor sends; rotation only when framework.yaml workflow_engine.automatic_lifecycle_rotation is true)"
-            : "storage unavailable (preflight will skip; sends unaffected)"
+            : "storage unavailable (preflight reports the condition; mandatory scoped rotation remains fail-closed)"
         }`,
     )
 

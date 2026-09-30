@@ -1,3 +1,6 @@
+import { normalizeLanePolicies, scheduleLaneWaves } from "../../lib/lane-scheduler.ts"
+import { resolveResourceContract } from "../../lib/lane-resource-contract.ts"
+
 // Workflow Engine — automatic DAG scheduler (Plan 7 Phase 4+, T7b; §39-§44,
 // §60-§62, §68)
 //
@@ -5,7 +8,7 @@
 // dependency-ready nodes → group them into parallel waves by the
 // workflow.yaml parallel policy → dispatch (Promise.allSettled, real
 // concurrency capped at scheduler.max_parallel) → persist node states →
-// repeat until a terminal state (COMPLETED / FAILED / BLOCKED /
+// repeat until a terminal state (REVIEW_PASSED / FAILED / BLOCKED /
 // REWORK_LIMIT). Reviewer rounds and FIX/REWORK subgraph replays are
 // delegated to ./review.ts; every scheduling decision here is deterministic
 // (status/lock/route/retry arithmetic) — an LLM never decides scheduling.
@@ -56,7 +59,7 @@
 // SAME session_key and the SAME task ids — the send below simply resolves the
 // successor generation, so this scheduler, the reviewer loop and rework
 // replays stay generation-transparent (no code here ever branches on a
-// generation value). Preflight is fail-open and notable-only reporting keeps
+// generation value). Preflight blocks mandatory rotation failures and keeps
 // the existing response shapes unchanged in the common case; bus.dispatchTask
 // routes (including every reviewer round) get NO lifecycle logic. When
 // deps.lifecyclePreflight is absent, behavior is IDENTICAL to Plan 7.
@@ -124,6 +127,7 @@ export function normalizeStringList(v: any): string[] {
 
 export interface NormalizedPolicy {
   maxParallel: number
+  lanePolicies: any
   safeRoutes: string[]
   projectSerialRoutes: string[]
   globalSerialRoutes: string[]
@@ -144,6 +148,7 @@ export function normalizePolicy(wfCfg: any): NormalizedPolicy {
   const rawRetries = rt?.max_retries
   return {
     maxParallel: Number.isInteger(rawMax) && (rawMax as number) >= 1 ? (rawMax as number) : 1,
+    lanePolicies: normalizeLanePolicies(wfCfg),
     safeRoutes: normalizeStringList(pp?.safe_routes),
     projectSerialRoutes: normalizeStringList(pp?.project_serial_routes),
     globalSerialRoutes: normalizeStringList(pp?.global_serial_routes),
@@ -181,6 +186,8 @@ export interface WaveItem {
   project_id: string
   route_class: "safe" | "project_serial" | "global_serial"
   lock_key: string | null
+  lane: string
+  resources: any
 }
 
 // =====================================================================
@@ -190,23 +197,24 @@ export interface WaveItem {
 // their lock key at execution time; the concurrency CAP always applies.
 // =====================================================================
 export function planWaves(
-  items: Array<{ node_id: string; route: string; project_id: string }>,
+  items: Array<{ node_id: string; route: string; project_id: string; resources?: any }>,
   policy: NormalizedPolicy,
 ): WaveItem[][] {
-  const max = Number.isInteger(policy?.maxParallel) && policy.maxParallel >= 1 ? policy.maxParallel : 1
   const classified: WaveItem[] = (Array.isArray(items) ? items : []).map((it) => {
     const c = classifyNodeLock(String(it?.route ?? ""), String(it?.project_id ?? ""), policy)
+    const contract = resolveResourceContract({ route: String(it?.route ?? ""), project_id: String(it?.project_id ?? ""), resources: it?.resources })
+    if (c.lockKey && !contract.exclusive.includes(c.lockKey)) contract.exclusive.push(c.lockKey)
     return {
       node_id: String(it?.node_id ?? ""),
       route: String(it?.route ?? ""),
       project_id: String(it?.project_id ?? ""),
       route_class: c.routeClass,
       lock_key: c.lockKey,
+      lane: contract.lane,
+      resources: contract,
     }
   })
-  const waves: WaveItem[][] = []
-  for (let i = 0; i < classified.length; i += max) waves.push(classified.slice(i, i + max))
-  return waves
+  return scheduleLaneWaves(classified.map((x) => ({ ...x, resources: x.resources, lane: x.lane })), policy?.lanePolicies ?? {}) as any
 }
 
 // =====================================================================
@@ -329,7 +337,8 @@ export interface SchedulerDeps {
   reviewer: any
   loadWorkflowConfig: () => any
   // Plan 8 T7: (session_key, info?) -> preflight report; NEVER throws,
-  // never blocks the send (fail-open). Called before scoped
+  // checkpoint failures are non-blocking; mandatory rotation failures block
+  // the send. Called before scoped
   // feature-executor sends only — never for bus.dispatchTask routes and
   // never for reviewer ephemeral sessions.
   lifecyclePreflight?: ((sessionKey: string, info?: any) => Promise<any>) | null
@@ -858,9 +867,12 @@ export function createScheduler(deps: SchedulerDeps) {
             }
             runState.archived_sessions.push({ project_id: pid, session_key: key, archived: !!res?.ok, code: res?.code ?? null })
           }
-          const ts = nowIso()
-          q!.wfFinish.run("COMPLETED", ts, ts, wfId)
-          stopCode = null
+          // Reviewer PASS is an execution milestone, not delivery. The
+          // Completion Guard owns the later delivery decision; never mark the
+          // workflow COMPLETED at this point.
+          q!.wfSetStatus.run("REVIEW_PASSED", nowIso(), wfId)
+          stopCode = "DELIVERY_PENDING"
+          stopDetail = "execution complete; completion_delivery_check must pass before delivery is closed"
           break
         }
         const runningNodes = nodeRows.filter((r) => r.status === "RUNNING")
@@ -892,7 +904,12 @@ export function createScheduler(deps: SchedulerDeps) {
       const planById = new Map<string, any>()
       for (const n of plan.nodes) if (typeof n?.node_id === "string") planById.set(n.node_id, n)
       const waves = planWaves(
-        ready.map((r) => ({ node_id: r.node_id, route: String(planById.get(r.node_id)?.route ?? ""), project_id: String(planById.get(r.node_id)?.project_id ?? "") })),
+          ready.map((r) => ({
+            node_id: r.node_id,
+            route: String(planById.get(r.node_id)?.route ?? ""),
+            project_id: String(planById.get(r.node_id)?.project_id ?? ""),
+            resources: planById.get(r.node_id)?.resources ?? {},
+          })),
         policy,
       )
 
