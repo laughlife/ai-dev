@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-dev.local/schemas/checkpoint.schema.json",
+  "title": "Runtime Session Checkpoint v1",
+  "description": "Minimal restore state for a managed Runtime Registry session generation; instances live under runtime/checkpoints/.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "checkpoint_id",
+    "session_key",
+    "project_id",
+    "role",
+    "generation",
+    "session_id",
+    "model_runtime_id",
+    "context",
+    "runtime_state",
+    "git_state",
+    "restore_refs",
+    "summary",
+    "summary_source",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "checkpoint_id": { "type": "string", "minLength": 1 },
+    "session_key": { "type": "string", "minLength": 1 },
+    "project_id": { "type": "string", "minLength": 1 },
+    "role": { "type": "string", "minLength": 1 },
+    "generation": { "type": "integer", "minimum": 1 },
+    "session_id": { "type": "string", "minLength": 1 },
+    "model_runtime_id": { "type": ["string", "null"] },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tokens", "limit", "percent", "source"],
+      "properties": {
+        "tokens": { "type": "integer", "minimum": 0 },
+        "limit": { "type": "integer", "minimum": 0 },
+        "percent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "source": { "type": "string", "minLength": 1 }
+      }
+    },
+    "runtime_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active_task_ids", "active_workflow_ids"],
+      "properties": {
+        "active_task_ids": { "type": "array", "items": { "type": "string" } },
+        "active_workflow_ids": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "git_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "branch", "head", "status_short"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "branch": { "type": "string" },
+        "head": { "type": "string" },
+        "status_short": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "restore_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_docs", "mem0", "tasks", "workflows"],
+      "properties": {
+        "project_docs": { "type": "array", "items": { "type": "string" } },
+        "mem0": { "type": "array", "items": { "type": "string" } },
+        "tasks": { "type": "array", "items": { "type": "string" } },
+        "workflows": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 20000 },
+    "summary_source": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" }
+  }
+}

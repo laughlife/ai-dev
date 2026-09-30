@@ -8,6 +8,7 @@ Current content:
 - result-envelope.schema.json
 - workflow-plan.schema.json
 - reviewer-result.schema.json
+- checkpoint.schema.json
 
 These two schema files define the stable JSON contract of the Runtime Task Bus:
 
@@ -18,6 +19,18 @@ These two schema files define the stable JSON contract of the Workflow Engine (P
 
 - `workflow-plan.schema.json` is the Planner output contract (Workflow Plan v1).
 - `reviewer-result.schema.json` is the Reviewer output contract (Reviewer Result v1).
+
+This schema file defines the stable JSON contract of the session lifecycle (Plan 8):
+
+- `checkpoint.schema.json` is the Checkpoint v1 contract written before a
+  session generation is archived/rotated, mirroring
+  `framework-config/lifecycle.yaml` `rotation_restore_context`
+  (active-task / project-docs / git-state / required-mem0-context).
+  Checkpoint instances are runtime state: they live under
+  `runtime/checkpoints/` (git-ignored) and are referenced by
+  `sessions.checkpoint_path` in `runtime/tasks.db` — never stored here.
+  The contract embeds no threshold or context-window logic; the 60/70/80
+  rotation bands are declared only in `framework-config/lifecycle.yaml`.
 
 Templates are structure definitions only. They never store active task data;
 runtime task state lives in `runtime/tasks.db`, not here.
@@ -31,7 +44,6 @@ Any breaking schema change must:
 
 Future examples:
 
-- Checkpoint
 - Agent Handoff
 - Project Session State
 - Reader Checkpoint
