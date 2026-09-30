@@ -1,6 +1,6 @@
 # Plan 9 U4 — Completion Guard Hard Gate
 
-Status: `IMPLEMENTATION_COMPLETE_RUNTIME_ACCEPTANCE_PENDING`
+Status: `PASS`
 
 U4 upgrades Completion Guard from read-only checks to the deterministic gate
 that owns the final Workflow transition and final-report permission.
@@ -37,7 +37,19 @@ that owns the final Workflow transition and final-report permission.
 ## Acceptance
 
 The Node harness and existing Plan 8/Plan 9 regression harnesses pass. A live
-Desktop V2 runtime smoke that invokes `completion_finalize` remains required
-before recording U4 as runtime `PASS`.
+Desktop V2 `2.0.20` runtime smoke completed on workflow
+`cfc83688-d03d-48ab-b1a0-377e504e1e13` in session
+`ses_f0c85c8afffeP8NdLw9yCS3Aab`:
 
-U5 remains out of scope until U4 runtime acceptance is independently reviewed.
+- `completion_final_report_permission` returned `FINAL_REPORT_ALLOWED` with
+  `EXECUTION_COMPLETE`, `DELIVERY_COMPLETE`, and no missing evidence.
+- `completion_finalize` returned `COMPLETED` with
+  `final_report_permission: true`.
+- The runtime row records matching `finished_at` and
+  `completion_guard_finalized_at` values:
+  `2026-09-30T18:01:41.595Z`.
+- A fresh independent Reviewer session (`ses_f0c83473affeJajCq8vyqDfCMD`)
+  returned `{"schema_version":1,"verdict":"PASS","findings":[]}`.
+
+U5 may begin only after this accepted U4 evidence is carried into the next
+planned stage.

@@ -26,7 +26,8 @@ Scope: Plan 9 U3 only. U4 is explicitly out of scope for this document.
 
 The Desktop V2 runtime executed qualifying read, coding, and same-resource
 negative-control workflows. A fresh independent Reviewer passed the complete
-evidence on 2026-10-01. U3 final acceptance is closed; U4 remains NOT STARTED.
+evidence on 2026-10-01. U3 final acceptance is closed. U4 is tracked in
+`docs/plan9-u4-completion-guard.md`.
 
 The following evidence remains normative and must not be replaced by harness
 output:

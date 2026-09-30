@@ -216,7 +216,7 @@ Acceptance evidence:
 
 ## Plan 9 Part A + Part B (upper half)
 
-Status: U3_PASS / U4_IMPLEMENTATION_COMPLETE_RUNTIME_ACCEPTANCE_PENDING
+Status: U3_PASS / U4_PASS / U5–U6 NOT_STARTED
 
 Scope:
 - v4 Completion Guard architecture and deterministic execution/delivery checks
@@ -229,6 +229,9 @@ Evidence:
 - `architecture-sync check` → `IN_SYNC`
 - `architecture-compiler.mjs` → `ARCHITECTURE_COMPILER_PASS`
 - `plan9-architecture-smoke.mjs` → `PLAN9_ARCHITECTURE_SMOKE_PASS`
+- Desktop V2 `completion_final_report_permission` → `FINAL_REPORT_ALLOWED`
+- Desktop V2 `completion_finalize` → `COMPLETED` with matching
+  `finished_at` / `completion_guard_finalized_at`
 
 Current acceptance:
 - U2 code layer: PASS
@@ -239,7 +242,12 @@ Current acceptance:
 - U3 conflict serialization runtime evidence: PASS (same-resource negative control)
 - U3 final acceptance: PASS (independent Reviewer PASS on 2026-10-01)
 - U4 implementation: PASS (deterministic Completion Guard hard gate)
-- U4 live runtime acceptance: PENDING (Desktop V2 `completion_finalize` smoke)
+- U4 live runtime acceptance: PASS (Desktop V2 `2.0.20`; workflow
+  `cfc83688-d03d-48ab-b1a0-377e504e1e13`; session
+  `ses_f0c85c8afffeP8NdLw9yCS3Aab`; finalized at
+  `2026-09-30T18:01:41.595Z`)
+- U4 independent Reviewer acceptance: PASS (fresh Reviewer session
+  `ses_f0c83473affeJajCq8vyqDfCMD`)
 - U5–U6: NOT STARTED
 
 ## History Note
