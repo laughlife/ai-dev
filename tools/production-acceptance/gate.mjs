@@ -5,17 +5,26 @@ import { execFileSync } from "node:child_process"
 const root = path.resolve(process.env.AI_DEV_ROOT ?? process.cwd())
 
 function run(command, args) {
-  try { return execFileSync(command, args, { cwd: root, encoding: "utf8", timeout: 30000 }).trim() } catch { return "" }
+  try {
+    return { ok: true, value: execFileSync(command, args, { cwd: root, encoding: "utf8", timeout: 30000 }).trim() }
+  } catch (error) {
+    return { ok: false, error: String(error?.message ?? error) }
+  }
 }
 
 function architecture() {
-  try { return JSON.parse(run(process.execPath, ["--experimental-strip-types", "tools/architecture-sync/cli.ts", "check", "--format=json"])) } catch { return { status: "ERROR", errors: ["ARCHITECTURE_CHECK_FAILED"], changes: [] } }
+  const result = run(process.execPath, ["--experimental-strip-types", "tools/architecture-sync/cli.ts", "check", "--format=json"])
+  if (!result.ok) return { status: "ERROR", errors: ["ARCHITECTURE_CHECK_FAILED"], changes: [] }
+  try { return JSON.parse(result.value) } catch { return { status: "ERROR", errors: ["ARCHITECTURE_CHECK_FAILED"], changes: [] } }
 }
 
 function file(pathname) { return path.join(root, pathname) }
 
 function businessRepositoriesIsolated() {
-  return ["ruoyi-vue-pro", "yudao-ui-admin-vue3", "xxl-job", "nyamtn"].every((project) => run("git", ["ls-files", project]) === "")
+  return ["ruoyi-vue-pro", "yudao-ui-admin-vue3", "xxl-job", "nyamtn"].every((project) => {
+    const result = run("git", ["ls-files", project])
+    return result.ok && result.value === ""
+  })
 }
 
 function evidenceFile(name) {
@@ -41,5 +50,8 @@ if (!evidenceFile("plan8-rotation-evidence.json")) missing.push("PLAN8_ROTATION_
 if (!evidenceFile("plan11-business-feature-e2e.json")) missing.push("PRODUCTION_BUSINESS_FEATURE_E2E")
 if (checks.plan9 !== "PASS") missing.push("PLAN9_FINAL_ACCEPTANCE")
 if (!checks.business_repositories_isolated) missing.push("BUSINESS_REPOSITORY_ISOLATION")
+if (checks.architecture.status !== "IN_SYNC") missing.push("ARCHITECTURE_SYNC")
+if (checks.recovery_drill !== "STATIC_EVIDENCE_PRESENT") missing.push("RECOVERY_ROLLBACK_DRILL")
+if (checks.rollback_drill !== "STATIC_EVIDENCE_PRESENT") missing.push("COMPILER_ROLLBACK_DRILL")
 
 console.log(JSON.stringify({ schema_version: 1, status: missing.length ? "BLOCKED" : "PASS", checks, missing, framework_v1: missing.length ? "NOT_READY" : "RELEASE_READY" }))
