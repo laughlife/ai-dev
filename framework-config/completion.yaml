@@ -1,23 +1,37 @@
-schema_version: 1
-
-implementation:
-  type: deterministic-runtime-component
-  component: completion-guard
-
+architecture_source: ../diagrams/multi_agent_framework_v4_completion_guard.drawio
+completion_guards:
+  - execution-completion-gate
+  - delivery-completion-gate
+  - final-report-permission
 gates:
-  execution:
-    terminal_node_states: [COMPLETED, REVIEW_PASSED]
-    forbidden_node_states: [READY, RUNNING, BLOCKED, FAILED]
-    scheduler_must_be_inactive: true
   delivery:
+    active_child_execution_forbidden: true
     reviewer_pass_required: true
     unresolved_fix_rework_forbidden: true
-    active_child_execution_forbidden: true
-
+  execution:
+    forbidden_node_states:
+      - READY
+      - RUNNING
+      - BLOCKED
+      - FAILED
+    scheduler_must_be_inactive: true
+    terminal_node_states:
+      - COMPLETED
+      - REVIEW_PASSED
+implementation:
+  component: completion-guard
+  type: deterministic-runtime-component
 outputs:
-  execution_complete: EXECUTION_COMPLETE
-  execution_incomplete: EXECUTION_INCOMPLETE
-  execution_blocked: EXECUTION_BLOCKED
+  delivery_blocked: DELIVERY_BLOCKED
   delivery_complete: DELIVERY_COMPLETE
   delivery_pending: DELIVERY_PENDING
-  delivery_blocked: DELIVERY_BLOCKED
+  execution_blocked: EXECUTION_BLOCKED
+  execution_complete: EXECUTION_COMPLETE
+  execution_incomplete: EXECUTION_INCOMPLETE
+runtime_components:
+  - workflow-engine
+  - lifecycle-engine
+  - runtime-session-registry
+  - completion-guard
+  - lane-scheduler
+schema_version: 1

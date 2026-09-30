@@ -1,86 +1,70 @@
-# Machine-readable mirror of ../diagrams/multi_agent_framework_v4_completion_guard.drawio
-# Conflict policy: drawio wins. This file is not a source of truth.
-
-schema_version: 1
-
-framework:
-  id: ai-dev
-  name: AI Dev Multi-Agent Framework
-  workspace_root: 'D:\ai-dev'
-
 architecture:
-    source_of_truth: ../diagrams/multi_agent_framework_v4_completion_guard.drawio
-  source_type: drawio
   config_role: derived-mirror
   conflict_policy: drawio-wins
-
-repositories:
-  framework:
-    path: 'D:\ai-dev'
-    branch: master
-    remote: https://github.com/laughlife/ai-dev.git
-
-runtime_adapters:
-  opencode:
-    directory: ../.opencode/agents
-    role: executable-agent-profiles
-    source: agents.yaml
-
-runtime_registry:
-  implementation: opencode-plugin
-  plugin: ../.opencode/plugins/runtime-registry
-  database: ../runtime/tasks.db
-  session_location: 'D:\ai-dev'
-  managed_roles:
-    - project-main
-    - project-reader
-  automatic_rotation: false
-
-lifecycle_engine:
-  implementation: opencode-plugin
-  plugin: ../.opencode/plugins/lifecycle-engine
-  database: ../runtime/tasks.db
-  checkpoint_directory: ../runtime/checkpoints
-  automatic_rotation: false
-  primary_ui_handoff: manual-unless-runtime-proven
-
-task_bus:
-  implementation: opencode-plugin
-  plugin: ../.opencode/plugins/task-bus
-  database: ../runtime/tasks.db
-  protocol: ../framework-config/task-bus.yaml
-  automatic_dag_scheduler: false
-  parallel_batch_dispatch: false
-
-workflow_engine:
-  implementation: opencode-plugin
-  plugin: ../.opencode/plugins/workflow-engine
-  database: ../runtime/tasks.db
-  protocol: ../framework-config/workflow.yaml
-  automatic_scheduler: true
-  automatic_reviewer_loop: true
-  automatic_lifecycle_rotation: false
-
+  source_of_truth: ../diagrams/multi_agent_framework_v4_completion_guard.drawio
+  source_type: drawio
+architecture_compiler:
+  explicit_apply: true
+  implementation: tools/architecture-sync
+  source: ../diagrams/multi_agent_framework_v4_completion_guard.drawio
+backups:
+  directory: ../.backups
+  persistent_in_git: false
 completion_guard:
   implementation: deterministic-runtime-component
   plugin: ../.opencode/plugins/completion-engine
   protocol: ../framework-config/completion.yaml
-
-architecture_compiler:
-  implementation: tools/architecture-sync
-  source: ../diagrams/multi_agent_framework_v4_completion_guard.drawio
-  explicit_apply: true
-
-runtime:
-  directory: ../runtime
-  persistent_in_git: false
-
-backups:
-  directory: ../.backups
-  persistent_in_git: false
-
+framework:
+  id: ai-dev
+  name: 'AI Dev Multi-Agent Framework'
+  workspace_root: 'D:\ai-dev'
 knowledge:
   architecture: drawio
   governance: AGENTS.md
   long_term_memory: mem0
   runtime_state: runtime
+lifecycle_engine:
+  automatic_rotation: false
+  checkpoint_directory: ../runtime/checkpoints
+  database: ../runtime/tasks.db
+  implementation: opencode-plugin
+  plugin: ../.opencode/plugins/lifecycle-engine
+  primary_ui_handoff: manual-unless-runtime-proven
+repositories:
+  framework:
+    branch: master
+    path: 'D:\ai-dev'
+    remote: 'https://github.com/laughlife/ai-dev.git'
+runtime:
+  directory: ../runtime
+  persistent_in_git: false
+runtime_adapters:
+  opencode:
+    directory: ../.opencode/agents
+    role: executable-agent-profiles
+    source: agents.yaml
+runtime_registry:
+  automatic_rotation: false
+  database: ../runtime/tasks.db
+  implementation: opencode-plugin
+  managed_roles:
+    - project-main
+    - project-reader
+  plugin: ../.opencode/plugins/runtime-registry
+  session_location: 'D:\ai-dev'
+schema_version: 1
+task_bus:
+  automatic_dag_scheduler: false
+  database: ../runtime/tasks.db
+  implementation: opencode-plugin
+  parallel_batch_dispatch: false
+  plugin: ../.opencode/plugins/task-bus
+  protocol: ../framework-config/task-bus.yaml
+workflow_engine:
+  automatic_lifecycle_rotation: false
+  automatic_reviewer_loop: true
+  automatic_scheduler: true
+  database: ../runtime/tasks.db
+  implementation: opencode-plugin
+  plugin: ../.opencode/plugins/workflow-engine
+  protocol: ../framework-config/workflow.yaml

@@ -4,7 +4,6 @@ import { parseYaml, stringifyYaml } from "../yaml.ts"
 
 const modelDisplay: Record<string, string | null> = { "gpt-6-sol-fast": "GPT-6 Sol Fast", "gpt-5.6-sol-fast": "GPT-5.6 Sol Fast", "gpt-5.6-sol": "GPT-5.6 Sol", "deepseek-v4.1-flash": "DeepSeek-V4.1-Flash", "qwen3.8-max": "qwen3.8-max", "project-session": null }
 
-function clone(v: any): any { return JSON.parse(JSON.stringify(v)) }
 function read(root: string, file: string): any { return parseYaml(fs.readFileSync(path.join(root, "framework-config", file), "utf8")) ?? {} }
 
 export function generateFrameworkConfig(root: string, ir: any, semantic: string, raw: string): Record<string, string> {
@@ -21,9 +20,41 @@ export function generateFrameworkConfig(root: string, ir: any, semantic: string,
   lifecycle.context_rotation = { ...lifecycle.context_rotation, ...ir.lifecycle.thresholds, continue_reuse_below_percent: ir.lifecycle.thresholds.continue_reuse_below_percent, checkpoint_prepare: { ...(lifecycle.context_rotation?.checkpoint_prepare ?? {}), from_percent: ir.lifecycle.thresholds.checkpoint_from_percent, to_percent: ir.lifecycle.thresholds.checkpoint_to_percent }, rotate_after_atomic_step_at_percent: ir.lifecycle.thresholds.rotate_after_atomic_step_at_percent, hard_stop_new_tasks_at_percent: ir.lifecycle.thresholds.hard_stop_new_tasks_at_percent }
   lifecycle.roles ??= {}; for (const a of ir.agents) lifecycle.roles[a.id] = { ...(lifecycle.roles[a.id] ?? {}), lifecycle: a.lifecycle }
   const projects = read(root, "projects.yaml")
+  const projectIds = new Set((projects.projects ?? []).map((x: any) => x.id))
+  for (const p of ir.projects) if (!projectIds.has(p.id)) throw new Error(`PROJECT_MAPPING_MISSING:${p.id}`)
+  const routing = read(root, "routing.yaml")
+  routing.routes ??= {}
+  for (const r of ir.routes) {
+    routing.routes[r.id] ??= {}
+    routing.routes[r.id].target = r.target
+  }
+  const workflow = read(root, "workflow.yaml")
+  workflow.scheduler ??= {}; workflow.scheduler.lanes = Object.fromEntries(ir.execution_lanes.map((l: any) => [l.id, { default_parallel: l.default_parallel, max_parallel: l.max_parallel }]))
+  const completion = read(root, "completion.yaml")
+  completion.architecture_source = "../diagrams/multi_agent_framework_v4_completion_guard.drawio"
+  completion.runtime_components = ir.runtime_components.map((x: any) => x.id)
+  completion.completion_guards = ir.completion_guards.map((x: any) => x.id)
+  const runtimeMap = read(root, "runtime-model-map.yaml")
+  for (const a of ir.agents) {
+    if (a.model_key !== "project-session" && !runtimeMap.models?.[a.model_key]) throw new Error(`MODEL_MAPPING_MISSING:${a.model_key}`)
+  }
+  const framework = read(root, "framework.yaml")
+  framework.architecture ??= {}; framework.architecture.source_of_truth = "../diagrams/multi_agent_framework_v4_completion_guard.drawio"
   const sync = read(root, "sync-state.yaml")
   sync.architecture_source = { ...(sync.architecture_source ?? {}), file: "../diagrams/multi_agent_framework_v4_completion_guard.drawio", sha256: raw, raw_sha256: raw, semantic_sha256: semantic, parser_version: "architecture-sync-v1" }
   sync.sync = { ...(sync.sync ?? {}), mode: "compiler-explicit-apply", status: "synchronized" }
-  sync.generated_files = [...new Set([...(sync.generated_files ?? []), "completion.yaml", "runtime-model-map.yaml"])]
-  return { "framework-config/agents.yaml": stringifyYaml(agents) + "\n", "framework-config/projects.yaml": stringifyYaml(projects) + "\n", "framework-config/lifecycle.yaml": stringifyYaml(lifecycle) + "\n", "framework-config/sync-state.yaml": stringifyYaml(sync) + "\n" }
+  sync.generated_files = ["framework.yaml", "projects.yaml", "agents.yaml", "routing.yaml", "lifecycle.yaml", "task-bus.yaml", "workflow.yaml", "completion.yaml", "runtime-model-map.yaml", "sync-state.yaml"]
+  const taskBus = read(root, "task-bus.yaml")
+  return {
+    "framework-config/framework.yaml": stringifyYaml(framework) + "\n",
+    "framework-config/projects.yaml": stringifyYaml(projects) + "\n",
+    "framework-config/agents.yaml": stringifyYaml(agents) + "\n",
+    "framework-config/routing.yaml": stringifyYaml(routing) + "\n",
+    "framework-config/lifecycle.yaml": stringifyYaml(lifecycle) + "\n",
+    "framework-config/task-bus.yaml": stringifyYaml(taskBus) + "\n",
+    "framework-config/workflow.yaml": stringifyYaml(workflow) + "\n",
+    "framework-config/completion.yaml": stringifyYaml(completion) + "\n",
+    "framework-config/runtime-model-map.yaml": stringifyYaml(runtimeMap) + "\n",
+    "framework-config/sync-state.yaml": stringifyYaml(sync) + "\n",
+  }
 }

@@ -1,21 +1,5 @@
-schema_version: 1
-
-implementation:
-  type: opencode-plugin
-  plugin: ../.opencode/plugins/task-bus
-  database: ../runtime/tasks.db
-
-protocol:
-  task_envelope: ../templates/task-envelope.schema.json
-  result_envelope: ../templates/result-envelope.schema.json
-
 dispatch:
   mode: explicit
-
-persistent_roles:
-  - project-main
-  - project-reader
-
 ephemeral_roles:
   - planner
   - feature-executor
@@ -26,10 +10,26 @@ ephemeral_roles:
   - documentation-agent
   - memory-agent
   - lifecycle-agent
-
+features:
+  automatic_dag_scheduler: false
+  automatic_fix_rework_loop: false
+  automatic_retry: false
+  automatic_reviewer_loop: false
+  dependency_guard: true
+  parallel_batch_dispatch: false
+implementation:
+  database: ../runtime/tasks.db
+  plugin: ../.opencode/plugins/task-bus
+  type: opencode-plugin
+persistent_roles:
+  - project-main
+  - project-reader
+protocol:
+  result_envelope: ../templates/result-envelope.schema.json
+  task_envelope: ../templates/task-envelope.schema.json
+schema_version: 1
 state_machine:
   initial: READY
-
   states:
     - READY
     - BLOCKED
@@ -37,11 +37,3 @@ state_machine:
     - COMPLETED
     - FAILED
     - CANCELLED
-
-features:
-  dependency_guard: true
-  automatic_dag_scheduler: false
-  parallel_batch_dispatch: false
-  automatic_retry: false
-  automatic_reviewer_loop: false
-  automatic_fix_rework_loop: false

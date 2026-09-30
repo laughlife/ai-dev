@@ -540,7 +540,7 @@ export function createScheduler(deps: SchedulerDeps) {
         })
       } catch (e: any) {
         // contract says never throws — belt and braces for injected callbacks
-        rep = { session_key: sessionKey, stage: "feature-executor", skipped: "PREFLIGHT_EXCEPTION", detail: errMsg(e) }
+        rep = { ok: false, code: "PREFLIGHT_EXCEPTION", session_key: sessionKey, stage: "feature-executor", skipped: "PREFLIGHT_EXCEPTION", detail: errMsg(e) }
       }
       if (isNotableLifecycleReport(rep)) lifecycleField = { lifecycle: compactLifecycleReport(rep) }
       if (rep?.ok === false) {

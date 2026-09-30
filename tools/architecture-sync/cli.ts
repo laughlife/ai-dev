@@ -33,6 +33,19 @@ function analyze() {
       if (c.lifecycle?.type !== a.lifecycle) changes.push({ path: `agents.${a.id}.lifecycle.type`, kind: "ARCHITECTURE_DRIFT", old: c.lifecycle?.type, new: a.lifecycle })
     }
   }
+  const routing: any = readYaml(path.join(configDir, "routing.yaml"))
+  for (const r of ir.routes) if (routing.routes?.[r.id]?.target !== r.target) changes.push({ path: `routing.routes.${r.id}.target`, kind: "ARCHITECTURE_DRIFT", old: routing.routes?.[r.id]?.target ?? null, new: r.target })
+  const workflow: any = readYaml(path.join(configDir, "workflow.yaml"))
+  for (const lane of ir.execution_lanes) {
+    const current = workflow.scheduler?.lanes?.[lane.id]
+    if (current?.default_parallel !== lane.default_parallel || current?.max_parallel !== lane.max_parallel) changes.push({ path: `workflow.scheduler.lanes.${lane.id}`, kind: "ARCHITECTURE_DRIFT", old: current ?? null, new: { default_parallel: lane.default_parallel, max_parallel: lane.max_parallel } })
+  }
+  const completion: any = readYaml(path.join(configDir, "completion.yaml"))
+  const componentIds = JSON.stringify((completion.runtime_components ?? []).slice().sort())
+  const irComponentIds = JSON.stringify(ir.runtime_components.map((x: any) => x.id).sort())
+  if (componentIds !== irComponentIds) changes.push({ path: "completion.runtime_components", kind: "ARCHITECTURE_DRIFT", old: completion.runtime_components ?? null, new: ir.runtime_components.map((x: any) => x.id) })
+  const framework: any = readYaml(path.join(configDir, "framework.yaml"))
+  if (framework.architecture?.source_of_truth !== "../diagrams/multi_agent_framework_v4_completion_guard.drawio") changes.push({ path: "framework.architecture.source_of_truth", kind: "ARCHITECTURE_DRIFT", old: framework.architecture?.source_of_truth ?? null, new: "../diagrams/multi_agent_framework_v4_completion_guard.drawio" })
   const oldSemantic = sync.architecture_source?.semantic_sha256
   if (oldSemantic && oldSemantic !== semantic) changes.push({ path: "architecture_source.semantic_sha256", kind: "ARCHITECTURE_DRIFT", old: oldSemantic, new: semantic })
   if (!oldSemantic) changes.push({ path: "architecture_source.semantic_sha256", kind: "ARCHITECTURE_DRIFT", old: null, new: semantic })
@@ -59,12 +72,14 @@ function apply(result: any, target: string, yes: boolean) {
   const staging = path.join(root, "runtime", "architecture-sync-staging", run); fs.mkdirSync(staging, { recursive: true })
   const backups = path.join(root, ".backups", "architecture-sync", run); fs.mkdirSync(backups, { recursive: true })
   const originals: string[] = []
+  const written: string[] = []
   try {
     for (const [rel, text] of Object.entries(files)) { const out = path.join(staging, rel); fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, text); const dst = path.join(root, rel); if (fs.existsSync(dst)) { const b = path.join(backups, rel); fs.mkdirSync(path.dirname(b), { recursive: true }); fs.copyFileSync(dst, b); originals.push(rel) } }
-    for (const rel of Object.keys(files)) { const dst = path.join(root, rel); fs.mkdirSync(path.dirname(dst), { recursive: true }); fs.renameSync(path.join(staging, rel), dst) }
+    for (const rel of Object.keys(files)) { const dst = path.join(root, rel); fs.mkdirSync(path.dirname(dst), { recursive: true }); fs.renameSync(path.join(staging, rel), dst); written.push(rel) }
     console.log(JSON.stringify({ status: "APPLIED", targets: Object.keys(files), semantic_sha256: result.semantic_sha256, backup: path.relative(root, backups) }))
     return 0
   } catch (e: any) {
+    for (const rel of written) if (!originals.includes(rel)) { try { fs.rmSync(path.join(root, rel), { force: true }) } catch {} }
     for (const rel of originals) fs.copyFileSync(path.join(backups, rel), path.join(root, rel))
     console.error(`APPLY_ABORTED ${e?.message ?? e}`); return 3
   }

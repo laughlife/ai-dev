@@ -3,7 +3,9 @@
 // never mutates the workflow/task database.
 
 const NODE_SUCCESS = new Set(["COMPLETED", "REVIEW_PASSED"])
-const ACTIVE_TASK = new Set(["READY", "RUNNING"])
+const ACTIVE_TASK = new Set(["READY", "RUNNING", "BLOCKED"])
+const EXECUTION_ALLOWED_WORKFLOW_STATES = new Set(["REVIEW_PASSED", "DELIVERY_PENDING", "DELIVERY_COMPLETE", "COMPLETED"])
+const TERMINAL_TASK = new Set(["COMPLETED"])
 
 function parse(value: any): any {
   if (typeof value !== "string" || !value) return null
@@ -32,11 +34,15 @@ export function createCompletionCore(runtimeCore: any) {
     const wf: any = db.query("SELECT * FROM workflows WHERE workflow_id = ?").get(id)
     if (!wf) return failure("WORKFLOW_NOT_FOUND", `workflow '${id}' does not exist`)
     const plan = parse(wf.plan_json) ?? {}
-    const planById = new Map(requiredPlanNodes(plan).map((n: any) => [n.node_id, n]))
+    const planNodes = Array.isArray(plan?.nodes) ? plan.nodes : []
+    const planById = new Map(planNodes.map((n: any) => [n.node_id, n]))
     const rows: any[] = db.query("SELECT * FROM workflow_nodes WHERE workflow_id = ? ORDER BY node_id").all(id)
     const byId = new Map(rows.map((r: any) => [r.node_id, r]))
     const missing: any[] = []
     const checked: any[] = []
+    if (!EXECUTION_ALLOWED_WORKFLOW_STATES.has(String(wf.status))) {
+      missing.push({ reason: "WORKFLOW_STATUS_NOT_FINALIZABLE", workflow_status: wf.status })
+    }
     for (const [nodeId, planNode] of planById) {
       const row: any = byId.get(nodeId)
       const status = row?.status ?? "MISSING"
@@ -48,15 +54,16 @@ export function createCompletionCore(runtimeCore: any) {
       }
       if (row?.current_task_id) {
         const task: any = db.query("SELECT task_id,status FROM tasks WHERE task_id = ?").get(row.current_task_id)
-        if (task && ACTIVE_TASK.has(task.status)) missing.push({ node_id: nodeId, task_id: task.task_id, reason: "ACTIVE_CHILD_TASK" })
+        if (task && !TERMINAL_TASK.has(task.status)) missing.push({ node_id: nodeId, task_id: task.task_id, status: task.status, reason: ACTIVE_TASK.has(task.status) ? "ACTIVE_CHILD_TASK" : "CHILD_TASK_NOT_SUCCESS" })
       }
     }
-    const schedulerActive = ["READY", "RUNNING", "REVIEWING", "REWORKING", "BLOCKED"].includes(String(wf.status))
-    if (schedulerActive) missing.push({ reason: "SCHEDULER_OR_WORKFLOW_ACTIVE", workflow_status: wf.status })
-    const complete = missing.length === 0 && rows.length >= planById.size && planById.size > 0
+    for (const row of rows) if (!planById.has(row.node_id)) missing.push({ node_id: row.node_id, reason: "UNPLANNED_WORKFLOW_NODE" })
+    const activeChildren: any[] = db.query("SELECT task_id,status FROM tasks WHERE parent_task_id IN (SELECT current_task_id FROM workflow_nodes WHERE workflow_id = ?)").all(id)
+    for (const task of activeChildren) if (!TERMINAL_TASK.has(task.status)) missing.push({ task_id: task.task_id, status: task.status, reason: "ACTIVE_CHILD_TASK" })
+    const complete = missing.length === 0 && rows.length === planById.size && planById.size > 0
     return {
       ok: complete,
-      status: complete ? "EXECUTION_COMPLETE" : (missing.some((x) => String(x.reason).includes("BLOCKED")) ? "EXECUTION_BLOCKED" : "EXECUTION_INCOMPLETE"),
+      status: complete ? "EXECUTION_COMPLETE" : (missing.some((x) => ["WORKFLOW_STATUS_NOT_FINALIZABLE", "CHILD_TASK_NOT_SUCCESS", "ACTIVE_CHILD_TASK"].includes(x.reason)) ? "EXECUTION_BLOCKED" : "EXECUTION_INCOMPLETE"),
       workflow_id: id,
       checked,
       missing,
@@ -68,13 +75,18 @@ export function createCompletionCore(runtimeCore: any) {
     const g = guard(); if (g) return g
     const exec: any = executionCheck(input)
     const id = input.workflow_id
-    if (!exec || exec.ok !== true) return { ...exec, status: "DELIVERY_PENDING", phase: "DELIVERY", execution: exec }
+    if (!exec || exec.ok !== true) return { ...exec, status: exec?.status === "EXECUTION_BLOCKED" ? "DELIVERY_BLOCKED" : "DELIVERY_PENDING", phase: "DELIVERY", execution: exec }
     const wf: any = db.query("SELECT * FROM workflows WHERE workflow_id = ?").get(id)
     const plan = parse(wf.plan_json) ?? {}
     const rows: any[] = db.query("SELECT * FROM workflow_nodes WHERE workflow_id = ? ORDER BY node_id").all(id)
     const requiredReviews = requiredPlanNodes(plan).filter((n: any) => n?.review?.required === true)
     const passNodes = rows.filter((r: any) => r.last_verdict === "PASS")
     const reviewMissing = requiredReviews.filter((n: any) => rows.find((r: any) => r.node_id === n.node_id)?.last_verdict !== "PASS").map((n: any) => n.node_id)
+    for (const row of rows) {
+      const history = parse(row.review_history_json)
+      const last = Array.isArray(history) && history.length ? history.at(-1) : null
+      if (last?.verdict === "FIX" || last?.verdict === "REWORK") reviewMissing.push(row.node_id)
+    }
     const reviewerRequired = plan?.metadata?.delivery?.reviewer_pass_required !== false
     if (reviewerRequired && passNodes.length === 0) reviewMissing.push("<workflow-review-pass>")
     const requiredRoutes = Array.isArray(plan?.metadata?.delivery?.required_routes) ? plan.metadata.delivery.required_routes : []

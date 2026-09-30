@@ -1,80 +1,54 @@
-# Machine-readable mirror of ../diagrams/multi_agent_framework_v4_completion_guard.drawio
-# Conflict policy: drawio wins. This file is not a source of truth.
-
-schema_version: 1
-
 communication:
-
-  runtime_agent_messages:
-    mechanism: opencode-native-task-subagent
-    payload: structured-json-task-envelope
-
+  cross_project_changes_via_task_bus: true
   mem0:
+    read: all-agents
     role: long-term-knowledge
     runtime_message_bus: false
-    read: all-agents
     write:
       - global-orchestrator
       - memory-agent
-
-  cross_project_changes_via_task_bus: true
-
+  runtime_agent_messages:
+    mechanism: opencode-native-task-subagent
+    payload: structured-json-task-envelope
+database:
+  default_target: mysql-local
+  high_risk_operations_via_task_bus: true
+  server_target: mysql-server
+  server_target_requires_explicit_request: true
 routes:
-
-  code_read:
-    target: project-reader
-
-  project_analysis:
-    target: planner
-
-  project_coordination:
-    target: project-main
-
+  api_code_change:
+    target: feature-executor
+  api_regression:
+    target: api-runner
+  api_runtime_call:
+    target: api-runner
+  build_and_test:
+    target: test-runner
   code_change:
     target: feature-executor
-
+  code_read:
+    target: project-reader
+  database_backup:
+    target: db-operator
+  database_ddl:
+    target: db-operator
   database_read:
     target: project-reader
     tool: mysql-mcp
-
   database_write:
     target: db-operator
-
-  database_ddl:
-    target: db-operator
-
-  database_backup:
-    target: db-operator
-
-  api_code_change:
-    target: feature-executor
-
-  api_runtime_call:
-    target: api-runner
-
-  api_regression:
-    target: api-runner
-
-  build_and_test:
-    target: test-runner
-
-  independent_review:
-    target: reviewer
-
-  session_lifecycle:
-    target: lifecycle-agent
-
   documentation_update:
     target: documentation-agent
-
+  independent_review:
+    target: reviewer
   long_term_memory_write:
-    target: memory-agent
     requires:
       - reviewer-pass
-
-database:
-
-  default_target: mysql-local
-  server_target: mysql-server
-  server_target_requires_explicit_request: true
-  high_risk_operations_via_task_bus: true
+    target: memory-agent
+  project_analysis:
+    target: planner
+  project_coordination:
+    target: project-main
+  session_lifecycle:
+    target: lifecycle-agent
+schema_version: 1

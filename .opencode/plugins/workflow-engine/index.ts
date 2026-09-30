@@ -243,6 +243,8 @@ export default {
       try {
         const diag: any = lifecycle?.diagnostics
         if (!diag?.db_ready || !diag?.lifecycle_tables_ready || !diag?.telemetry_columns_ready) {
+          report.ok = false
+          report.code = "LIFECYCLE_STORAGE_UNAVAILABLE"
           report.skipped = "LIFECYCLE_STORAGE_UNAVAILABLE"
           report.detail = diag
             ? `db_ready=${diag.db_ready} lifecycle_tables_ready=${diag.lifecycle_tables_ready} ` +
@@ -252,6 +254,8 @@ export default {
         }
         const ev: any = await lifecycle.evaluateThreshold({ session_key: sessionKey, refresh: true })
         if (!ev?.ok) {
+          report.ok = false
+          report.code = ev?.code ?? "LIFECYCLE_EVALUATE_FAILED"
           report.skipped = ev?.code ?? "LIFECYCLE_EVALUATE_FAILED"
           report.detail = ev?.detail ?? "evaluateThreshold returned no detail"
           return report
@@ -322,6 +326,8 @@ export default {
         }
         return report
       } catch (e: any) {
+        report.ok = false
+        report.code = "PREFLIGHT_EXCEPTION"
         report.skipped = "PREFLIGHT_EXCEPTION"
         report.detail = errMsg(e)
         return report

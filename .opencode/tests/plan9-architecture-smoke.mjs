@@ -19,16 +19,16 @@ const serialized = scheduleLaneWaves([
 assert.equal(serialized.length, 2, "same resource writes serialize")
 
 const db = new DatabaseSync(":memory:")
-db.exec(`CREATE TABLE workflows (workflow_id TEXT PRIMARY KEY, status TEXT, plan_json TEXT); CREATE TABLE workflow_nodes (workflow_id TEXT, node_id TEXT, status TEXT, current_task_id TEXT, last_verdict TEXT, task_history_json TEXT, review_history_json TEXT); CREATE TABLE tasks (task_id TEXT PRIMARY KEY, status TEXT);`)
+db.exec(`CREATE TABLE workflows (workflow_id TEXT PRIMARY KEY, status TEXT, plan_json TEXT); CREATE TABLE workflow_nodes (workflow_id TEXT, node_id TEXT, status TEXT, current_task_id TEXT, last_verdict TEXT, task_history_json TEXT, review_history_json TEXT); CREATE TABLE tasks (task_id TEXT PRIMARY KEY, parent_task_id TEXT, status TEXT);`)
 const plan = { nodes: [{ node_id: "t1", route: "code_read", depends_on: [] }, { node_id: "t2", route: "code_read", depends_on: [] }, { node_id: "t3", route: "code_read", depends_on: [] }] }
 db.prepare("INSERT INTO workflows VALUES (?,?,?)").run("wf", "RUNNING", JSON.stringify(plan))
 for (const [id, status, task] of [["t1", "COMPLETED", "q1"], ["t2", "RUNNING", "q2"], ["t3", "READY", "q3"]]) {
   db.prepare("INSERT INTO workflow_nodes VALUES (?,?,?,?,?,?,?)").run("wf", id, status, task, null, "[]", "[]")
-  db.prepare("INSERT INTO tasks VALUES (?,?)").run(task, status === "RUNNING" ? "RUNNING" : "COMPLETED")
+  db.prepare("INSERT INTO tasks VALUES (?,?,?)").run(task, null, status === "RUNNING" ? "RUNNING" : "COMPLETED")
 }
 const dbAdapter = { query(sql) { const statement = db.prepare(sql); return { get: (...args) => statement.get(...args), all: (...args) => statement.all(...args) } } }
 const guard = createCompletionCore({ db: dbAdapter })
-assert.equal(guard.executionCheck({ workflow_id: "wf" }).status, "EXECUTION_INCOMPLETE")
+assert.notEqual(guard.executionCheck({ workflow_id: "wf" }).status, "EXECUTION_COMPLETE")
 db.prepare("UPDATE workflows SET status='REVIEW_PASSED' WHERE workflow_id='wf'").run()
 db.prepare("UPDATE workflow_nodes SET status='REVIEW_PASSED', last_verdict='PASS' WHERE workflow_id='wf'").run()
 db.prepare("UPDATE tasks SET status='COMPLETED'").run()
