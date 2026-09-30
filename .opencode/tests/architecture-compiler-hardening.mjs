@@ -63,4 +63,15 @@ assert.equal(missingProfileResult.status, "PROFILE_DRIFT")
 assert.ok(missingProfileResult.changes.some((x) => x.kind === "PROFILE_DRIFT" && x.paths.includes(".opencode/agents/reviewer.md")))
 fs.rmSync(missingProfile, { recursive: true, force: true })
 
+const applyFixture = fixture()
+const applied = JSON.parse(execFileSync(process.execPath, ["--experimental-strip-types", path.join(root, "tools/architecture-sync/cli.ts"), "apply", "--target=all", "--yes"], {
+  cwd: root,
+  env: { ...process.env, AI_DEV_ROOT: applyFixture },
+  encoding: "utf8",
+}))
+assert.equal(applied.status, "APPLIED")
+assert.ok(fs.existsSync(path.join(applyFixture, "framework-config", "agents.yaml")))
+assert.ok(fs.existsSync(path.join(applyFixture, ".opencode", "agents", "reviewer.md")))
+fs.rmSync(applyFixture, { recursive: true, force: true })
+
 console.log("ARCHITECTURE_COMPILER_HARDENING_EXPECTED_PASS")
