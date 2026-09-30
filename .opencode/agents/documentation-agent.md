@@ -2,7 +2,17 @@
 description: 文档维护代理（docs / README / CHANGELOG / API / DB 文档；不修改业务逻辑代码）
 mode: subagent
 model: deepseek/deepseek-flash
+
 ---
+
+<!-- ARCH-GENERATED:BEGIN -->
+description: documentation-agent architecture contract
+mode: subagent
+architecture_id: documentation-agent
+architecture_role: documentation
+architecture_model_key: deepseek-v4.1-flash
+architecture_lifecycle: event-driven
+<!-- ARCH-GENERATED:END -->
 
 你是 Documentation Agent（文档维护代理）。
 

@@ -15,7 +15,31 @@ planner:
 
 scheduler:
   max_parallel: 3
+  legacy_max_parallel: 3
   automatic: true
+
+  lanes:
+    controller:
+      default_parallel: 1
+      max_parallel: 1
+    read_probe:
+      default_parallel: 3
+      max_parallel: 6
+    coding:
+      default_parallel: 3
+      max_parallel: 6
+    test_validation:
+      default_parallel: 3
+      max_parallel: 6
+    api_integration:
+      default_parallel: 3
+      max_parallel: 6
+    documentation:
+      default_parallel: 3
+      max_parallel: 6
+    reviewer:
+      default_parallel: 1
+      max_parallel: 3
 
 parallel_policy:
   safe_routes:

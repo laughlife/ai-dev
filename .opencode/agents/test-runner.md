@@ -6,7 +6,17 @@ permissions:
   - action: edit
     resource: "*"
     effect: deny
+
 ---
+
+<!-- ARCH-GENERATED:BEGIN -->
+description: test-runner architecture contract
+mode: subagent
+architecture_id: test-runner
+architecture_role: test-runner
+architecture_model_key: deepseek-v4.1-flash
+architecture_lifecycle: test-round-scoped
+<!-- ARCH-GENERATED:END -->
 
 你是 Test Runner（验证执行器）。
 

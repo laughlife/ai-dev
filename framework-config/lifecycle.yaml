@@ -1,82 +1,55 @@
-# Machine-readable mirror of ../diagrams/multi_agent_framework_v3_workspace.drawio
-# Conflict policy: drawio wins. This file is not a source of truth.
-
-schema_version: 1
-
 context_rotation:
-
-  continue_reuse_below_percent: 60
-
+  checkpoint_from_percent: 60
   checkpoint_prepare:
     from_percent: 60
     to_percent: 70
-
-  rotate_after_atomic_step_at_percent: 70
-
+  checkpoint_to_percent: 70
+  continue_reuse_below_percent: 60
   hard_stop_new_tasks_at_percent: 80
-
+  rotate_after_atomic_step_at_percent: 70
 roles:
-
+  api-runner:
+    lifecycle: test-round-scoped
+  db-operator:
+    lifecycle: feature-scoped
+  documentation-agent:
+    lifecycle: event-driven
+  feature-executor:
+    close_on: reviewer-pass
+    lifecycle: feature-scoped
   global-orchestrator:
     lifecycle: persistent
     rotation: managed
-
+  lifecycle-agent:
+    lifecycle: persistent
+  memory-agent:
+    lifecycle: event-driven
+  planner:
+    lifecycle: feature-scoped
   project-main:
     lifecycle: persistent
     rotation: managed
-
   project-reader:
     lifecycle: persistent
-    rotation: managed
     prefer_reuse: true
-
-  planner:
-    lifecycle: feature-scoped
-
-  feature-executor:
-    lifecycle: feature-scoped
-    close_on: reviewer-pass
-
-  db-operator:
-    lifecycle: feature-scoped
-
-  api-runner:
-    lifecycle: test-round-scoped
-
+    rotation: managed
+  reviewer:
+    always_new_session: true
+    lifecycle: per-review-round
   test-runner:
     lifecycle: test-round-scoped
-
-  reviewer:
-    lifecycle: per-review-round
-    always_new_session: true
-
-  documentation-agent:
-    lifecycle: event-driven
-
-  memory-agent:
-    lifecycle: event-driven
-
 rotation_restore_context:
-
   - active-task
   - checkpoint
   - project-docs
   - git-state
   - required-mem0-context
-
 runtime:
   implementation:
-    type: opencode-plugin
-    plugin: ../.opencode/plugins/lifecycle-engine
-    database: ../runtime/tasks.db
     checkpoint_directory: ../runtime/checkpoints
-
-  telemetry:
-    approximation_allowed: false
-    context_limit_source: opencode-model-catalog
-    context_usage_source: last-assistant-message-token-usage
-    verified: true
-
+    database: ../runtime/tasks.db
+    plugin: ../.opencode/plugins/lifecycle-engine
+    type: opencode-plugin
   managed_roles:
     automatic_rotation:
       - project-main
@@ -87,8 +60,13 @@ runtime:
       - reviewer
       - api-runner
       - test-runner
-
   primary_session:
-    role: global-orchestrator
     mode: checkpoint-and-successor-handoff
+    role: global-orchestrator
     transparent_ui_switch: false
+  telemetry:
+    approximation_allowed: false
+    context_limit_source: opencode-model-catalog
+    context_usage_source: last-assistant-message-token-usage
+    verified: true
+schema_version: 1

@@ -8,7 +8,17 @@ permissions:
   - action: subagent
     resource: "*"
     effect: deny
+
 ---
+
+<!-- ARCH-GENERATED:BEGIN -->
+description: project-main architecture contract
+mode: subagent
+architecture_id: project-main
+architecture_role: project-coordinator
+architecture_model_key: project-session
+architecture_lifecycle: persistent
+<!-- ARCH-GENERATED:END -->
 
 你是 Project Main（项目主会话代理），负责维护单个业务项目的长期上下文，并协调该项目内的任务执行。
 

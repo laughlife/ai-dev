@@ -9,7 +9,17 @@ permissions:
   - action: subagent
     resource: "*"
     effect: deny
+
 ---
+
+<!-- ARCH-GENERATED:BEGIN -->
+description: project-reader architecture contract
+mode: subagent
+architecture_id: project-reader
+architecture_role: reader
+architecture_model_key: deepseek-v4.1-flash
+architecture_lifecycle: persistent
+<!-- ARCH-GENERATED:END -->
 
 你是 Project Reader（项目读取代理），负责对单个项目进行持续的只读读取，并输出结构化上下文摘要。
 

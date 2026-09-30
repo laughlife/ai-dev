@@ -1,27 +1,17 @@
-# Machine-readable mirror of ../diagrams/multi_agent_framework_v3_workspace.drawio
-# Conflict policy: drawio wins. This file is not a source of truth.
-# runtime_id values come from the local OpenCode environment only (desktop 2.0.19
-# catalog + recorded OpenCode usage). No guessing.
-# "Sol Fast" = OpenCode catalog alias of the base Sol model (fast mode).
-# Reasoning levels: 极高 -> #xhigh, 高 -> #high.
-
-schema_version: 1
-
 agents:
-
-  - id: global-orchestrator
-    display_name: Global Orchestrator
-    role: orchestrator
-
-    model:
-      display_name: GPT-6 Sol Fast
-      reasoning: 极高
-      runtime_id: openai/gpt-6-sol-fast#xhigh
-
+  -
+    display_name: 'Global Orchestrator'
+    id: global-orchestrator
     lifecycle:
-      type: persistent
       managed_by: lifecycle-agent
-
+      type: persistent
+    model:
+      display_name: 'GPT-6 Sol Fast'
+      reasoning: '极高'
+      runtime_id: 'openai/gpt-6-sol-fast#xhigh'
+    permissions:
+      mem0_read: true
+      mem0_write: true
     responsibilities:
       - understand-final-objective
       - cross-project-routing
@@ -31,31 +21,25 @@ agents:
       - invoke-governance-agents
       - aggregate-results
       - control-workflow-loop
-
-    permissions:
-      mem0_read: true
-      mem0_write: true
-
     restrictions:
       - avoid-large-scale-direct-code-reading
       - avoid-direct-business-code-implementation
-
-  - id: project-main
-    display_name: Project Main
-    role: project-coordinator
+    role: orchestrator
+  -
+    display_name: 'Project Main'
+    id: project-main
     instance_scope: per-project
-
+    lifecycle:
+      managed_by: lifecycle-agent
+      rotation_supported: true
+      type: persistent
     model:
       display_name: null
       reasoning: null
       runtime_id: null
       source: project_sessions
-
-    lifecycle:
-      type: persistent
-      managed_by: lifecycle-agent
-      rotation_supported: true
-
+    permissions:
+      business_code_write: false
     responsibilities:
       - maintain-project-context
       - receive-project-tasks
@@ -65,29 +49,28 @@ agents:
       - coordinate-api-runner
       - aggregate-project-results
       - return-project-summary
-
-    permissions:
-      business_code_write: false
-
     restrictions:
       - do-not-directly-implement-feature
       - use-feature-executor-for-code-change
-
-  - id: project-reader
-    display_name: Project Reader
-    role: reader
+    role: project-coordinator
+  -
+    display_name: 'Project Reader'
+    id: project-reader
     instance_scope: per-project
-
+    lifecycle:
+      managed_by: lifecycle-agent
+      rotation_supported: true
+      type: persistent
     model:
       display_name: DeepSeek-V4.1-Flash
       reasoning: null
       runtime_id: deepseek/deepseek-flash
-
-    lifecycle:
-      type: persistent
-      managed_by: lifecycle-agent
-      rotation_supported: true
-
+    permissions:
+      database_read: true
+      database_write: false
+      mem0_read: true
+      mem0_write: false
+      source_write: false
     responsibilities:
       - read-source-code
       - search-files
@@ -96,31 +79,20 @@ agents:
       - inspect-project-state
       - database-read-only-query
       - produce-structured-context
-
-    permissions:
-      source_write: false
-      database_read: true
-      database_write: false
-      mem0_read: true
-      mem0_write: false
-
     restrictions:
       - no-business-code-write
       - no-ddl
       - no-dml-write
-
-  - id: planner
+    role: reader
+  -
     display_name: Planner
-    role: planner
-
-    model:
-      display_name: GPT-6 Sol Fast
-      reasoning: 极高
-      runtime_id: openai/gpt-6-sol-fast#xhigh
-
+    id: planner
     lifecycle:
       type: feature-scoped
-
+    model:
+      display_name: 'GPT-6 Sol Fast'
+      reasoning: '极高'
+      runtime_id: 'openai/gpt-6-sol-fast#xhigh'
     responsibilities:
       - complex-analysis
       - task-decomposition
@@ -130,19 +102,18 @@ agents:
       - project-routing
       - define-acceptance-criteria
       - rework-planning
-
-  - id: lifecycle-agent
-    display_name: Lifecycle Agent
-    role: governance
-
+    role: planner
+  -
+    display_name: 'Lifecycle Agent'
+    id: lifecycle-agent
+    lifecycle:
+      type: persistent
     model:
       display_name: DeepSeek-V4.1-Flash
       reasoning: null
       runtime_id: deepseek/deepseek-flash
-
-    lifecycle:
-      type: persistent
-
+    permissions:
+      business_code_write: false
     responsibilities:
       - manage-session-registry
       - monitor-context-thresholds
@@ -154,47 +125,40 @@ agents:
       - manage-project-reader-lifecycle
       - manage-feature-executor-lifecycle
       - manage-planner-lifecycle
-
-    permissions:
-      business_code_write: false
-
-  - id: feature-executor
-    display_name: Feature Executor
-    role: executor
+    role: governance
+  -
+    display_name: 'Feature Executor'
+    id: feature-executor
     instance_scope: per-project-per-feature
-
-    # runtime_id null = the role binds no global model; Task Bus dispatch resolves
-    # it per project from project_sessions.<project>.model.runtime_id (Plan 7).
+    lifecycle:
+      close_on: reviewer-pass
+      type: feature-scoped
     model:
       display_name: null
       reasoning: null
       runtime_id: null
       source: project_sessions
-
-    lifecycle:
-      type: feature-scoped
-      close_on: reviewer-pass
-
     responsibilities:
       - implement-feature
       - fix-review-findings
       - produce-git-diff
       - report-changed-files
-
-  - id: db-operator
-    display_name: DB Operator
-    role: database-operator
-
+    role: executor
+  -
+    display_name: 'DB Operator'
+    id: db-operator
+    lifecycle:
+      close_on: reviewer-pass
+      type: feature-scoped
     model:
       display_name: qwen3.8-max
-      plan: Token Plan
+      plan: 'Token Plan'
       reasoning: null
       runtime_id: bailian-token-plan/qwen3.8-max
-
-    lifecycle:
-      type: feature-scoped
-      close_on: reviewer-pass
-
+    permissions:
+      database_ddl: true
+      database_read: true
+      database_write: true
     responsibilities:
       - database-insert
       - database-update
@@ -202,31 +166,24 @@ agents:
       - ddl
       - index-management
       - database-backup
-
-    permissions:
-      database_read: true
-      database_write: true
-      database_ddl: true
-
+    role: database-operator
     rules:
+      backup_before_high_risk_operation: true
       database_project: ruoyi-vue-pro
       default_database_target: mysql-local
       server_database_target: mysql-server
       server_target_requires_explicit_request: true
-      backup_before_high_risk_operation: true
-
-  - id: api-runner
-    display_name: API Runner
-    role: api-runner
-
+  -
+    display_name: 'API Runner'
+    id: api-runner
+    lifecycle:
+      type: test-round-scoped
     model:
       display_name: DeepSeek-V4.1-Flash
       reasoning: null
       runtime_id: deepseek/deepseek-flash
-
-    lifecycle:
-      type: test-round-scoped
-
+    permissions:
+      business_code_write: false
     responsibilities:
       - real-http-request
       - curl-request
@@ -234,25 +191,18 @@ agents:
       - request-response-validation
       - api-regression
       - integration-debugging
-
-    permissions:
-      business_code_write: false
-
-  - id: test-runner
-    display_name: Test Runner
-    role: test-runner
-
+    role: api-runner
+  -
+    display_name: 'Test Runner'
+    id: test-runner
+    lifecycle:
+      type: test-round-scoped
     model:
       display_name: DeepSeek-V4.1-Flash
       reasoning: null
       runtime_id: deepseek/deepseek-flash
-
     model_policy:
       replaceable_with_fast_stable_model: true
-
-    lifecycle:
-      type: test-round-scoped
-
     responsibilities:
       - compile
       - unit-test
@@ -260,109 +210,91 @@ agents:
       - regression-test
       - sql-explain
       - log-check
-
-  - id: reviewer
+    role: test-runner
+  -
     display_name: Reviewer
-    role: reviewer
-
-    model:
-      display_name: GPT-5.6 Sol
-      reasoning: 高
-      runtime_id: openai/gpt-5.6-sol#high
-
+    id: reviewer
     lifecycle:
-      type: per-review-round
       always_new_session: true
-
+      type: per-review-round
+    model:
+      display_name: 'GPT-5.6 Sol'
+      reasoning: '高'
+      runtime_id: 'openai/gpt-5.6-sol#high'
+    outputs:
+      - PASS
+      - FIX
+      - REWORK
     responsibilities:
       - independent-review
       - acceptance-validation
       - detect-missing-work
       - detect-side-effects
       - consistency-check
-
-    outputs:
-      - PASS
-      - FIX
-      - REWORK
-
     restrictions:
       - executor-must-not-self-review
-
-  - id: documentation-agent
-    display_name: Documentation Agent
-    role: documentation
-
+    role: reviewer
+  -
+    display_name: 'Documentation Agent'
+    id: documentation-agent
+    lifecycle:
+      type: event-driven
     model:
       display_name: DeepSeek-V4.1-Flash
       reasoning: null
       runtime_id: deepseek/deepseek-flash
-
-    lifecycle:
-      type: event-driven
-
-    triggers:
-      - reviewer-pass
-      - api-contract-change
-      - database-schema-change
-      - architecture-change
-
     responsibilities:
       - maintain-framework-docs
       - maintain-api-docs
       - maintain-db-docs
       - maintain-changelog
       - maintain-checkpoint-docs
-
-  - id: memory-agent
-    display_name: Memory Agent
-    role: memory-governance
-
-    model:
-      display_name: GPT-5.6 Sol Fast
-      reasoning: 高
-      runtime_id: openai/gpt-5.6-sol-fast#high
-
-    lifecycle:
-      type: event-driven
-
+    role: documentation
     triggers:
       - reviewer-pass
-
-    responsibilities:
-      - write-validated-long-term-knowledge
-      - prevent-runtime-state-from-entering-mem0
-
+      - api-contract-change
+      - database-schema-change
+      - architecture-change
+  -
+    display_name: 'Memory Agent'
+    id: memory-agent
+    lifecycle:
+      type: event-driven
+    model:
+      display_name: 'GPT-5.6 Sol Fast'
+      reasoning: '高'
+      runtime_id: 'openai/gpt-5.6-sol-fast#high'
     permissions:
       mem0_read: true
       mem0_write: true
-
+    responsibilities:
+      - write-validated-long-term-knowledge
+      - prevent-runtime-state-from-entering-mem0
     restrictions:
       - no-temporary-task-state-in-mem0
-
+    role: memory-governance
+    triggers:
+      - reviewer-pass
 project_sessions:
-
+  nyamtn:
+    model:
+      display_name: 'GPT-5.6 Sol Fast'
+      reasoning: '高'
+      runtime_id: 'openai/gpt-5.6-sol-fast#high'
   ruoyi-vue-pro:
     model:
-      display_name: GPT-5.6 Sol Fast
-      reasoning: 高
-      runtime_id: openai/gpt-5.6-sol-fast#high
-
-  yudao-ui-admin-vue3:
-    model:
-      display_name: GPT-5.6 Sol Fast
-      reasoning: 高
-      runtime_id: openai/gpt-5.6-sol-fast#high
-
+      display_name: 'GPT-5.6 Sol Fast'
+      reasoning: '高'
+      runtime_id: 'openai/gpt-5.6-sol-fast#high'
   xxl-job:
+    assignment_status: unassigned
     model:
       display_name: null
       reasoning: null
       runtime_id: null
-    assignment_status: unassigned
-
-  nyamtn:
+  yudao-ui-admin-vue3:
     model:
-      display_name: GPT-5.6 Sol Fast
-      reasoning: 高
-      runtime_id: openai/gpt-5.6-sol-fast#high
+      display_name: 'GPT-5.6 Sol Fast'
+      reasoning: '高'
+      runtime_id: 'openai/gpt-5.6-sol-fast#high'
+schema_version: 1

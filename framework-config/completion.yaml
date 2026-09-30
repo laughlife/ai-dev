@@ -1,0 +1,23 @@
+schema_version: 1
+
+implementation:
+  type: deterministic-runtime-component
+  component: completion-guard
+
+gates:
+  execution:
+    terminal_node_states: [COMPLETED, REVIEW_PASSED]
+    forbidden_node_states: [READY, RUNNING, BLOCKED, FAILED]
+    scheduler_must_be_inactive: true
+  delivery:
+    reviewer_pass_required: true
+    unresolved_fix_rework_forbidden: true
+    active_child_execution_forbidden: true
+
+outputs:
+  execution_complete: EXECUTION_COMPLETE
+  execution_incomplete: EXECUTION_INCOMPLETE
+  execution_blocked: EXECUTION_BLOCKED
+  delivery_complete: DELIVERY_COMPLETE
+  delivery_pending: DELIVERY_PENDING
+  delivery_blocked: DELIVERY_BLOCKED

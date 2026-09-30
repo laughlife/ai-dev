@@ -1,58 +1,54 @@
-# Machine-readable mirror of ../diagrams/multi_agent_framework_v3_workspace.drawio
-# Conflict policy: drawio wins. This file is not a source of truth.
-
-schema_version: 1
-
 projects:
-
-  - id: ruoyi-vue-pro
+  -
+    id: ruoyi-vue-pro
     name: ruoyi-vue-pro
     path: 'D:\ai-dev\ruoyi-vue-pro'
-    repository_mode: independent
-    root_framework_git_ignored: true
-    project_type: backend
     project_main:
       enabled: true
       lifecycle: persistent
     project_reader:
       enabled: true
       lifecycle: persistent
-
-  - id: yudao-ui-admin-vue3
+    project_type: backend
+    repository_mode: independent
+    root_framework_git_ignored: true
+  -
+    id: yudao-ui-admin-vue3
     name: yudao-ui-admin-vue3
     path: 'D:\ai-dev\yudao-ui-admin-vue3'
-    repository_mode: independent
-    root_framework_git_ignored: true
-    project_type: frontend
     project_main:
       enabled: true
       lifecycle: persistent
     project_reader:
       enabled: true
       lifecycle: persistent
-
-  - id: xxl-job
+    project_type: frontend
+    repository_mode: independent
+    root_framework_git_ignored: true
+  -
+    id: xxl-job
     name: xxl-job
     path: 'D:\ai-dev\xxl-job'
-    repository_mode: independent
-    root_framework_git_ignored: true
-    project_type: scheduler
     project_main:
       enabled: true
       lifecycle: persistent
     project_reader:
       enabled: true
       lifecycle: persistent
-
-  - id: nyamtn
+    project_type: scheduler
+    repository_mode: independent
+    root_framework_git_ignored: true
+  -
+    id: nyamtn
     name: nyamtn
     path: 'D:\ai-dev\nyamtn'
-    repository_mode: independent
-    root_framework_git_ignored: true
-    project_type: android-pda
     project_main:
       enabled: true
       lifecycle: persistent
     project_reader:
       enabled: true
       lifecycle: persistent
+    project_type: android-pda
+    repository_mode: independent
+    root_framework_git_ignored: true
+schema_version: 1

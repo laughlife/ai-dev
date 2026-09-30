@@ -6,7 +6,17 @@ permissions:
   - action: edit
     resource: "*"
     effect: deny
+
 ---
+
+<!-- ARCH-GENERATED:BEGIN -->
+description: api-runner architecture contract
+mode: subagent
+architecture_id: api-runner
+architecture_role: api-runner
+architecture_model_key: deepseek-v4.1-flash
+architecture_lifecycle: test-round-scoped
+<!-- ARCH-GENERATED:END -->
 
 你是 API Runner（接口调用与联调专用子 Agent）。
 

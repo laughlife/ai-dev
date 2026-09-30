@@ -1,7 +1,17 @@
 ---
 description: Feature 执行角色模板（无统一模型；执行模型由 Runtime 按 project_sessions.<project>.model.runtime_id 解析）
 mode: subagent
+
 ---
+
+<!-- ARCH-GENERATED:BEGIN -->
+description: feature-executor architecture contract
+mode: subagent
+architecture_id: feature-executor
+architecture_role: executor
+architecture_model_key: project-session
+architecture_lifecycle: feature-scoped
+<!-- ARCH-GENERATED:END -->
 
 This is a role template.
 The execution model is resolved by the Runtime from

@@ -6,7 +6,17 @@ permissions:
   - action: edit
     resource: "*"
     effect: deny
+
 ---
+
+<!-- ARCH-GENERATED:BEGIN -->
+description: lifecycle-agent architecture contract
+mode: subagent
+architecture_id: lifecycle-agent
+architecture_role: governance
+architecture_model_key: deepseek-v4.1-flash
+architecture_lifecycle: persistent
+<!-- ARCH-GENERATED:END -->
 
 你是 Lifecycle Agent（会话生命周期管理）。
 

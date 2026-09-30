@@ -24,7 +24,7 @@ It does NOT own the source code of business projects.
 
 The authoritative visual architecture definition is:
 
-`diagrams/multi_agent_framework_v3_workspace.drawio`
+`diagrams/multi_agent_framework_v4_completion_guard.drawio`
 
 Before:
 
@@ -264,13 +264,15 @@ validate
 
 Current state:
 
-- `drawio → framework-config`: implemented manually
-- `framework-config → executable OpenCode agents`: implemented manually
+- `drawio → architecture IR`: implemented by the Plan 9 Architecture Compiler
+- `drawio → framework-config`: compiler check/diff/apply is available; apply is explicit
+- `framework-config/IR → executable OpenCode architecture contract`: generated blocks are synchronized explicitly
+- manual Agent behavior bodies remain preserved
 - runtime persistent Project Main / Project Reader: implemented in Plan 5
-- automatic `drawio → framework-config` synchronization: not implemented
-- automatic `framework-config → Agent generation`: not implemented
+- unattended production apply: not implemented (apply remains explicit and transactional)
+- running Agent/session hot-reload from compiler output: not implemented
 
-Do not claim that editing drawio automatically changes running Agents.
+Do not claim that editing drawio automatically changes running Agents; compiler apply is a controlled file synchronization step only.
 
 ## 13. Task Decomposition and Multi-Agent Execution
 

@@ -127,6 +127,16 @@
           "metadata": {
             "description": "Reserved extension object for additional non-standard fields. Must not contain credentials of any kind (passwords, API keys, database credentials, tokens, secrets).",
             "type": "object"
+          },
+          "resources": {
+            "description": "Deterministic lane/resource claims. Intersecting write or exclusive resources serialize; missing write scope is conservatively project:<project_id>:write.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "read": { "type": "array", "items": { "type": "string" } },
+              "write": { "type": "array", "items": { "type": "string" } },
+              "exclusive": { "type": "array", "items": { "type": "string" } }
+            }
           }
         }
       }

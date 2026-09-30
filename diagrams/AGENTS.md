@@ -4,7 +4,7 @@ This directory contains visual architecture definitions.
 
 Primary architecture file:
 
-`multi_agent_framework_v3_workspace.drawio`
+`multi_agent_framework_v4_completion_guard.drawio`
 
 ## Responsibility
 
@@ -35,6 +35,10 @@ PNG/PDF exports are presentation artifacts only.
 The editable `.drawio` file is authoritative.
 
 ## Change Rule
+
+`multi_agent_framework_v3_workspace.drawio` is retained as the historical v3
+baseline. The v4 file is authoritative for the current runtime architecture;
+the user's uncommitted v3 working-tree changes remain untouched.
 
 When architecture changes:
 

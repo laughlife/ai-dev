@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-dev.local/templates/architecture-ir.schema.json",
+  "title": "AI Dev Architecture IR v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ir_version", "source", "agents", "projects", "routes", "lifecycle", "runtime_components", "completion_guards", "execution_lanes", "relationships"],
+  "properties": {
+    "ir_version": { "const": 1 },
+    "source": { "type": "object" },
+    "agents": { "type": "array" },
+    "projects": { "type": "array" },
+    "routes": { "type": "array" },
+    "lifecycle": { "type": "object" },
+    "runtime_components": { "type": "array" },
+    "completion_guards": { "type": "array" },
+    "execution_lanes": { "type": "array" },
+    "relationships": { "type": "array" }
+  }
+}

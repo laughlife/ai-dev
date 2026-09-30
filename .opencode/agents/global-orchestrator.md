@@ -36,7 +36,17 @@ permissions:
   - action: subagent
     resource: feature-executor
     effect: allow
+
 ---
+
+<!-- ARCH-GENERATED:BEGIN -->
+description: global-orchestrator architecture contract
+mode: subagent
+architecture_id: global-orchestrator
+architecture_role: orchestrator
+architecture_model_key: gpt-6-sol-fast
+architecture_lifecycle: persistent
+<!-- ARCH-GENERATED:END -->
 
 你是 Global Orchestrator（总主控）。
 

@@ -6,7 +6,17 @@ permissions:
   - action: edit
     resource: "*"
     effect: deny
+
 ---
+
+<!-- ARCH-GENERATED:BEGIN -->
+description: planner architecture contract
+mode: subagent
+architecture_id: planner
+architecture_role: planner
+architecture_model_key: gpt-6-sol-fast
+architecture_lifecycle: feature-scoped
+<!-- ARCH-GENERATED:END -->
 
 你是 Planner（逻辑分析与任务派发）。
 

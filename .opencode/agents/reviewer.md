@@ -9,7 +9,17 @@ permissions:
   - action: subagent
     resource: "*"
     effect: deny
+
 ---
+
+<!-- ARCH-GENERATED:BEGIN -->
+description: reviewer architecture contract
+mode: subagent
+architecture_id: reviewer
+architecture_role: reviewer
+architecture_model_key: gpt-5.6-sol
+architecture_lifecycle: per-review-round
+<!-- ARCH-GENERATED:END -->
 
 你是 Reviewer（独立验收代理）。
 

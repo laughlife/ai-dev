@@ -1,4 +1,4 @@
-# Machine-readable mirror of ../diagrams/multi_agent_framework_v3_workspace.drawio
+# Machine-readable mirror of ../diagrams/multi_agent_framework_v4_completion_guard.drawio
 # Conflict policy: drawio wins. This file is not a source of truth.
 
 schema_version: 1
@@ -9,7 +9,7 @@ framework:
   workspace_root: 'D:\ai-dev'
 
 architecture:
-  source_of_truth: ../diagrams/multi_agent_framework_v3_workspace.drawio
+    source_of_truth: ../diagrams/multi_agent_framework_v4_completion_guard.drawio
   source_type: drawio
   config_role: derived-mirror
   conflict_policy: drawio-wins
@@ -60,6 +60,16 @@ workflow_engine:
   automatic_scheduler: true
   automatic_reviewer_loop: true
   automatic_lifecycle_rotation: false
+
+completion_guard:
+  implementation: deterministic-runtime-component
+  plugin: ../.opencode/plugins/completion-engine
+  protocol: ../framework-config/completion.yaml
+
+architecture_compiler:
+  implementation: tools/architecture-sync
+  source: ../diagrams/multi_agent_framework_v4_completion_guard.drawio
+  explicit_apply: true
 
 runtime:
   directory: ../runtime
