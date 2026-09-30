@@ -120,6 +120,10 @@ export default {
     if (core.db) {
       try {
         core.db.exec(fs.readFileSync(path.join(import.meta.dir, "schema.sql"), "utf8"))
+        const workflowColumns = new Set((core.db.prepare("PRAGMA table_info(workflows)").all() as any[]).map((c: any) => String(c?.name)))
+        if (!workflowColumns.has("completion_guard_finalized_at")) {
+          core.db.exec("ALTER TABLE workflows ADD COLUMN completion_guard_finalized_at TEXT")
+        }
       } catch (e: any) {
         schemaError = errMsg(e)
       }
@@ -358,6 +362,7 @@ export default {
         created_at: row.created_at,
         updated_at: row.updated_at,
         finished_at: row.finished_at,
+        completion_guard_finalized_at: row.completion_guard_finalized_at,
       }
     }
 
@@ -820,7 +825,7 @@ export default {
       }
       const sql =
         "SELECT workflow_id, primary_project_id, objective, status, planner_task_id, planner_session_id, " +
-        "rework_cycle, created_at, updated_at, finished_at, " +
+        "rework_cycle, created_at, updated_at, finished_at, completion_guard_finalized_at, " +
         "(SELECT COUNT(*) FROM workflow_nodes n WHERE n.workflow_id = w.workflow_id) AS node_count " +
         "FROM workflows w " +
         (where.length ? `WHERE ${where.join(" AND ")} ` : "") +

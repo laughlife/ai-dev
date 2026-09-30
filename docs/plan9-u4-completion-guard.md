@@ -13,14 +13,17 @@ that owns the final Workflow transition and final-report permission.
 2. `completion_final_report_permission` returns `FINAL_REPORT_ALLOWED` only
    when all required nodes and child tasks are terminal-success, required
    reviewer evidence is `PASS`, and no `FIX`/`REWORK` remains unresolved.
-3. `completion_finalize` performs a guarded single-statement transition from
-   `REVIEW_PASSED`, `DELIVERY_PENDING`, or `DELIVERY_COMPLETE` to
-   `COMPLETED`, recording `finished_at` and `updated_at`.
+3. `completion_finalize` performs the permission check and guarded transition
+   in one SQLite transaction. It moves `REVIEW_PASSED`, `DELIVERY_PENDING`, or
+   `DELIVERY_COMPLETE` to `COMPLETED`, recording matching `finished_at` and
+   `completion_guard_finalized_at` provenance markers.
 4. A blocked gate leaves the Workflow status unchanged and returns
    `COMPLETION_GUARD_BLOCKED`.
-5. A pre-existing `COMPLETED` row without `finished_at` fails closed; this
-   prevents an unverified direct status write from becoming final-report
-   permission.
+5. A pre-existing `COMPLETED` row without matching Completion Guard provenance
+   fails closed; an arbitrary `finished_at` value is not accepted.
+6. All descendants of workflow node tasks are checked recursively, and a
+   Reviewer PASS must be backed by matching history, a completed independent
+   review task, and a PASS result envelope.
 
 ## Implemented files
 

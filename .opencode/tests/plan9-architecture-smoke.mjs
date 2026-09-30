@@ -19,13 +19,17 @@ const serialized = scheduleLaneWaves([
 assert.equal(serialized.length, 2, "same resource writes serialize")
 
 const db = new DatabaseSync(":memory:")
-db.exec(`CREATE TABLE workflows (workflow_id TEXT PRIMARY KEY, status TEXT, plan_json TEXT); CREATE TABLE workflow_nodes (workflow_id TEXT, node_id TEXT, status TEXT, current_task_id TEXT, last_verdict TEXT, task_history_json TEXT, review_history_json TEXT); CREATE TABLE tasks (task_id TEXT PRIMARY KEY, parent_task_id TEXT, status TEXT);`)
-const plan = { nodes: [{ node_id: "t1", route: "code_read", depends_on: [] }, { node_id: "t2", route: "code_read", depends_on: [] }, { node_id: "t3", route: "code_read", depends_on: [] }] }
+db.exec(`CREATE TABLE workflows (workflow_id TEXT PRIMARY KEY, status TEXT, plan_json TEXT); CREATE TABLE workflow_nodes (workflow_id TEXT, node_id TEXT, status TEXT, current_task_id TEXT, review_task_id TEXT, last_verdict TEXT, task_history_json TEXT, review_history_json TEXT); CREATE TABLE tasks (task_id TEXT PRIMARY KEY, parent_task_id TEXT, status TEXT, target_role TEXT, input_json TEXT, result_json TEXT);`)
+const plan = { nodes: [{ node_id: "t1", route: "code_read", depends_on: [], review: { required: true } }, { node_id: "t2", route: "code_read", depends_on: [] }, { node_id: "t3", route: "code_read", depends_on: [] }] }
 db.prepare("INSERT INTO workflows VALUES (?,?,?)").run("wf", "RUNNING", JSON.stringify(plan))
 for (const [id, status, task] of [["t1", "COMPLETED", "q1"], ["t2", "RUNNING", "q2"], ["t3", "READY", "q3"]]) {
-  db.prepare("INSERT INTO workflow_nodes VALUES (?,?,?,?,?,?,?)").run("wf", id, status, task, null, "[]", "[]")
-  db.prepare("INSERT INTO tasks VALUES (?,?,?)").run(task, null, status === "RUNNING" ? "RUNNING" : "COMPLETED")
+  const reviewTask = id === "t1" ? "review-1" : null
+  const verdict = id === "t1" ? "PASS" : null
+  const history = id === "t1" ? JSON.stringify([{ task_id: "review-1", verdict: "PASS" }]) : "[]"
+  db.prepare("INSERT INTO workflow_nodes VALUES (?,?,?,?,?,?,?,?)").run("wf", id, status, task, reviewTask, verdict, "[]", history)
+  db.prepare("INSERT INTO tasks VALUES (?,?,?,?,?,?)").run(task, null, status === "RUNNING" ? "RUNNING" : "COMPLETED", "project-reader", JSON.stringify({ route: "code_read" }), JSON.stringify({ output_text: "ok" }))
 }
+db.prepare("INSERT INTO tasks VALUES (?,?,?,?,?,?)").run("review-1", "q1", "COMPLETED", "reviewer", JSON.stringify({ route: "independent_review" }), JSON.stringify({ output_text: JSON.stringify({ schema_version: 1, verdict: "PASS" }) }))
 const dbAdapter = { query(sql) { const statement = db.prepare(sql); return { get: (...args) => statement.get(...args), all: (...args) => statement.all(...args) } } }
 const guard = createCompletionCore({ db: dbAdapter })
 assert.notEqual(guard.executionCheck({ workflow_id: "wf" }).status, "EXECUTION_COMPLETE")

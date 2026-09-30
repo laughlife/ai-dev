@@ -397,6 +397,7 @@ function rowToWorkflow(row: any) {
     created_at: row.created_at,
     updated_at: row.updated_at,
     finished_at: row.finished_at,
+    completion_guard_finalized_at: row.completion_guard_finalized_at,
   }
 }
 

@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS workflows (
     rework_cycle INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    finished_at TEXT
+    finished_at TEXT,
+    completion_guard_finalized_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS workflow_nodes (

@@ -13,6 +13,16 @@ function parse(value: any): any {
   try { return JSON.parse(value) } catch { return null }
 }
 
+function parseJsonCandidate(value: any): any {
+  const direct = parse(value)
+  if (direct) return direct
+  if (typeof value !== "string") return null
+  const start = value.indexOf("{")
+  const end = value.lastIndexOf("}")
+  if (start < 0 || end <= start) return null
+  return parse(value.slice(start, end + 1))
+}
+
 function failure(code: string, detail: string, extra: any = {}) {
   return { ok: false, status: "ERROR", code, detail, ...extra }
 }
@@ -62,8 +72,21 @@ export function createCompletionCore(runtimeCore: any) {
       }
     }
     for (const row of rows) if (!planById.has(row.node_id)) missing.push({ node_id: row.node_id, reason: "UNPLANNED_WORKFLOW_NODE" })
-    const activeChildren: any[] = db.query("SELECT task_id,status FROM tasks WHERE parent_task_id IN (SELECT current_task_id FROM workflow_nodes WHERE workflow_id = ?)").all(id)
-    for (const task of activeChildren) if (!TERMINAL_TASK.has(task.status)) missing.push({ task_id: task.task_id, status: task.status, reason: "ACTIVE_CHILD_TASK" })
+    const descendants: any[] = db.query(
+      "WITH RECURSIVE descendants(task_id, status, path) AS (" +
+        "SELECT t.task_id, t.status, '|' || t.task_id || '|' " +
+        "FROM tasks t WHERE t.parent_task_id IN (SELECT current_task_id FROM workflow_nodes WHERE workflow_id = ? AND current_task_id IS NOT NULL) " +
+        "UNION ALL " +
+        "SELECT t.task_id, t.status, d.path || t.task_id || '|' FROM tasks t " +
+        "JOIN descendants d ON t.parent_task_id = d.task_id " +
+        "WHERE instr(d.path, '|' || t.task_id || '|') = 0" +
+      ") SELECT task_id,status FROM descendants",
+    ).all(id)
+    for (const task of descendants) {
+      if (!TERMINAL_TASK.has(task.status)) {
+        missing.push({ task_id: task.task_id, status: task.status, reason: ACTIVE_TASK.has(task.status) ? "ACTIVE_CHILD_TASK" : "CHILD_TASK_NOT_SUCCESS" })
+      }
+    }
     const complete = missing.length === 0 && rows.length === planById.size && planById.size > 0
     return {
       ok: complete,
@@ -75,6 +98,26 @@ export function createCompletionCore(runtimeCore: any) {
     }
   }
 
+  function reviewerPassEvidence(row: any): { ok: boolean; reason?: string } {
+    if (row?.last_verdict !== "PASS") return { ok: false, reason: "LAST_VERDICT_NOT_PASS" }
+    const history = parse(row.review_history_json)
+    const last = Array.isArray(history) && history.length ? history.at(-1) : null
+    if (!last || last.verdict !== "PASS" || !row.review_task_id || last.task_id !== row.review_task_id) {
+      return { ok: false, reason: "REVIEW_HISTORY_PASS_EVIDENCE_MISSING" }
+    }
+    const task: any = db.query("SELECT task_id,status,target_role,input_json,result_json FROM tasks WHERE task_id = ?").get(row.review_task_id)
+    const taskInput = parse(task?.input_json)
+    if (!task || task.status !== "COMPLETED" || taskInput?.route !== "independent_review" || task.target_role !== "reviewer") {
+      return { ok: false, reason: "REVIEW_TASK_NOT_COMPLETED" }
+    }
+    const envelope = parse(task.result_json)
+    const reviewerResult = parseJsonCandidate(envelope?.output_text)
+    if (reviewerResult?.schema_version !== 1 || reviewerResult?.verdict !== "PASS") {
+      return { ok: false, reason: "REVIEW_RESULT_PASS_EVIDENCE_MISSING" }
+    }
+    return { ok: true }
+  }
+
   function deliveryCheck(input: any = {}) {
     const g = guard(); if (g) return g
     const exec: any = executionCheck(input)
@@ -84,15 +127,17 @@ export function createCompletionCore(runtimeCore: any) {
     const plan = parse(wf.plan_json) ?? {}
     const rows: any[] = db.query("SELECT * FROM workflow_nodes WHERE workflow_id = ? ORDER BY node_id").all(id)
     const requiredReviews = requiredPlanNodes(plan).filter((n: any) => n?.review?.required === true)
-    const passNodes = rows.filter((r: any) => r.last_verdict === "PASS")
-    const reviewMissing = requiredReviews.filter((n: any) => rows.find((r: any) => r.node_id === n.node_id)?.last_verdict !== "PASS").map((n: any) => n.node_id)
+    const reviewerEvidence = new Map(rows.map((row: any) => [row.node_id, reviewerPassEvidence(row)]))
+    const passNodes = rows.filter((r: any) => reviewerEvidence.get(r.node_id)?.ok === true)
+    const reviewMissing = requiredReviews.filter((n: any) => reviewerEvidence.get(n.node_id)?.ok !== true).map((n: any) => n.node_id)
     for (const row of rows) {
       const history = parse(row.review_history_json)
       const last = Array.isArray(history) && history.length ? history.at(-1) : null
-      if (last?.verdict === "FIX" || last?.verdict === "REWORK") reviewMissing.push(row.node_id)
+      if (row.last_verdict === "FIX" || row.last_verdict === "REWORK" || last?.verdict === "FIX" || last?.verdict === "REWORK") reviewMissing.push(row.node_id)
     }
-    const reviewerRequired = plan?.metadata?.delivery?.reviewer_pass_required !== false
-    if (reviewerRequired && passNodes.length === 0) reviewMissing.push("<workflow-review-pass>")
+    // The architecture contract requires an independent Reviewer PASS for
+    // final delivery. Planner metadata cannot disable this safety gate.
+    if (passNodes.length === 0) reviewMissing.push("<workflow-review-pass>")
     const requiredRoutes = Array.isArray(plan?.metadata?.delivery?.required_routes) ? plan.metadata.delivery.required_routes : []
     const routeMissing = requiredRoutes.filter((route: string) => !requiredPlanNodes(plan).some((n: any) => n.route === route && NODE_SUCCESS.has(rows.find((r: any) => r.node_id === n.node_id)?.status)))
     const pending = [...reviewMissing.map((node_id: string) => ({ node_id, reason: "REVIEW_PASS_REQUIRED" })), ...routeMissing.map((route: string) => ({ route, reason: "REQUIRED_DELIVERY_ROUTE" }))]
@@ -107,12 +152,12 @@ export function createCompletionCore(runtimeCore: any) {
     const wf: any = db.query("SELECT * FROM workflows WHERE workflow_id = ?").get(id)
     if (!wf) return failure("WORKFLOW_NOT_FOUND", `workflow '${id}' does not exist`)
     const delivery: any = deliveryCheck({ workflow_id: id })
-    if (wf.status === "COMPLETED" && !wf.finished_at) {
+    if (wf.status === "COMPLETED" && (!wf.completion_guard_finalized_at || !wf.finished_at || wf.completion_guard_finalized_at !== wf.finished_at)) {
       return {
         ok: false,
         status: "FINAL_REPORT_BLOCKED",
         code: "COMPLETION_GUARD_BLOCKED",
-        detail: "workflow is COMPLETED without a Completion Guard finalization timestamp; failing closed",
+        detail: "workflow is COMPLETED without matching Completion Guard provenance; failing closed",
         workflow_id: id,
         permission: false,
         delivery,
@@ -143,43 +188,60 @@ export function createCompletionCore(runtimeCore: any) {
     const g = guard(); if (g) return g
     const id = typeof input.workflow_id === "string" ? input.workflow_id : ""
     if (!id) return failure("INVALID_INPUT", "workflow_id is required")
-    const permission: any = finalReportPermission({ workflow_id: id })
-    if (permission.ok !== true) return permission
-    const wf: any = db.query("SELECT * FROM workflows WHERE workflow_id = ?").get(id)
-    if (wf.status === "COMPLETED") return { ...permission, status: "COMPLETED", final_report_permission: true }
-    if (!DELIVERY_FINALIZABLE_WORKFLOW_STATES.has(String(wf.status))) {
-      return {
-        ok: false,
-        status: "FINAL_REPORT_BLOCKED",
-        code: "WORKFLOW_STATE_INVALID",
-        detail: `workflow status '${wf.status}' is not finalizable by the Completion Guard`,
-        workflow_id: id,
-        permission: false,
-      }
+    if (typeof db.transaction !== "function") return failure("SQLITE_TRANSACTION_UNAVAILABLE", "Completion Guard finalization requires an atomic SQLite transaction")
+    let result: any
+    try {
+      db.transaction(() => {
+        const permission: any = finalReportPermission({ workflow_id: id })
+        if (permission.ok !== true) {
+          result = permission
+          return
+        }
+        const wf: any = db.query("SELECT * FROM workflows WHERE workflow_id = ?").get(id)
+        if (wf.status === "COMPLETED") {
+          result = { ...permission, status: "COMPLETED", final_report_permission: true }
+          return
+        }
+        if (!DELIVERY_FINALIZABLE_WORKFLOW_STATES.has(String(wf.status))) {
+          result = {
+            ok: false,
+            status: "FINAL_REPORT_BLOCKED",
+            code: "WORKFLOW_STATE_INVALID",
+            detail: `workflow status '${wf.status}' is not finalizable by the Completion Guard`,
+            workflow_id: id,
+            permission: false,
+          }
+          return
+        }
+        const now = new Date().toISOString()
+        const updated: any = db.query(
+          "UPDATE workflows SET status = 'COMPLETED', updated_at = ?, finished_at = ?, completion_guard_finalized_at = ? " +
+            "WHERE workflow_id = ? AND status IN ('REVIEW_PASSED', 'DELIVERY_PENDING', 'DELIVERY_COMPLETE')",
+        ).run(now, now, now, id)
+        if (!updated || Number(updated.changes ?? 0) !== 1) {
+          result = {
+            ok: false,
+            status: "FINAL_REPORT_BLOCKED",
+            code: "WORKFLOW_STATE_CHANGED",
+            detail: "workflow state changed before guarded finalization; re-read completion status",
+            workflow_id: id,
+            permission: false,
+          }
+          return
+        }
+        result = {
+          ok: true,
+          status: "COMPLETED",
+          workflow_id: id,
+          final_report_permission: true,
+          delivery_status: "DELIVERY_COMPLETE",
+          finalized_at: now,
+        }
+      })()
+    } catch (error: any) {
+      return failure("COMPLETION_GUARD_TRANSACTION_FAILED", error?.message ?? String(error), { workflow_id: id })
     }
-    const now = new Date().toISOString()
-    const updated: any = db.query(
-      "UPDATE workflows SET status = 'COMPLETED', updated_at = ?, finished_at = ? " +
-        "WHERE workflow_id = ? AND status IN ('REVIEW_PASSED', 'DELIVERY_PENDING', 'DELIVERY_COMPLETE')",
-    ).run(now, now, id)
-    if (!updated || Number(updated.changes ?? 0) !== 1) {
-      return {
-        ok: false,
-        status: "FINAL_REPORT_BLOCKED",
-        code: "WORKFLOW_STATE_CHANGED",
-        detail: "workflow state changed before guarded finalization; re-read completion status",
-        workflow_id: id,
-        permission: false,
-      }
-    }
-    return {
-      ok: true,
-      status: "COMPLETED",
-      workflow_id: id,
-      final_report_permission: true,
-      delivery_status: "DELIVERY_COMPLETE",
-      finalized_at: now,
-    }
+    return result ?? failure("COMPLETION_GUARD_BLOCKED", "Completion Guard produced no finalization result", { workflow_id: id })
   }
 
   function status(input: any = {}) {
