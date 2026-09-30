@@ -36,6 +36,14 @@ runtime_registry:
     - project-reader
   automatic_rotation: false
 
+lifecycle_engine:
+  implementation: opencode-plugin
+  plugin: ../.opencode/plugins/lifecycle-engine
+  database: ../runtime/tasks.db
+  checkpoint_directory: ../runtime/checkpoints
+  automatic_rotation: false
+  primary_ui_handoff: manual-unless-runtime-proven
+
 task_bus:
   implementation: opencode-plugin
   plugin: ../.opencode/plugins/task-bus

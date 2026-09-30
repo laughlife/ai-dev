@@ -63,3 +63,32 @@ rotation_restore_context:
   - project-docs
   - git-state
   - required-mem0-context
+
+runtime:
+  implementation:
+    type: opencode-plugin
+    plugin: ../.opencode/plugins/lifecycle-engine
+    database: ../runtime/tasks.db
+    checkpoint_directory: ../runtime/checkpoints
+
+  telemetry:
+    approximation_allowed: false
+    context_limit_source: opencode-model-catalog
+    context_usage_source: last-assistant-message-token-usage
+    verified: true
+
+  managed_roles:
+    automatic_rotation:
+      - project-main
+      - project-reader
+      - planner
+      - feature-executor
+    fresh_session_by_design:
+      - reviewer
+      - api-runner
+      - test-runner
+
+  primary_session:
+    role: global-orchestrator
+    mode: checkpoint-and-successor-handoff
+    transparent_ui_switch: false
