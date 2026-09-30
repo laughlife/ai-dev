@@ -129,13 +129,13 @@
             "type": "object"
           },
           "resources": {
-            "description": "Deterministic lane/resource claims. Intersecting write or exclusive resources serialize; missing write scope is conservatively project:<project_id>:write.",
+            "description": "Deterministic lane/resource ownership claims. For code_change and api_code_change, the Planner MUST provide resources.write when the file/module ownership is known. If ownership cannot be determined, omit write and the scheduler applies the conservative project:<project_id>:write fallback. Intersecting write, read/write, or exclusive resources serialize; read/read does not.",
             "type": "object",
             "additionalProperties": false,
             "properties": {
-              "read": { "type": "array", "items": { "type": "string" } },
-              "write": { "type": "array", "items": { "type": "string" } },
-              "exclusive": { "type": "array", "items": { "type": "string" } }
+              "read": { "description": "Resources read by this node; read/read claims are non-conflicting.", "type": "array", "items": { "type": "string" } },
+              "write": { "description": "Owned files/modules/resources written by this node. Required for parallel code ownership when known.", "type": "array", "items": { "type": "string" } },
+              "exclusive": { "description": "Resources or project fences requiring exclusive access.", "type": "array", "items": { "type": "string" } }
             }
           }
         }

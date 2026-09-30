@@ -455,7 +455,8 @@
         <mxCell id="footer2" value="&lt;b&gt;一句话规则：&lt;/b&gt;项目主会话长期、项目 Reader 长期、Feature Executor 按功能、API/Test/Reviewer 短期；DB 写操作专用；Lifecycle Agent 统一管理换代。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF3;strokeColor=#22A06B;strokeWidth=2;fontSize=13;fontColor=#17324D;align=left;verticalAlign=top;spacing=12;" vertex="1" parent="1">
           <mxGeometry x="260" y="2380" width="2080" height="95" as="geometry" />
         </mxCell>
-      </root>
+        <mxCell id="arch-runtime-team-execution-coordinator" parent="1" value="team-execution-coordinator" vertex="1" data-arch-kind="runtime_component" data-arch-id="team-execution-coordinator" data-component-kind="team-execution-coordinator"><mxGeometry x="20" y="11020" width="1" height="1" as="geometry" /></mxCell>
+    </root>
     </mxGraphModel>
   </diagram>
   <diagram id="workspace-git-v3" name="03-D_ai-dev工作空间与Git管理">

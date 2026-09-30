@@ -72,4 +72,17 @@ scheduler:
       max_parallel: 6
   legacy_max_parallel: 3
   max_parallel: 3
+team_execution:
+  complex:
+    min_nodes: 3
+  must_parallelize:
+    min_ready_non_conflicting: 2
+  ownership:
+    write_scope_required_for_parallel_write: true
+    fallback: project-exclusive
+  scaling:
+    strategy: per-lane-ready-backlog
+    auto_scale: true
+  controller:
+    max_parallel: 1
 schema_version: 1

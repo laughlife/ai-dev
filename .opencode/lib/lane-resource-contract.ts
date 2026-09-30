@@ -64,8 +64,21 @@ function intersects(a: string[], b: string[]): boolean {
 }
 
 export function resourcesConflict(a: ResourceContract, b: ResourceContract): boolean {
+  // Read claims are shared only with other reads.  An exclusive claim also
+  // acts as the project-wide fence used by build/test and legacy serial
+  // routes, so it conflicts with any claim from that project.
+  const projectFence = (x: string, project: string) => x === `project:${project}:write`
+  const aFence = a.write.some((x) => projectFence(x, a.project_id)) || a.exclusive.some((x) => projectFence(x, a.project_id))
+  const bFence = b.write.some((x) => projectFence(x, b.project_id)) || b.exclusive.some((x) => projectFence(x, b.project_id))
+  if (a.project_id === b.project_id && (aFence || bFence)) {
+    const aClaims = a.read.length + a.write.length + a.exclusive.length
+    const bClaims = b.read.length + b.write.length + b.exclusive.length
+    if ((aFence && bClaims > 0) || (bFence && aClaims > 0)) return true
+  }
   return intersects(a.write, b.write) || intersects(a.write, b.exclusive) ||
-    intersects(a.exclusive, b.write) || intersects(a.exclusive, b.exclusive)
+    intersects(a.exclusive, b.write) || intersects(a.exclusive, b.exclusive) ||
+    intersects(a.read, b.write) || intersects(a.write, b.read) ||
+    intersects(a.read, b.exclusive) || intersects(a.exclusive, b.read)
 }
 
 export function validateResourceContract(value: any): { ok: true } | { ok: false; code: string; detail: string } {

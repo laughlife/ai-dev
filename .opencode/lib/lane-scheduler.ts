@@ -37,17 +37,22 @@ export function normalizeLanePolicies(raw: any): LanePolicies {
 /**
  * Deterministic greedy lane scheduler. There is deliberately no global cap:
  * each lane owns its budget and resource conflicts are the only cross-lane
- * exclusion. A ready queue of four or more permits the configured burst max.
+ * exclusion. Capacity is derived independently for each lane from that
+ * lane's ready backlog; there is no global burst threshold or global cap.
  */
 export function scheduleLaneWaves(items: LaneWorkItem[], policies: LanePolicies): ScheduledLaneItem[][] {
   const list = Array.isArray(items) ? items : []
-  const burst = list.length >= 4
+  const backlog = new Map<string, number>()
+  for (const item of list) {
+    const lane = item.lane ?? resolveResourceContract(item).lane
+    backlog.set(lane, (backlog.get(lane) ?? 0) + 1)
+  }
   const waves: ScheduledLaneItem[][] = []
   for (const item of list) {
     const contract = resolveResourceContract(item)
     const lane = contract.lane
     const p = policies?.[lane] ?? { default_parallel: 1, max_parallel: 1 }
-    const budget = burst ? p.max_parallel : p.default_parallel
+    const budget = Math.min(backlog.get(lane) ?? 0, p.max_parallel)
     const scheduled = { ...item, lane, contract }
     let placed = false
     for (const wave of waves) {

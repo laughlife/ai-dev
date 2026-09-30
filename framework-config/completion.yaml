@@ -34,4 +34,5 @@ runtime_components:
   - runtime-session-registry
   - completion-guard
   - lane-scheduler
+  - team-execution-coordinator
 schema_version: 1

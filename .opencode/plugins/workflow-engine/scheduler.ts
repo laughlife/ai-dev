@@ -1,5 +1,6 @@
-import { normalizeLanePolicies, scheduleLaneWaves } from "../../lib/lane-scheduler.ts"
+import { normalizeLanePolicies } from "../../lib/lane-scheduler.ts"
 import { resolveResourceContract } from "../../lib/lane-resource-contract.ts"
+import { dispatchTeamWaves, normalizeTeamExecutionPolicy } from "../../lib/team-execution-coordinator.ts"
 
 // Workflow Engine — automatic DAG scheduler (Plan 7 Phase 4+, T7b; §39-§44,
 // §60-§62, §68)
@@ -138,6 +139,7 @@ export interface NormalizedPolicy {
     neverRetryRoutes: string[]
   }
   maxReworkCycles: number
+  teamExecution: ReturnType<typeof normalizeTeamExecutionPolicy>
 }
 
 export function normalizePolicy(wfCfg: any): NormalizedPolicy {
@@ -159,6 +161,7 @@ export function normalizePolicy(wfCfg: any): NormalizedPolicy {
       neverRetryRoutes: normalizeStringList(rt?.never_retry_routes),
     },
     maxReworkCycles: Number.isInteger(rawRework) && (rawRework as number) >= 0 ? (rawRework as number) : 0,
+    teamExecution: normalizeTeamExecutionPolicy(wfCfg?.team_execution),
   }
 }
 
@@ -203,6 +206,11 @@ export function planWaves(
   const classified: WaveItem[] = (Array.isArray(items) ? items : []).map((it) => {
     const c = classifyNodeLock(String(it?.route ?? ""), String(it?.project_id ?? ""), policy)
     const contract = resolveResourceContract({ route: String(it?.route ?? ""), project_id: String(it?.project_id ?? ""), resources: it?.resources })
+    // Explicit file/module ownership is the coordinator's opt-in to parallel
+    // code execution. Missing ownership remains conservatively project-wide.
+    const explicitWrite = Array.isArray(it?.resources?.write) && it.resources.write.length > 0
+    const ownedCodeChange = SCOPED_FEATURE_ROUTES.includes(String(it?.route ?? "")) && explicitWrite
+    if (ownedCodeChange) { c.routeClass = "safe"; c.lockKey = null }
     if (c.lockKey && !contract.exclusive.includes(c.lockKey)) contract.exclusive.push(c.lockKey)
     return {
       node_id: String(it?.node_id ?? ""),
@@ -214,7 +222,11 @@ export function planWaves(
       resources: contract,
     }
   })
-  return scheduleLaneWaves(classified.map((x) => ({ ...x, resources: x.resources, lane: x.lane })), policy?.lanePolicies ?? {}) as any
+  return dispatchTeamWaves(
+    classified.map((x) => ({ ...x, resources: x.resources, lane: x.lane })),
+    policy?.lanePolicies ?? {},
+    policy?.teamExecution,
+  ) as any
 }
 
 // =====================================================================
