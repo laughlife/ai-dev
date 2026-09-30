@@ -155,6 +155,7 @@ Commits:
 - 2062007  orchestrator/project-main automatic workflow entry
 - 97575e0  reviewer-pass dry-run test hook
 - 389ffc6  acceptance documentation
+- ba00a11  acceptance commit hash recorded
 
 Scope:
 - Planner DAG contract
@@ -194,6 +195,16 @@ Deferred to Plan 9:
 - automatic Agent generation
 - Documentation/Memory final PASS event chain
 - production E2E
+
+## Plan 8
+
+Status: IN_PROGRESS
+
+Scope:
+- verified context telemetry
+- checkpoint and restore
+- 60/70/80 automatic session lifecycle
+- session generation rotation and reload recovery
 
 ## History Note
 

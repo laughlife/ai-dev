@@ -33,6 +33,7 @@ ai-dev/
 │   ├── routing.yaml
 │   ├── lifecycle.yaml
 │   ├── task-bus.yaml
+│   ├── workflow.yaml
 │   └── sync-state.yaml
 ├── templates/                   # Reusable templates
 │   └── AGENTS.md
@@ -93,6 +94,7 @@ Machine-readable derived configuration (mirror of the drawio architecture; the d
 - agents.yaml
 - routing.yaml
 - lifecycle.yaml
+- workflow.yaml
 - sync-state.yaml
 
 ### 6. templates/
@@ -111,6 +113,7 @@ Plan 4: completed
 Plan 5: completed
 Plan 6: completed
 Plan 7: completed
+Plan 8: in progress
 
 Next planned stage:
 automatic lifecycle rotation + checkpoint

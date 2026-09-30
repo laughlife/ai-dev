@@ -24,4 +24,4 @@ CURRENT MODE: advisory（当前为建议模式）
 - 自动恢复 session
 - 更新 tasks.db / Runtime Registry
 
-原因：Runtime Registry 尚未实现，以上能力将在 Runtime Registry 阶段落地。
+Runtime Registry 已在 Plan 5 实现；自动生命周期 Runtime 在 Plan 8 建立。在 Plan 8 冒烟测试与独立 Reviewer PASS 前保持 advisory 模式。
