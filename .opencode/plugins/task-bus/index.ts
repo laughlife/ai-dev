@@ -47,8 +47,11 @@
 // bun:sqlite (SQLite 3.53.2, json_extract available), Bun.YAML.parse.
 // Plain-object default export (V2 reads `id` + `setup()`; no SDK import).
 
+import * as path from "node:path"
 import { createRuntimeRegistryCore } from "../../lib/runtime-registry-core.ts"
 import { createTaskBusCore, DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT } from "../../lib/task-bus-core.ts"
+import { createLifecycleCore } from "../../lib/lifecycle-core.ts"
+import { wireLifecyclePreflight } from "../../lib/lifecycle-preflight.ts"
 
 export default {
   id: "task-bus",
@@ -57,7 +60,11 @@ export default {
     // .opencode/plugins/runtime-registry/schema.sql under the resolved
     // framework root, which CREATE TABLE IF NOT EXISTS-initializes (or
     // reuses) the shared runtime/tasks.db — exactly the Plan 5 schema (§20/§21).
-    const core = createRuntimeRegistryCore(ctx)
+    const core = createRuntimeRegistryCore(ctx, {
+      lifecycleSchemaFile: path.join(import.meta.dir, "..", "lifecycle-engine", "schema.sql"),
+    })
+    const lifecycle = createLifecycleCore(ctx, core)
+    wireLifecyclePreflight(core, lifecycle)
     // Shared task bus core (Plan 7 Phase 3): all task logic lives there;
     // bus.db === core.db (one shared runtime/tasks.db handle, one lifecycle).
     const bus = createTaskBusCore(ctx, core)

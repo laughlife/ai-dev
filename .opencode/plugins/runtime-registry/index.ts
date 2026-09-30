@@ -23,6 +23,8 @@
 
 import * as path from "node:path"
 import { createRuntimeRegistryCore } from "../../lib/runtime-registry-core.ts"
+import { createLifecycleCore } from "../../lib/lifecycle-core.ts"
+import { wireLifecyclePreflight } from "../../lib/lifecycle-preflight.ts"
 
 export default {
   id: "runtime-registry",
@@ -32,7 +34,10 @@ export default {
     // EXISTS + registry_meta upsert). schema.sql stays next to this plugin.
     const core = createRuntimeRegistryCore(ctx, {
       schemaFile: path.join(import.meta.dir, "schema.sql"),
+      lifecycleSchemaFile: path.join(import.meta.dir, "..", "lifecycle-engine", "schema.sql"),
     })
+    const lifecycle = createLifecycleCore(ctx, core)
+    wireLifecyclePreflight(core, lifecycle)
 
     // --- tool registration (plan §23: exactly these five tools, namespace `runtime`) ---
     await ctx.tool.transform((editor: any) => {

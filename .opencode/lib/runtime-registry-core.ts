@@ -51,12 +51,46 @@
 // are declared exclusively in framework-config/lifecycle.yaml (drawio
 // mirror) and will be evaluated by the later Plan 8 lifecycle-engine tasks.
 //
+// Plan 8 T4 (locking ONLY): the per-session_key `withLock` chain registry
+// moved from a per-core Map to the process-global lock in
+// .opencode/lib/global-lock.ts (Symbol.for-keyed on globalThis). Multiple
+// core instances in one process (runtime-registry / task-bus /
+// workflow-engine / lifecycle-core) now share ONE FIFO chain per key, so a
+// lifecycle rotation can never interrupt a running prompt/send on the same
+// session_key. Public API, lock semantics (FIFO, error-isolated,
+// NON-REENTRANT) and all Plan 5-7 tool behavior are unchanged.
+//
+// Plan 8 T6 (lifecycle preflight seam ONLY): the persistent
+// project-main/project-reader send() path accepts an OPTIONAL lifecycle
+// preflight callback (options.lifecyclePreflight at construction or
+// setLifecyclePreflight() afterwards; the plugin setup wires it once BOTH
+// cores exist — this core NEVER imports lifecycle-core, avoiding the import
+// cycle, and holds no threshold/rotation logic of its own). When wired, the
+// callback runs AFTER ensure() and BEFORE the prompt, INSIDE the process-
+// global session_key lock the send caller already holds (the runtime-registry
+// plugin wrapper and task-bus dispatchToRole both wrap send in withLock).
+// The callback therefore MUST be built from the LOCK-FREE lifecycle APIs
+// (refreshTelemetry / evaluateThreshold / rotateSessionLocked) and MUST NOT
+// re-acquire the same key's lock (globalWithLock is NON-REENTRANT — doing so
+// deadlocks). Admission policy lives entirely in the callback: refresh the
+// verified telemetry, evaluate the lifecycle.yaml bands and rotate ONLY when
+// the evaluated lifecycle_state is ROTATE_PENDING/HARD_ROTATE AND
+// framework-config/framework.yaml `runtime_registry.automatic_rotation` is
+// true (it currently stays false; nothing here enables it), then report
+// { ok: true, rotated: true }. On rotated:true send() re-reads the latest
+// sessions row and prompts the committed ACTIVE successor generation. Seam
+// failures are fail-closed (ok:false / throw => LIFECYCLE_PREFLIGHT_FAILED,
+// no prompt is sent). When NO seam is set, send() behavior, locking and
+// result shapes are IDENTICAL to Plan 5-7 (no extra fields). sendScopedSession
+// is intentionally NOT part of this seam.
+//
 // Runtime facts verified on this machine (desktop 2.0.19): Bun 1.4.2,
 // bun:sqlite (SQLite 3.53.2), Bun.YAML.parse.
 
 import { Database } from "bun:sqlite"
 import * as fs from "node:fs"
 import * as path from "node:path"
+import { globalWithLock } from "./global-lock.ts"
 
 const SCHEMA_VERSION = "2" // Plan 8 T3: registry schema v2 (sessions telemetry/lifecycle columns + lifecycle tables)
 const WAIT_TIMEOUT_MS = 15 * 60 * 1000
@@ -179,6 +213,57 @@ export function parseRuntimeId(runtimeId: unknown): { providerID: string; id: st
   return variant ? { providerID, id: rest.slice(0, hash), variant } : { providerID, id: rest.slice(0, hash) }
 }
 
+// =====================================================================
+// Plan 8 T6: lifecycle preflight seam contract (types only — the runtime
+// core never imports lifecycle-core; the plugin setup wires a callback
+// built from the lifecycle core's LOCK-FREE methods).
+//
+// The callback is invoked from send() with the ensured row's identity,
+// while the caller-held process-global session_key lock is ALREADY held.
+// It must:
+// - be lock-free (refreshTelemetry / evaluateThreshold / rotateSessionLocked;
+//   NEVER rotateSession / ensureCheckpoint / restoreSession — those call
+//   globalWithLock(key) again and DEADLOCK on the non-reentrant lock),
+// - own the admission policy: rotate only when the evaluated
+//   lifecycle_state is ROTATE_PENDING/HARD_ROTATE AND framework-config/
+//   framework.yaml `runtime_registry.automatic_rotation` is true (read
+//   fresh; it currently stays false),
+// - report a committed rotation with { ok: true, rotated: true } so send()
+//   re-reads the latest ACTIVE row and prompts the successor generation.
+// Return-value handling in send():
+// - null/undefined          -> treated as "no admission info", send proceeds
+// - { ok: true, rotated?: false, ... } -> send proceeds on the ensured row;
+//   the result object is passed through verbatim as `lifecycle_preflight`
+// - { ok: true, rotated: true, ... }   -> send re-reads the latest ACTIVE
+//   row (successor) and prompts THAT session/generation
+// - { ok: false, ... } or a thrown error -> fail-closed: the send returns
+//   LIFECYCLE_PREFLIGHT_FAILED and NO prompt is sent
+// =====================================================================
+export interface LifecyclePreflightInfo {
+  project_id: string
+  role: string
+  session_key: string
+  session_id: string
+  generation: number
+}
+
+export interface LifecyclePreflightResult {
+  ok: boolean
+  /** true ONLY when a rotation was COMMITTED inside this callback (successor row is latest ACTIVE) */
+  rotated?: boolean
+  code?: string | null
+  detail?: string | null
+  lifecycle_state?: string | null
+  context_pct?: number | null
+  recommended_action?: string | null
+  /** pass-through for diagnostics (thresholds, rotation_id, ...); surfaced under `lifecycle_preflight` */
+  [extra: string]: unknown
+}
+
+export type LifecyclePreflightFn = (
+  info: LifecyclePreflightInfo,
+) => LifecyclePreflightResult | null | undefined | Promise<LifecyclePreflightResult | null | undefined>
+
 // Create the shared runtime registry core. All heavy state (root, SQLite handle,
 // prepared queries, lock chains) is created synchronously here — the same
 // initialization timing and idempotency as the Plan 5 plugin setup():
@@ -192,6 +277,9 @@ export function parseRuntimeId(runtimeId: unknown): { providerID: string; id: st
 //   schema.sql (Plan 8 T3); falls back to the canonical plugin location
 //   under the resolved framework root. Applied when present, skipped when
 //   absent — never an error for the existing plugins.
+// options.lifecyclePreflight: optional Plan 8 T6 seam callback (see
+//   LifecyclePreflightFn); equivalent to calling setLifecyclePreflight()
+//   right after construction. Absent => send() behaves exactly as before.
 export function createRuntimeRegistryCore(ctx: any, options?: any) {
   // --- resolve framework root (the directory containing framework-config/) ---
   let root: string = ctx?.location?.directory ?? process.cwd()
@@ -544,29 +632,146 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     return { code: "NO_ASSISTANT_RESULT", text: null }
   }
 
+  // =====================================================================
+  // Plan 8 T6: optional lifecycle preflight seam (mutable wiring point).
+  //
+  // Stored as a plain closure reference — NO import of lifecycle-core here
+  // (lifecycle-core imports parseRuntimeId from THIS module, so a reverse
+  // import would be a cycle). The lifecycle-engine/runtime plugin setup
+  // wires the callback once both cores exist:
+  //
+  //   const rt = createRuntimeRegistryCore(ctx, { schemaFile })
+  //   const lc = createLifecycleCore(ctx, rt)
+  //   rt.setLifecyclePreflight(async (info) => {
+  //     // caller already holds globalWithLock(info.session_key):
+  //     // ONLY lock-free lifecycle methods may be used here.
+  //     const ev = await lc.evaluateThreshold({ session_key: info.session_key, refresh: true })
+  //     if (!ev.ok) return { ok: false, code: ev.code, detail: ev.detail }
+  //     const st = ev.lifecycle_state
+  //     const due = st === "ROTATE_PENDING" || st === "HARD_ROTATE"
+  //     if (!due || !automaticRotationEnabled()) // framework.yaml runtime_registry.automatic_rotation (fresh read; currently false)
+  //       return { ok: true, rotated: false, lifecycle_state: st, context_pct: ev.context_pct }
+  //     const rot = await lc.rotateSessionLocked(info.session_key, "admission:auto", false) // LOCK-FREE variant
+  //     if (!rot.ok) return { ok: false, code: rot.code, detail: rot.detail }
+  //     return { ok: true, rotated: true, lifecycle_state: st, context_pct: ev.context_pct }
+  //   })
+  // =====================================================================
+  let lifecyclePreflight: LifecyclePreflightFn | null =
+    typeof options?.lifecyclePreflight === "function" ? (options.lifecyclePreflight as LifecyclePreflightFn) : null
+
+  // Wire (function) or clear (null/undefined) the seam at runtime. Returns a
+  // structured result; never throws for the documented inputs.
+  function setLifecyclePreflight(fn: unknown) {
+    if (fn == null) {
+      lifecyclePreflight = null
+      return { ok: true, status: "CLEARED", lifecycle_preflight_set: false }
+    }
+    if (typeof fn !== "function") {
+      return failure("INVALID_INPUT", "lifecycle preflight must be a function or null/undefined")
+    }
+    lifecyclePreflight = fn as LifecyclePreflightFn
+    return { ok: true, status: "SET", lifecycle_preflight_set: true }
+  }
+
+  // Introspection for plugin wiring/tests (never returns the closure itself).
+  function getLifecyclePreflight() {
+    return { ok: true, status: "OK", lifecycle_preflight_set: lifecyclePreflight != null }
+  }
+
   // --- core: send (plan §25: durable prompt, wait, extract last assistant result) ---
+  //
+  // LOCK CONTRACT (unchanged): send() itself is LOCK-FREE — callers hold the
+  // process-global session_key lock around it (runtime-registry plugin tool
+  // wrapper and task-bus dispatchToRole both do `withLock(sessionKey, () =>
+  // send(...))`). send() must NEVER acquire that lock itself (non-reentrant).
+  //
+  // Plan 8 T6: when a lifecycle preflight seam is wired it runs after
+  // ensure() and before the prompt, under the caller-held lock. Without a
+  // seam, behavior and result shapes are IDENTICAL to Plan 5-7.
   async function send(projectId: any, role: any, text: any) {
     const g = guard()
     if (g) return g
     if (typeof text !== "string" || !text.trim()) return failure("INVALID_INPUT", "text is required")
     const ensured: any = await ensure(projectId, role)
     if (!ensured.ok) return ensured
-    const sessionID = ensured.session_id
     const key = ensured.session_key
+    let sessionID = ensured.session_id
+    let generation = ensured.generation
+    let reused = ensured.reused
+
+    // Plan 8 T6 admission seam (no-op when unset)
+    let preflight: any = null
+    let rotated = false
+    if (lifecyclePreflight) {
+      let res: any = null
+      try {
+        res = await lifecyclePreflight({
+          project_id: projectId,
+          role,
+          session_key: key,
+          session_id: sessionID,
+          generation,
+        })
+      } catch (e: any) {
+        res = { ok: false, code: "LIFECYCLE_PREFLIGHT_ERROR", detail: errMsg(e) }
+      }
+      preflight = res ?? null
+      if (res && res.ok === false) {
+        // fail-closed: a refused/failed admission never reaches the prompt
+        return failure(
+          "LIFECYCLE_PREFLIGHT_FAILED",
+          typeof res.detail === "string" && res.detail
+            ? res.detail
+            : "lifecycle preflight refused admission for this send",
+          {
+            session_key: key,
+            session_id: sessionID,
+            generation,
+            preflight_code: typeof res.code === "string" ? res.code : null,
+            lifecycle_preflight: res,
+          },
+        )
+      }
+      rotated = !!(res && res.rotated === true)
+      if (rotated) {
+        // A rotation was COMMITTED inside the seam: the old generation is
+        // archived and the successor is the latest ACTIVE row for this key.
+        // Re-read it and address the prompt to the successor — never to the
+        // archived generation, and never to a stale in-memory session id.
+        const latest: any = q.latest.get(key)
+        if (!latest || latest.status !== "ACTIVE") {
+          return failure(
+            "ROTATED_SUCCESSOR_NOT_ACTIVE",
+            `lifecycle preflight reported rotated=true for '${key}' but the latest row is ` +
+              (latest ? `generation ${latest.generation} with status '${latest.status}'` : "missing") +
+              ", not ACTIVE; refusing to prompt an uncommitted successor",
+            { session_key: key, lifecycle_preflight: res },
+          )
+        }
+        sessionID = latest.opencode_session_id
+        generation = latest.generation
+        reused = false // the successor was created by the rotation, not reused
+      }
+    }
+
     try {
       const out = await promptAndExtract(sessionID, text)
       // same touch semantics as before: the row is touched when an assistant
       // message was reached (OK / NO_ASSISTANT_TEXT), not on NO_ASSISTANT_RESULT
-      if (out.code !== "NO_ASSISTANT_RESULT") q.touch.run(nowIso(), key, ensured.generation)
+      // (after a rotation this touches the SUCCESSOR row)
+      if (out.code !== "NO_ASSISTANT_RESULT") q.touch.run(nowIso(), key, generation)
+      // additive fields ONLY when a seam is wired; absent seam => absent fields
+      const lifecycleFields = preflight ? { lifecycle_preflight: preflight, lifecycle_rotated: rotated } : {}
       if (out.code === "OK") {
         return {
           ok: true,
           status: "OK",
           session_key: key,
           session_id: sessionID,
-          generation: ensured.generation,
-          reused_session: ensured.reused,
+          generation,
+          reused_session: reused,
           result: out.text,
+          ...lifecycleFields,
         }
       }
       if (out.code === "NO_ASSISTANT_TEXT") {
@@ -575,9 +780,10 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
           status: "NO_ASSISTANT_TEXT",
           session_key: key,
           session_id: sessionID,
-          generation: ensured.generation,
+          generation,
           result: null,
           detail: out.detail,
+          ...lifecycleFields,
         }
       }
       return {
@@ -585,11 +791,16 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
         status: "NO_ASSISTANT_RESULT",
         session_key: key,
         session_id: sessionID,
-        generation: ensured.generation,
+        generation,
         result: null,
+        ...lifecycleFields,
       }
     } catch (e: any) {
-      return failure("SEND_FAILED", errMsg(e), { session_id: sessionID, generation: ensured.generation })
+      return failure("SEND_FAILED", errMsg(e), {
+        session_id: sessionID,
+        generation,
+        ...(preflight ? { lifecycle_preflight: preflight, lifecycle_rotated: rotated } : {}),
+      })
     }
   }
 
@@ -921,16 +1132,11 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     }
   }
 
-  // --- per-session_key serialization to avoid racing ensure/send/archive ---
-  const chains = new Map<string, Promise<any>>()
+  // --- process-global per-session_key serialization ---
+  // All separately-created runtime cores (runtime/task/workflow/lifecycle
+  // plugins) must share the same lock chain so a rotation cannot race a send.
   function withLock<T>(key: string, fn: () => Promise<T> | T): Promise<T> {
-    const prev = chains.get(key) ?? Promise.resolve()
-    const run = prev.then(() => fn())
-    chains.set(key, run.then(
-      () => undefined,
-      () => undefined,
-    ))
-    return run
+    return globalWithLock(key, fn)
   }
 
   // --- teardown: close the SQLite handle (same as the Plan 5 setup cleanup) ---
@@ -960,6 +1166,14 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     ensureScopedSession,
     sendScopedSession,
     archiveScopedSession,
+    // Plan 8 T6 (additive): optional lifecycle preflight seam for the
+    // persistent project-main/project-reader send() path. Unset => behavior
+    // and result shapes are identical to Plan 5-7. The wired callback runs
+    // under the caller-held global session_key lock and MUST be lock-free
+    // (see LifecyclePreflightFn contract above). No lifecycle-core import
+    // here — plugin setup wires the callback once both cores exist.
+    setLifecyclePreflight,
+    getLifecyclePreflight,
     parseRuntimeId,
     loadConfig,
     // Plan 6 Phase 3 (additive, no behavior change): expose the internal
