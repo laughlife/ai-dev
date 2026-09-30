@@ -2236,5 +2236,8 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
     measureSession,
     // config helper (fresh read; exposed for later plugin tool wrappers)
     loadThresholds,
+    // Lock-free append-only observation hook used by admission seams to
+    // record non-fatal preparation failures through the core event ledger.
+    recordLifecycleEvent: insertEvent,
   }
 }

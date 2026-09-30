@@ -49,24 +49,55 @@ export function wireLifecyclePreflight(runtimeCore: any, lifecycleCore: any) {
         return { ok: false, code: evaluation?.code ?? "LIFECYCLE_EVALUATION_FAILED", detail: evaluation?.detail ?? "lifecycle evaluation failed" }
       }
       const due = evaluation.lifecycle_state === "ROTATE_PENDING" || evaluation.lifecycle_state === "HARD_ROTATE"
-      if (!due || !automaticRotationEnabled(runtimeCore.root)) {
-        return {
-          ok: true,
-          rotated: false,
-          lifecycle_state: evaluation.lifecycle_state ?? null,
-          context_pct: evaluation.context_pct ?? null,
-          recommended_action: evaluation.recommended_action ?? null,
+      const enabled = automaticRotationEnabled(runtimeCore.root)
+      const report: any = {
+        ok: true,
+        rotated: false,
+        lifecycle_state: evaluation.lifecycle_state ?? null,
+        context_pct: evaluation.context_pct ?? null,
+        recommended_action: evaluation.recommended_action ?? null,
+        rotation_enabled: enabled,
+      }
+
+      // 60–70% is a checkpoint preparation band, not a rotation band.  When
+      // automatic admission is enabled, prepare under the caller's existing
+      // lock and allow the current prompt to continue even if preparation
+      // fails. The next admission retries the preparation.
+      if (enabled && evaluation.lifecycle_state === "CHECKPOINT_READY") {
+        const checkpoint: any = await lifecycleCore.ensureCheckpointLocked(info.session_key)
+        if (checkpoint?.ok) {
+          report.checkpoint_prepared = true
+          report.checkpoint = {
+            status: checkpoint.status ?? null,
+            checkpoint_path: checkpoint.checkpoint_path ?? null,
+          }
+        } else {
+          report.checkpoint_prepare_failed = true
+          report.checkpoint_error = checkpoint?.code ?? "CHECKPOINT_PREPARE_FAILED"
+          report.detail = checkpoint?.detail ?? "checkpoint preparation failed; admission continues"
+          lifecycleCore.recordLifecycleEvent?.(
+            info.session_key,
+            evaluation.generation ?? null,
+            info.session_id ?? null,
+            "CHECKPOINT_PREPARE_FAILED",
+            evaluation.context_pct ?? null,
+            null,
+            { code: report.checkpoint_error, detail: report.detail },
+          )
         }
       }
+
+      if (!due) return report
       // The runtime core already owns the key lock. Calling the public
       // rotateSession here would re-acquire that non-reentrant lock and
       // deadlock; the facade exposes this lock-free variant specifically for
       // admission and scoped workflow callers.
       const rotation: any = await lifecycleCore.rotateSessionLocked(info.session_key, "admission:auto", false)
       if (!rotation?.ok) {
-        return { ok: false, code: rotation?.code ?? "LIFECYCLE_ROTATION_FAILED", detail: rotation?.detail ?? "automatic rotation failed" }
+        return { ...report, ok: false, code: rotation?.code ?? "LIFECYCLE_ROTATION_FAILED", detail: rotation?.detail ?? "automatic rotation failed" }
       }
       return {
+        ...report,
         ok: true,
         rotated: true,
         lifecycle_state: "HANDOFF_READY",

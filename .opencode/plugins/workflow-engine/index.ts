@@ -182,7 +182,7 @@ export default {
       return B.YAML.parse(fs.readFileSync(path.join(core.root, "framework-config", "workflow.yaml"), "utf8"))
     }
 
-    // --- Plan 8 T7: automatic rotation admission flag. framework.yaml
+    // --- Plan 8 T7: automatic lifecycle admission flag. framework.yaml
     // workflow_engine.automatic_lifecycle_rotation, read FRESH on every
     // evaluation (§22 — nothing cached, nothing hardcoded). STRICT true
     // check: false / missing / unreadable all keep automatic rotation
@@ -215,10 +215,10 @@ export default {
     // seam reference in the runtime core header: refresh verified telemetry
     // → evaluate the lifecycle.yaml bands → rotate ONLY when the evaluated
     // lifecycle_state is ROTATE_PENDING/HARD_ROTATE AND the framework.yaml
-    // flag above is strictly true. FAIL-OPEN by design: a skipped or failed
-    // preflight (storage unavailable, evaluation error, failed rotation —
-    // the lifecycle core keeps the OLD generation ACTIVE and serviceable)
-    // never blocks the send, preserving existing tool behavior; every
+    // flag above is strictly true. Checkpoint preparation is non-blocking;
+    // rotation failure is fail-closed when automatic admission is enabled so
+    // no new task can be sent to a generation that is due for rotation.
+    // Storage/evaluation failures remain explicit admission failures. Every
     // outcome is reported for the additive response fields / run notes and
     // the lifecycle_events ledger. A committed rotation preserves the SAME
     // session_key and task ids — the following send resolves the successor
@@ -230,6 +230,7 @@ export default {
         stage: typeof info?.stage === "string" ? info.stage : null,
         task_id: typeof info?.task_id === "string" ? info.task_id : null,
         at: nowIso(),
+        ok: true,
         evaluated: false,
         band: null,
         lifecycle_state: null,
@@ -264,9 +265,32 @@ export default {
         // admission by evaluated band STATE (never a raw pct comparison —
         // the 60/70/80 bands live only in lifecycle.yaml / lifecycle-core)
         report.rotation_due = ev.lifecycle_state === "ROTATE_PENDING" || ev.lifecycle_state === "HARD_ROTATE"
-        if (!report.rotation_due) return report
         const flag = loadAutomaticLifecycleRotation()
         report.rotation_enabled = flag.enabled
+        if (flag.enabled && report.lifecycle_state === "CHECKPOINT_READY") {
+          const checkpoint: any = await lifecycle.ensureCheckpoint({ session_key: sessionKey })
+          if (checkpoint?.ok) {
+            report.checkpoint_prepared = true
+            report.checkpoint = {
+              status: checkpoint.status ?? null,
+              checkpoint_path: checkpoint.checkpoint_path ?? null,
+            }
+          } else {
+            report.checkpoint_prepare_failed = true
+            report.checkpoint_error = checkpoint?.code ?? "CHECKPOINT_PREPARE_FAILED"
+            report.detail = checkpoint?.detail ?? "checkpoint preparation failed; admission continues"
+            lifecycle.recordLifecycleEvent?.(
+              sessionKey,
+              ev.generation ?? null,
+              null,
+              "CHECKPOINT_PREPARE_FAILED",
+              report.context_pct,
+              null,
+              { code: report.checkpoint_error, detail: report.detail },
+            )
+          }
+        }
+        if (!report.rotation_due) return report
         if (!flag.enabled) {
           report.detail =
             `rotation due (${ev.lifecycle_state} @ context_pct=${report.context_pct}) but automatic rotation is disabled: ${flag.reason}`
@@ -280,9 +304,11 @@ export default {
           force: false,
         })
         if (!rot?.ok) {
-          // fail-open: the old generation stays ACTIVE and serviceable
+          // fail-closed: the old generation remains serviceable, but a new
+          // task must not be sent to it after rotation became mandatory.
+          report.ok = false
           report.skipped = rot?.code ?? "ROTATION_FAILED"
-          report.detail = rot?.detail ?? "rotation failed; the old generation stays ACTIVE and the send proceeds"
+          report.detail = rot?.detail ?? "rotation failed; new admission is blocked"
           return report
         }
         // COMMITTED: same session_key, generation+1, same task ids

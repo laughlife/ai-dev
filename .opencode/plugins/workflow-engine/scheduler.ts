@@ -515,8 +515,8 @@ export function createScheduler(deps: SchedulerDeps) {
     // (the public lifecycle wrappers acquire it themselves; the lock is
     // NON-REENTRANT). Generation-transparent: a COMMITTED rotation keeps
     // the SAME session_key and the SAME task id — sendScopedSession below
-    // simply resolves the new latest ACTIVE generation. Fail-open: any
-    // skipped/failed preflight proceeds to the send unchanged. ---
+    // simply resolves the new latest ACTIVE generation. Rotation failures are
+    // fail-closed; checkpoint preparation failures are non-blocking. ---
     let lifecycleField: any = {}
     if (lifecyclePreflight) {
       let rep: any = null
@@ -534,6 +534,22 @@ export function createScheduler(deps: SchedulerDeps) {
         rep = { session_key: sessionKey, stage: "feature-executor", skipped: "PREFLIGHT_EXCEPTION", detail: errMsg(e) }
       }
       if (isNotableLifecycleReport(rep)) lifecycleField = { lifecycle: compactLifecycleReport(rep) }
+      if (rep?.ok === false) {
+        const code = String(rep.code ?? "LIFECYCLE_ROTATION_FAILED")
+        const detail = String(rep.detail ?? "lifecycle admission blocked this scoped task")
+        bus.persistBlocked(taskRow, envelope, "feature-executor", code, detail)
+        return {
+          ...base,
+          task_id: taskId,
+          started_at: startedAt,
+          ended_at: nowIso(),
+          kind: "blocked",
+          code,
+          detail,
+          session_key: sessionKey,
+          ...lifecycleField,
+        }
+      }
     }
 
     // task RUNNING + send inside the per-task lock (same serialization as
