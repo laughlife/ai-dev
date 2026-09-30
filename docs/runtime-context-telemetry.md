@@ -125,9 +125,10 @@ telemetry reads the *same data* the UI bundle reads (same message tokens,
 same catalog lookup, same `Math.round`), the formula is proven **identical,
 not approximated**; the ≤2pp tolerance is expected to resolve to 0pp.
 
-Scope note: T1 was strictly read-only; the formal live side-by-side check
-against the Desktop UI rendering for ≥3 sessions is scheduled for the Plan 8
-smoke phase and has not been executed at the time of writing.
+Scope note: T1 was strictly read-only. The formal live side-by-side check
+against the Desktop UI rendering for ≥3 sessions remains
+`MANUAL_UI_EVIDENCE_REQUIRED`; API/DB agreement is not substituted for the
+Desktop observation. See `docs/plan8-acceptance-matrix.md`.
 
 ## 5. Compaction behavior
 
