@@ -5,6 +5,10 @@ import { execFileSync } from "node:child_process"
 
 const root = path.resolve(".")
 const result = JSON.parse(execFileSync(process.execPath, ["--experimental-strip-types", "tools/production-acceptance/gate.mjs"], { cwd: root, encoding: "utf8" }))
+const gateSource = fs.readFileSync(path.join(root, "tools", "production-acceptance", "gate.mjs"), "utf8")
+assert.match(gateSource, /checks\.architecture\.status !== "IN_SYNC"/)
+assert.match(gateSource, /checks\.recovery_drill !== "STATIC_EVIDENCE_PRESENT"/)
+assert.match(gateSource, /checks\.rollback_drill !== "STATIC_EVIDENCE_PRESENT"/)
 assert.equal(result.status, "BLOCKED")
 assert.ok(result.missing.includes("PLAN8_DESKTOP_UI_SAMPLES"))
 assert.ok(result.missing.includes("PLAN8_ROTATION_EVIDENCE"))
