@@ -113,17 +113,17 @@ Plan 4: completed
 Plan 5: completed
 Plan 6: completed
 Plan 7: completed
-Plan 8: in progress
+Plan 8: completed
 
 Next planned stage:
-automatic lifecycle rotation + checkpoint
+Plan 9 (deferred architecture synchronization and production E2E)
 ```
 
 当前尚未实现：
 
 - automatic drawio synchronization
-- automatic lifecycle rotation
-- automatic checkpoint / restore（Plan 7 明确延期至 Plan 8）
+- automatic lifecycle rotation（开关保持关闭；Plan 8 提供显式治理与准入门控）
+- Desktop UI 透明切换（当前仅支持 checkpoint + successor + manual handoff）
 
 ## 使用指南
 

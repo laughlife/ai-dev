@@ -198,13 +198,20 @@ Deferred to Plan 9:
 
 ## Plan 8
 
-Status: IN_PROGRESS
+Status: COMPLETED
 
 Scope:
 - verified context telemetry
 - checkpoint and restore
 - 60/70/80 automatic session lifecycle
 - session generation rotation and reload recovery
+
+Acceptance evidence:
+- `node --experimental-strip-types --import ./.opencode/tests/register-hooks.mjs ./.opencode/tests/lifecycle-smoke.mjs`
+  → `PLAN8_LIFECYCLE_SMOKE_PASS`
+- same harness with `_probe2.mjs` → `PROBE2 OK`
+- independent Reviewer final verdict: `PASS` at commit `6035ce2`
+- automatic rotation remains disabled; Desktop UI handoff remains manual and is not claimed as transparent
 
 ## History Note
 
