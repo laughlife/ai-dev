@@ -7,7 +7,7 @@ hidden: true
 # OpenCode Runtime Adapter
 
 Source of architecture:
-../../diagrams/multi_agent_framework_v3_workspace.drawio
+../../diagrams/multi_agent_framework_v4_completion_guard.drawio
 
 Machine-readable role source:
 ../../framework-config/agents.yaml
@@ -38,11 +38,20 @@ Implemented (Plan 7):
 - automatic Reviewer loop (fresh ephemeral reviewer session per round)
 - PASS/FIX/REWORK (bounded rework cycles, descendant subgraph replay, safe retry)
 
-Not implemented yet:
-- automatic lifecycle rotation
-- automatic checkpoint
-- automatic drawio sync
-- automatic config generation
+Implemented (Plan 8 / Plan 9 Part A):
+- lifecycle telemetry, checkpoint, rotation, restore and reload reconcile
+- deterministic Completion Guard execution/delivery checks
+- explicit lane scheduler and workflow resource contracts
+
+Implemented (Plan 9 Part B):
+- metadata-bearing v4 architecture source
+- drawio → Architecture IR and semantic hash
+- explicit compiler `check` / `diff` / transactional `apply`
+- generated architecture contract blocks with manual Agent bodies preserved
+
+Not implied:
+- compiler apply does not hot-reload running sessions
+- automatic lifecycle flags remain gated by final live Desktop UI evidence
 
 Runtime model notes:
 - runtime IDs come from the local OpenCode environment only (desktop 2.0.19 catalog + recorded usage); no guessing.
