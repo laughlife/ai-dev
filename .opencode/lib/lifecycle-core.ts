@@ -1714,6 +1714,13 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
       )
     }
     const abs = absCheckpointPath(cpPath)
+    const approvedDir = path.resolve(checkpointsDir)
+    const resolvedCheckpoint = path.resolve(abs)
+    if (!resolvedCheckpoint.startsWith(approvedDir + path.sep)) {
+      return failure("RESTORE_CHECKPOINT_INVALID", "checkpoint path must remain inside runtime/checkpoints", {
+        session_key: key, checkpoint_path: cpPath,
+      })
+    }
     if (!fs.existsSync(abs)) {
       return failure("RESTORE_CHECKPOINT_FILE_MISSING", `checkpoint file does not exist: ${abs}`, {
         session_key: key,
@@ -1726,11 +1733,11 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
     } catch (e: any) {
       return failure("RESTORE_CHECKPOINT_UNPARSEABLE", `${errMsg(e)} (file: ${abs})`, { session_key: key, checkpoint_path: cpPath })
     }
-    if (cp?.schema_version !== 1 || cp?.session_key !== key) {
+    const checkpointProblems = validateCheckpointShape(cp)
+    if (cp?.schema_version !== 1 || cp?.session_key !== key || checkpointProblems.length > 0) {
       return failure(
         "RESTORE_CHECKPOINT_INVALID",
-        `checkpoint at ${cpPath} is not a v1 checkpoint for session_key '${key}' ` +
-          `(schema_version=${cp?.schema_version}, session_key=${cp?.session_key})`,
+        `checkpoint at ${cpPath} is not a valid v1 checkpoint for session_key '${key}': ${checkpointProblems.join("; ")}`,
         { session_key: key, checkpoint_path: cpPath },
       )
     }
@@ -1789,9 +1796,15 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
 
     try {
       const ts = nowIso()
-      q.insertSession.run(key, projectId, role, succ.sessionID, generation, agentId, runtimeId, projectPath, "ACTIVE", null, ts, ts, null)
-      q.setLifecycleState.run("HANDOFF_READY", key, generation)
-      if (latest) q.linkReplaced.run(succ.sessionID, ts, key, latest.generation)
+      db.transaction(() => {
+        const active: any = db.query("SELECT COUNT(*) AS count FROM sessions WHERE session_key = ? AND status = 'ACTIVE'").get(key)
+        if (Number(active?.count ?? 0) > 0) {
+          throw new Error("another ACTIVE generation exists; refusing double ACTIVE restore")
+        }
+        q.insertSession.run(key, projectId, role, succ.sessionID, generation, agentId, runtimeId, projectPath, "ACTIVE", null, ts, ts, null)
+        q.setLifecycleState.run("HANDOFF_READY", key, generation)
+        if (latest) q.linkReplaced.run(succ.sessionID, ts, key, latest.generation)
+      })()
     } catch (e: any) {
       insertEvent(key, generation, succ.sessionID, "SESSION_RESTORE_FAILED", null, cpPath, {
         phase: "REGISTER",
@@ -2106,6 +2119,7 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
     root,
     refreshTelemetry,
     ensureCheckpointLocked,
+    testHooks: options?.testHooks ?? null,
     verifyRotationDue: (_key: string, pct: number | null) => {
       const config = loadThresholds()
       if (!config.ok) return { ok: false, code: config.failure.code, detail: config.failure.detail }

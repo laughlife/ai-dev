@@ -37,10 +37,11 @@ Lifecycle Engine 插件：持久会话的上下文遥测、阈值分带、checkp
 
 | 工具 | 说明（输入 → 输出，高层） |
 | --- | --- |
-| `lifecycle_status` | 给 `session_key` → 单会话全量生命周期视图：registry 行（最新 generation）+ 已验证 telemetry（tokens/limit/pct/source/at）+ 分带评估（thresholds、band、recommended_action、band_state）+ `lifecycle_state` + checkpoint 路径/存在性 + last/incomplete rotation + 最近事件（`events_limit` 默认 10、上限 100）。省略 key 时按 `project_id` / `role` 过滤列出所有最新代际行（含 last_rotation）。默认纯读；仅 `refresh:true` 时先做一次实测（写 telemetry 5 列 + 1 条事件行） |
+| `lifecycle_status` | 给 `session_key` 或 `project_id + role` → 单会话全量生命周期视图：registry 行（最新 generation）+ 已验证 telemetry（tokens/limit/pct/source/at）+ 分带评估（thresholds、band、recommended_action、band_state）+ `lifecycle_state` + checkpoint 路径/存在性 + last/incomplete rotation + 最近事件（`events_limit` 默认 10、上限 100）。默认纯读；仅 `refresh:true` 时先做一次实测（写 telemetry 5 列 + 1 条事件行） |
+| `lifecycle_list` | 可按 `session_key` / `project_id` / `role` 等值过滤，纯只读列出每个 key 最新 generation（包含 scoped role），不调用模型 |
 | `lifecycle_checkpoint` | 输入 `session_key`（+`force`）→ "ensure"语义：该代已有 checkpoint 文件且非 force 则 `CHECKPOINT_REUSED`；否则先取一次**验证过**的实测（拿不到就 `CHECKPOINT_TELEMETRY_UNAVAILABLE`，绝不带估算值落盘），组装 v1 checkpoint（活跃 task/workflow 引用、只读 git 状态、有界摘要）经 schema 校验后原子写入，返回 `CHECKPOINT_WRITTEN` + `checkpoint_path`（相对 `runtime/`）+ 路径/摘要/git 摘要。成功后 `lifecycle_state → CHECKPOINT_READY`（仅在原值为 band 标签或 null 时） |
 | `lifecycle_rotate` | **手动换代 API**。输入 `session_key`（+`reason`、`force`）。无 `force` 时必须存在验证过的 `context_pct` 且分带达到 ROTATE_AFTER_ATOMIC_STEP / HARD_ROTATE，否则 `ROTATION_TELEMETRY_UNAVAILABLE` / `ROTATION_NOT_DUE`。成功输出 `ROTATED`：rotation_id、from/to generation、新旧 session_id、checkpoint_path、old_row(ARCHIVED)/successor_row(ACTIVE, HANDOFF_READY) |
-| `lifecycle_reconcile` | 崩溃/半途失败换代账本对账。输入可选 `session_key`（缺省扫全库非终态 rotation 行）。每 key 在锁内逐行解决：后继行已注册→补完成为 COMMITTED；INITIALIZED 且后继会话存活但未注册→**收养**（注册行、归档旧行、COMMITTED）；其余（PREPARING / SUCCESSOR_CREATED / 后继已死）→ ABANDON（rotation FAILED，旧行保持 ACTIVE 可用、lifecycle_state=ROTATION_FAILED）。输出 `incomplete_found` + 每行 resolution。对账**绝不新建第二个后继、绝不删除任何 OpenCode 会话** |
+| `lifecycle_reconcile` | 崩溃/半途失败换代账本对账。输入可选 `session_key`（缺省扫全库非终态 rotation 行）。每 key 在锁内逐行解决：仅当后继已注册且与 ledger 记录的 session ID 相同才滚动提交；未注册或无法验证的后继一律安全失败并保留旧代 ACTIVE。输出 `incomplete_found` + 每行 resolution；**绝不新建第二个后继、绝不删除任何 OpenCode 会话** |
 
 `restoreSession` 目前是 lifecycle core 的受控 API（不是生产工具），用于主控在
 `HANDOFF_READY` 后执行人工 restore/reload 流程；它同样只接受合法 v1 checkpoint，
@@ -86,12 +87,12 @@ ROTATING → ARCHIVED / ROTATION_FAILED / HANDOFF_READY / STALE （换代/恢复
   （rev-parse / status --porcelain，≤200 行）+ 有界摘要（≤20000 字符、
   排除 tool output、落盘前密钥脱敏）。**Mem0 只存 restore 引用，本插件从不调用
   Mem0**。
-- Rotation 严格顺序（全程持 per-session_key 全局锁）：先强制写一份反映换代
-  时刻的新 checkpoint → PREPARING 落库 → 创建后继会话（create → switchAgent →
-  switchModel（用旧行 `model_runtime_id`，为 null 则 `MODEL_UNASSIGNED` 拒绝，
-  绝不猜/继承）→ synthetic handoff 消息由 checkpoint 文件构建）→ SUCCESSOR_CREATED
-  → 初始化 → INITIALIZED → 单事务（注册后继行 + 归档旧行 + replaced_by +
-  COMMITTED）。锁非重入：facade 内部注入的是 `*Locked` 无锁原语。
+- Rotation 严格顺序（全程持 per-session_key 全局锁）：刷新遥测并复核阈值 →
+  强制写新 checkpoint 并再次复核 → PREPARING 落库 → 创建后继 → **先持久化**
+  `successor_session_id` + SUCCESSOR_CREATED → switchAgent → switchModel →
+  base scope + checkpoint 恢复上下文 → INITIALIZED → 单事务（注册后继行 +
+  归档旧行 + replaced_by + COMMITTED）。模型按已有配置/旧行显式值解析，
+  为 null 则 `MODEL_UNASSIGNED`，绝不猜测。锁非重入：facade 注入 `*Locked` 原语。
 - 后继行的最终态 = `status ACTIVE` + `lifecycle_state HANDOFF_READY`，这是
   **现阶段的主真相（primary truth）**：引擎完成"建档 + 播种上下文"，但工作
   的接续由人工在 Desktop UI 打开该后继会话完成（manual UI handoff）。插件与
@@ -113,8 +114,9 @@ lifecycle 换代只针对 `framework.yaml` 声明的持久管理角色
 ## 自动化开关与边界（当前阶段）
 
 - `framework.yaml`：`runtime_registry.automatic_rotation: false`、
-  `workflow_engine.automatic_lifecycle_rotation: false` — **保持 false**。
-  本插件只暴露手动工具；无事件订阅、无自动 hook；Plan 8 冒烟阶段 + 独立
+  `workflow_engine.automatic_lifecycle_rotation: false`、
+  `lifecycle_engine.automatic_rotation: false` — **保持 false**。
+  观察性 context/compaction hook 不执行换代；正式 admission 开关仍关闭。Plan 8 冒烟阶段 + 独立
   Reviewer PASS 之前不得启用自动换代。
 - lifecycle-agent profile 仍为 advisory 模式，本插件不改变其权限。
 - 未实现：自动分带触发、UI 会话自动接管、Mem0 读写、Git 写操作、
@@ -125,8 +127,8 @@ lifecycle 换代只针对 `framework.yaml` 声明的持久管理角色
 - 仅当插件**加载时**存在标记文件 `runtime/.lifecycle-test-hooks`（由主控管理，
   插件绝不创建/删除），才额外注册 `lifecycle_test_hook`；否则生产 tool registry
   恰好看到 5 个工具，钩子逻辑全部空转。
-- 钩子状态仅存内存（reload 即清空），用于注入合成遥测/强制换代结果做零模型
-  消耗的干跑验证；它不是生产工具，不得被任何生产路径调用或在其文档/返回中
+- 钩子状态仅存内存（reload 即清空），`seed_telemetry` 用于隔离测试行，
+  `force_phase_failure` 在真实 rotation 阶段消费；它不是生产工具，不得被任何生产路径调用或在其文档/返回中
   与 5 个生产工具并列为"第 6 个生命周期能力"。
 
 ## 数据库

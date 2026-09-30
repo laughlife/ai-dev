@@ -226,6 +226,7 @@ export interface RotationCoreOptions {
   // Recheck policy against the just-refreshed exact sample BEFORE any
   // checkpoint/ledger/successor work. The facade reads lifecycle.yaml fresh.
   verifyRotationDue?: (key: string, pct: number | null) => { ok: boolean; code?: string; detail?: string }
+  testHooks?: { consumePhaseFailure: (sessionKey: string, phase: string) => boolean } | null
   // optional overrides (defaults built in, see below)
   recordEvent?: EventRecorder
   buildBaseSynthetic?: (info: BaseSyntheticInfo) => string
@@ -965,7 +966,10 @@ export function createRotationCore(ctx: any, runtimeCore: any, options?: Rotatio
 
     // --- 2) ensure a FRESH checkpoint (forced). Failure here aborts BEFORE
     // any lifecycle_rotations row is written; the old row stays untouched. ---
-    const cp: any = await options.ensureCheckpointLocked(key, { force: true, row })
+    const injectedCheckpointFailure = options?.testHooks?.consumePhaseFailure(key, "CHECKPOINT") === true
+    const cp: any = injectedCheckpointFailure
+      ? failure("TEST_PHASE_FAILURE", "marker-gated test injection: CHECKPOINT")
+      : await options.ensureCheckpointLocked(key, { force: true, row })
     if (!cp?.ok || typeof cp.checkpoint_path !== "string" || !cp.checkpoint_path) {
       return failure(
         "ROTATION_CHECKPOINT_FAILED",
@@ -1032,6 +1036,9 @@ export function createRotationCore(ctx: any, runtimeCore: any, options?: Rotatio
     // synthetic messages) ---
     let successorId: string
     try {
+      if (options?.testHooks?.consumePhaseFailure(key, "CREATE") === true) {
+        throw new Error("marker-gated test injection: CREATE")
+      }
       const info: any = await ctx.session.create({ title: successorTitle(key, row, toGeneration) })
       successorId = info?.id ?? info?.sessionID
       if (!successorId) throw new Error("session create returned no id")
@@ -1072,6 +1079,9 @@ export function createRotationCore(ctx: any, runtimeCore: any, options?: Rotatio
     // --- 6) switchAgent -> switchModel -> base scope synthetic -> restore
     // synthetic (base + restore, in this order) ---
     try {
+      if (options?.testHooks?.consumePhaseFailure(key, "INIT") === true) {
+        throw new Error("marker-gated test injection: INIT")
+      }
       await ctx.session.switchAgent({ sessionID: successorId, agent: row.agent_id ?? row.role })
       const modelRef: any = { providerID: model.providerID, id: model.id }
       if (model.variant) modelRef.variant = model.variant
@@ -1149,7 +1159,9 @@ export function createRotationCore(ctx: any, runtimeCore: any, options?: Rotatio
 
     // --- 8) commit transaction: generation+1 ACTIVE -> old ARCHIVED /
     // replaced_by / checkpoint_path -> rotation COMMITTED -> event ---
-    const commit = commitRotationTransaction({
+    const commit = options?.testHooks?.consumePhaseFailure(key, "COMMIT") === true
+      ? { ok: false as const, code: "TEST_PHASE_FAILURE", detail: "marker-gated test injection: COMMIT" }
+      : commitRotationTransaction({
       key,
       rotationId,
       row,
@@ -1159,7 +1171,7 @@ export function createRotationCore(ctx: any, runtimeCore: any, options?: Rotatio
       checkpointPath: cp.checkpoint_path,
       contextPct,
       reason,
-    })
+      })
     if (!commit.ok) {
       failRotation(rotationId, key, row, commit.code, commit.detail, {
         phase: "COMMIT",

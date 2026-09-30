@@ -90,8 +90,8 @@ export default {
     })
     // --- lifecycle core (Plan 8 T4): all telemetry / threshold / checkpoint /
     // rotation / reconcile logic. Shares core.db (one handle, one lifecycle).
-    const lifecycle = createLifecycleCore(ctx, core)
     const lifecycleTestHooks = testHooksEnabled(core.root) ? createLifecycleTestHooks(core.db) : null
+    const lifecycle = createLifecycleCore(ctx, core, { testHooks: lifecycleTestHooks })
     const observationHooks = await registerLifecycleObservationHooks(ctx, lifecycle, core)
 
     // ===================================================================
