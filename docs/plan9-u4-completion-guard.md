@@ -51,5 +51,5 @@ Desktop V2 `2.0.20` runtime smoke completed on workflow
 - A fresh independent Reviewer session (`ses_f0c83473affeJajCq8vyqDfCMD`)
   returned `{"schema_version":1,"verdict":"PASS","findings":[]}`.
 
-U5 may begin only after this accepted U4 evidence is carried into the next
-planned stage.
+This accepted U4 evidence was carried into the subsequent U5 and U6 stages;
+their acceptance records are kept in the corresponding Plan 9 documents.

@@ -43,5 +43,6 @@ implementation and its fixtures. The architecture-defined `gpt-5.6-sol`
 Reviewer provider was unavailable in the local CLI, so the repository fallback
 model was used under the governance fallback rule.
 
-U6 remains the next planned stage. This compiler still requires an explicit
-`apply --yes` and does not hot-reload running sessions.
+U6 final acceptance is recorded in `docs/plan9-u6-final-acceptance.md`. This
+compiler still requires an explicit `apply --yes` and does not hot-reload
+running sessions.

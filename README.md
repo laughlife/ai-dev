@@ -118,9 +118,11 @@ Plan 9 U3: PASS
 Plan 9 U4: PASS（Completion Guard 实现、Desktop V2 运行时验收、独立 Reviewer 均通过）
 Plan 9 U5: PASS（Architecture Compiler Final Hardening）
 Plan 9 U6: PASS（Plan 9 Final Acceptance，Execution Kernel v1 Frozen）
+Plan 10: PASS（AI-Dev Control Plane / UI，本地只读与受控门面）
+Plan 11: not started
 
 Next planned stage:
-Plan 10 AI-Dev Control Plane / UI
+Plan 11 Production Acceptance + Framework v1
 ```
 
 当前尚未实现：

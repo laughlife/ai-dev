@@ -214,7 +214,7 @@ Acceptance evidence:
 - A–P matrix: code paths covered; Desktop UI and dedicated real-runtime samples remain `MANUAL_UI_EVIDENCE_REQUIRED`
 - automatic rotation remains disabled until the final live evidence gate passes; Desktop UI handoff remains manual and is not claimed as transparent
 
-## Plan 9 Part A + Part B (upper half)
+## Plan 9 — Execution Kernel Finalization
 
 Status: U3_PASS / U4_PASS / U5_PASS / U6_PASS
 
@@ -266,3 +266,24 @@ Commit messages were rewritten to Chinese on 2026-09-29. Hashes after e0bc30c di
 - Plan 8 live Desktop UI evidence and dedicated real-runtime rotation evidence
 - Plan 10: Control Plane/UI
 - Plan 11: production acceptance and Framework v1 release gate
+
+## Plan 10 — AI-Dev Control Plane / UI
+
+Status: PASS (local v1 read-only and guarded control surface)
+
+Delivered:
+- localhost dashboard for runtime, workflow, session, lifecycle, completion,
+  architecture, and evidence views
+- read-only projections over the shared runtime database
+- explicit compiler Apply confirmation and Workflow Engine mutation boundary
+- lifecycle rotation lock while Plan 8 final acceptance remains blocked
+
+Evidence:
+- `node --experimental-strip-types .opencode/tests/plan10-control-plane.mjs`
+  → `PLAN10_CONTROL_PLANE_PASS`
+
+Deferred to Plan 11:
+- production authentication and authorization
+- browser-level production evidence
+- crash/recovery and rollback drills
+- Framework v1 release gate
