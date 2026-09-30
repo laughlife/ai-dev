@@ -113,15 +113,16 @@ Plan 4: completed
 Plan 5: completed
 Plan 6: completed
 Plan 7: completed
-Plan 8: final acceptance in progress
+Plan 8: final acceptance blocked (manual Desktop UI / live runtime evidence required)
+Plan 9 Part A+B: implemented (independent review pending)
 
 Next planned stage:
-automatic lifecycle rotation + checkpoint (final acceptance reopened; not enabled yet)
+Plan 9 lower half (Documentation/Memory automation, production E2E, release gate)
 ```
 
 Not implemented yet:
 
-- automatic drawio synchronization
+- unattended drawio synchronization (explicit compiler check/diff/apply is implemented)
 - automatic lifecycle admission (pending Plan 8 Final Gate)
 - checkpoint / restore runtime (implemented; final acceptance evidence pending)
 

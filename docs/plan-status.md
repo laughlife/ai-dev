@@ -2,7 +2,7 @@
 
 ## Plan 1
 
-Status: FINAL_ACCEPTANCE_IN_PROGRESS
+Status: COMPLETED
 
 Commit:
 e0bc30c
@@ -198,20 +198,37 @@ Deferred to Plan 9:
 
 ## Plan 8
 
-Status: COMPLETED
+Status: FINAL_ACCEPTANCE_BLOCKED
 
 Scope:
 - verified context telemetry
 - checkpoint and restore
-- 60/70/80 session lifecycle (final automatic-admission acceptance reopened)
+- 60/70/80 session lifecycle (automatic admission implementation complete; final live evidence gated)
 - session generation rotation and reload recovery
 
 Acceptance evidence:
 - `node --experimental-strip-types --import ./.opencode/tests/register-hooks.mjs ./.opencode/tests/lifecycle-smoke.mjs`
   → `PLAN8_LIFECYCLE_SMOKE_PASS`
 - same harness with `_probe2.mjs` → `PROBE2 OK`
-- prior isolated Smoke and Reviewer evidence exists, but the complete A–P final gate is reopened by Plan 9 Part A
-- automatic rotation remains disabled until the final gate passes; Desktop UI handoff remains manual and is not claimed as transparent
+- Plan 8 implementation reviewer evidence: isolated runtime and full Node harness PASS
+- A–P matrix: code paths covered; Desktop UI and dedicated real-runtime samples remain `MANUAL_UI_EVIDENCE_REQUIRED`
+- automatic rotation remains disabled until the final live evidence gate passes; Desktop UI handoff remains manual and is not claimed as transparent
+
+## Plan 9 Part A + Part B (upper half)
+
+Status: IMPLEMENTED_PENDING_INDEPENDENT_REVIEW
+
+Scope:
+- v4 Completion Guard architecture and deterministic execution/delivery checks
+- independent lane scheduler and workflow resource contracts
+- drawio metadata parser, normalized Architecture IR and semantic hash
+- explicit compiler `check` / `diff` / transactional `apply`
+- framework-config and OpenCode architecture contract synchronization with manual bodies preserved
+
+Evidence:
+- `architecture-sync check` → `IN_SYNC`
+- `architecture-compiler.mjs` → `ARCHITECTURE_COMPILER_PASS`
+- `plan9-architecture-smoke.mjs` → `PLAN9_ARCHITECTURE_SMOKE_PASS`
 
 ## History Note
 
@@ -221,7 +238,5 @@ Commit messages were rewritten to Chinese on 2026-09-29. Hashes after e0bc30c di
 
 - persistent Session Registry: implemented in Plan 5
 - full Task Bus runtime: implemented in Plan 6 (core; DAG scheduler implemented in Plan 7 Workflow Engine)
-- automatic lifecycle actions
-- automatic drawio parser
-- automatic drawio → framework-config sync
-- automatic framework-config → Agent generation
+- Plan 8 live Desktop UI evidence and dedicated real-runtime rotation evidence
+- Plan 9 lower half: Documentation/Memory PASS automation, production E2E, WMS feature E2E, rollback exercise, final v1 release gate

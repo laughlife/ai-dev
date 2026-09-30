@@ -113,15 +113,16 @@ Plan 4: completed
 Plan 5: completed
 Plan 6: completed
 Plan 7: completed
-Plan 8: final acceptance in progress
+Plan 8: final acceptance blocked（等待人工 Desktop UI / 真实 runtime 证据）
+Plan 9 Part A+B: implemented（独立 Reviewer 待最终签署）
 
 Next planned stage:
-Plan 9 (deferred architecture synchronization and production E2E)
+Plan 9 下半部分（Documentation/Memory 自动链、生产 E2E、最终发布门禁）
 ```
 
 当前尚未实现：
 
-- automatic drawio synchronization
+- unattended drawio synchronization（编译器 check/diff/apply 已实现，但 apply 必须显式执行）
 - automatic lifecycle rotation（最终验收期间保持关闭；通过 Plan 8 Final Gate 后才启用）
 - Desktop UI 透明切换（当前仅支持 checkpoint + successor + manual handoff）
 
