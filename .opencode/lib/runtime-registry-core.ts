@@ -28,6 +28,29 @@
 // runtime_session_* tool behaviors are unchanged; runtime_session_list simply
 // shows the scoped rows too (the registry is a superset).
 //
+// Plan 8 T3 (schema/migration support ONLY) additive extension:
+// - registry schema_version 1 -> 2: `sessions` gains six additive nullable
+//   columns (four verified-context-telemetry + two lifecycle-state). Existing
+//   v1 databases are migrated idempotently at core construction time via
+//   PRAGMA table_info(sessions) + BEGIN IMMEDIATE + ALTER TABLE ADD COLUMN
+//   for MISSING columns only. ADD COLUMN with a NULL default is a
+//   metadata-only change in SQLite: existing row data is never rewritten or
+//   altered. Fresh installs get the columns directly from schema.sql, so the
+//   migration is a no-op there.
+// - the lifecycle-engine schema (.opencode/plugins/lifecycle-engine/
+//   schema.sql: lifecycle_events / lifecycle_rotations, all CREATE ...
+//   IF NOT EXISTS) is applied to the SAME shared runtime/tasks.db when the
+//   file is present; a missing file never breaks existing plugin behavior.
+// - PRAGMA busy_timeout is set so concurrent migrators (three plugins build
+//   this core per startup, each with its own db handle) wait for the write
+//   lock instead of failing with SQLITE_BUSY. Uncontended operations behave
+//   exactly as before.
+// These columns/tables are STORAGE ONLY. This core does not capture
+// telemetry, does not write checkpoints, does not rotate sessions and
+// contains NO threshold or context-window logic: the 60/70/80 rotation bands
+// are declared exclusively in framework-config/lifecycle.yaml (drawio
+// mirror) and will be evaluated by the later Plan 8 lifecycle-engine tasks.
+//
 // Runtime facts verified on this machine (desktop 2.0.19): Bun 1.4.2,
 // bun:sqlite (SQLite 3.53.2), Bun.YAML.parse.
 
@@ -35,8 +58,95 @@ import { Database } from "bun:sqlite"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
-const SCHEMA_VERSION = "1"
+const SCHEMA_VERSION = "2" // Plan 8 T3: registry schema v2 (sessions telemetry/lifecycle columns + lifecycle tables)
 const WAIT_TIMEOUT_MS = 15 * 60 * 1000
+// Plan 8 T3: wait for the SQLite write lock instead of failing immediately
+// with SQLITE_BUSY when several plugin cores (runtime-registry / task-bus /
+// workflow-engine, or concurrent processes) migrate or write the same
+// runtime/tasks.db at the same time. Behavior-preserving: uncontended
+// operations are unaffected.
+const BUSY_TIMEOUT_MS = 5000
+
+// Plan 8 T3: the six additive v2 `sessions` columns — verified context
+// telemetry (context_tokens / context_limit / context_pct / telemetry_source /
+// telemetry_at; measurement protocol normative in
+// docs/runtime-context-telemetry.md, values recorded only, never estimated)
+// and lifecycle state (lifecycle_state). All nullable
+// with no default so ALTER TABLE ADD COLUMN is metadata-only on existing v1
+// databases (row data untouched). Pure storage: no threshold/context-window
+// logic lives here — the rotation bands are declared in
+// framework-config/lifecycle.yaml.
+const SESSIONS_V2_COLUMNS: Array<{ name: string; alter: string }> = [
+  { name: "context_tokens", alter: "ALTER TABLE sessions ADD COLUMN context_tokens INTEGER" },
+  { name: "context_limit", alter: "ALTER TABLE sessions ADD COLUMN context_limit INTEGER" },
+  { name: "context_pct", alter: "ALTER TABLE sessions ADD COLUMN context_pct REAL" },
+  { name: "telemetry_source", alter: "ALTER TABLE sessions ADD COLUMN telemetry_source TEXT" },
+  { name: "telemetry_at", alter: "ALTER TABLE sessions ADD COLUMN telemetry_at TEXT" },
+  { name: "lifecycle_state", alter: "ALTER TABLE sessions ADD COLUMN lifecycle_state TEXT" },
+]
+
+// Idempotent v1 -> v2 `sessions` migration (Plan 8 T3).
+//
+// Safety under repeated/concurrent core construction:
+// - repeated construction in one process: the PRAGMA pre-check finds no
+//   missing columns after the first run, so later runs are pure no-ops
+//   (no transaction is even opened);
+// - concurrent processes: BEGIN IMMEDIATE acquires the write lock (waiting
+//   up to busy_timeout), and the column set is RE-CHECKED inside the
+//   transaction, so if another migrator committed first, this one ALTERs
+//   nothing and commits an empty transaction;
+// - failure: the transaction is rolled back and the error propagates to the
+//   caller's db-init catch (db = null, dbError set) — the same existing
+//   SQLITE_RUNTIME_UNAVAILABLE failure path, never a half-migrated stamp of
+//   schema_version = 2 (the registry_meta upsert runs only after this).
+// DDL only: no statement here reads, rewrites or deletes row data.
+function migrateSessionsToV2(db: any): string[] {
+  const existing = new Set(
+    (db.prepare("PRAGMA table_info(sessions)").all() as any[]).map((c: any) => String(c?.name)),
+  )
+  const missing = SESSIONS_V2_COLUMNS.filter((c) => !existing.has(c.name))
+  if (missing.length === 0) return [] // fresh install (schema.sql v2) or already migrated
+  db.exec("BEGIN IMMEDIATE")
+  try {
+    // re-check inside the write transaction: a concurrent migrator may have
+    // committed the columns between the pre-check above and BEGIN IMMEDIATE
+    const current = new Set(
+      (db.prepare("PRAGMA table_info(sessions)").all() as any[]).map((c: any) => String(c?.name)),
+    )
+    const added: string[] = []
+    for (const col of SESSIONS_V2_COLUMNS) {
+      if (current.has(col.name)) continue
+      db.exec(col.alter)
+      added.push(col.name)
+    }
+    db.exec("COMMIT")
+    return added
+  } catch (e) {
+    try {
+      db.exec("ROLLBACK")
+    } catch {}
+    throw e
+  }
+}
+
+// Plan 8 §6 migration evidence. Missing workflow tables are represented as
+// null because the workflow plugin may not have initialized them yet; rows in
+// tables that do exist are counted before and after the additive migration.
+function snapshotRowCounts(db: any): Record<string, number | null> {
+  const counts: Record<string, number | null> = {}
+  for (const table of ["sessions", "tasks", "workflows", "workflow_nodes"]) {
+    const exists = db
+      .query("SELECT 1 AS present FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1")
+      .get(table)
+    if (!exists) {
+      counts[table] = null
+      continue
+    }
+    const row = db.query(`SELECT COUNT(*) AS count FROM ${table}`).get()
+    counts[table] = Number(row?.count ?? 0)
+  }
+  return counts
+}
 
 // role -> session_key suffix (plan §16: project:<project-id>:main|reader)
 const ROLE_KEYS: Record<string, string> = {
@@ -78,6 +188,10 @@ export function parseRuntimeId(runtimeId: unknown): { providerID: string; id: st
 // options.schemaFile: absolute path to schema.sql (the plugin passes
 //   path.join(import.meta.dir, "schema.sql")); falls back to the canonical
 //   plugin location under the resolved framework root.
+// options.lifecycleSchemaFile: absolute path to the lifecycle-engine
+//   schema.sql (Plan 8 T3); falls back to the canonical plugin location
+//   under the resolved framework root. Applied when present, skipped when
+//   absent — never an error for the existing plugins.
 export function createRuntimeRegistryCore(ctx: any, options?: any) {
   // --- resolve framework root (the directory containing framework-config/) ---
   let root: string = ctx?.location?.directory ?? process.cwd()
@@ -97,14 +211,57 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     typeof options?.schemaFile === "string" && options.schemaFile
       ? options.schemaFile
       : path.join(root, ".opencode", "plugins", "runtime-registry", "schema.sql")
+  // Plan 8 T3: lifecycle-engine schema (lifecycle_events / lifecycle_rotations)
+  // shares the SAME runtime/tasks.db; applied idempotently when the file exists.
+  const lifecycleSchemaFile =
+    typeof options?.lifecycleSchemaFile === "string" && options.lifecycleSchemaFile
+      ? options.lifecycleSchemaFile
+      : path.join(root, ".opencode", "plugins", "lifecycle-engine", "schema.sql")
   let db: any = null
   let dbError: string | null = null
+  // Plan 8 T3 diagnostics (additive; no existing field changes meaning):
+  const schemaMigration: {
+    schema_version: string
+    sessions_columns_added: string[]
+    lifecycle_schema_applied: boolean
+    lifecycle_schema_skipped_reason: string | null
+    row_counts_before: Record<string, number | null>
+    row_counts_after: Record<string, number | null>
+  } = {
+    schema_version: SCHEMA_VERSION,
+    sessions_columns_added: [],
+    lifecycle_schema_applied: false,
+    lifecycle_schema_skipped_reason: null,
+    row_counts_before: {},
+    row_counts_after: {},
+  }
   try {
     fs.mkdirSync(runtimeDir, { recursive: true })
     db = new Database(path.join(runtimeDir, "tasks.db"))
+    // Plan 8 T3: serialize concurrent writers/migrators on the shared db
+    // (behavior-preserving: only affects lock-contention cases that used to
+    // fail immediately with SQLITE_BUSY).
+    db.exec(`PRAGMA busy_timeout = ${BUSY_TIMEOUT_MS};`)
     db.exec("PRAGMA journal_mode = WAL;")
     const schemaSql = fs.readFileSync(schemaFile, "utf8")
     db.exec(schemaSql)
+    schemaMigration.row_counts_before = snapshotRowCounts(db)
+    // Plan 8 T3: idempotent v1 -> v2 sessions migration. Fresh installs get
+    // the six columns from schema.sql above and this is a verified no-op;
+    // existing v1 databases gain ONLY the missing columns via ALTER TABLE
+    // ADD COLUMN inside BEGIN IMMEDIATE (row data never touched).
+    schemaMigration.sessions_columns_added = migrateSessionsToV2(db)
+    // Plan 8 T3: lifecycle tables (all CREATE ... IF NOT EXISTS). A missing
+    // schema file is not an error — existing plugins keep working unchanged.
+    if (fs.existsSync(lifecycleSchemaFile)) {
+      db.exec(fs.readFileSync(lifecycleSchemaFile, "utf8"))
+      schemaMigration.lifecycle_schema_applied = true
+    } else {
+      schemaMigration.lifecycle_schema_skipped_reason = `file not found: ${lifecycleSchemaFile}`
+    }
+    schemaMigration.row_counts_after = snapshotRowCounts(db)
+    // stamped LAST: schema_version = 2 is only recorded after the base
+    // schema, the sessions migration and the lifecycle tables all succeeded
     db.query(
       "INSERT INTO registry_meta (key, value) VALUES ('schema_version', ?) " +
         "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
@@ -788,6 +945,10 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     db,
     dbError,
     configReady,
+    // Plan 8 T3 (additive diagnostics): what the schema init/migration did
+    // during THIS core construction (columns actually added here, whether the
+    // lifecycle schema was applied). Existing fields/tools are unchanged.
+    schemaMigration,
     ensure,
     send,
     list,
