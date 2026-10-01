@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "workflow_id": "cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6",
+  "independent_repo": "ruoyi-vue-pro",
+  "feature": "WDAmountDivisionScopeSupport uses the only allowed BUSINESS_DIVISION_II as defaultDivisionType for the account withdrawal division scope.",
+  "worktree": "C:/Users/Administrator/AppData/Local/Temp/ruoyi-vue-pro-plan11-e2e-final",
+  "base_commit": "d4d7493c5428f6522d53187796a05ae9c38de320",
+  "worktree_head": "d4d7493c5428f6522d53187796a05ae9c38de320",
+  "worktree_status": "isolated worktree contains the target source modification and new regression test; production tree unchanged",
+  "changed_files": [
+    "yudao-module-ruiyi/src/main/java/cn/iocoder/yudao/module/ruiyi/service/wd_amount/WDAmountDivisionScopeSupport.java",
+    "yudao-module-ruiyi/src/test/java/cn/iocoder/yudao/module/ruiyi/service/wd_amount/WDAmountDivisionScopeSupportTest.java"
+  ],
+  "test": {
+    "status": "PASS",
+    "command": "mvn -pl yudao-module-ruiyi -am -Dtest=WDAmountDivisionScopeSupportTest -Dsurefire.failIfNoSpecifiedTests=false test",
+    "working_directory": "C:/Users/Administrator/AppData/Local/Temp/ruoyi-vue-pro-plan11-e2e-final",
+    "build": "BUILD SUCCESS",
+    "reactor_modules": 18,
+    "tests_run": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "surefire_report": "C:/Users/Administrator/AppData/Local/Temp/ruoyi-vue-pro-plan11-e2e-final/yudao-module-ruiyi/target/surefire-reports/cn.iocoder.yudao.module.ruiyi.service.wd_amount.WDAmountDivisionScopeSupportTest.txt",
+    "authorization": "User explicitly authorized this exact Maven command in the current task.",
+    "completed_at": "2026-10-01T04:41:26.706Z"
+  },
+  "reviewer": {
+    "status": "PASS",
+    "verdict": "PASS",
+    "task_id": "14a39fbf-f861-40c7-b255-ee69c61be63b",
+    "session_id": "ses_f0a3a4f8dffe6R2Z0t25aS75xi",
+    "workflow_node": "independent-review",
+    "summary": "Fresh independent Reviewer confirmed the isolated change, BUSINESS_DIVISION_II default, Maven BUILD SUCCESS with Tests=1 Failures=0 Errors=0 Skipped=0, and no production-tree code difference.",
+    "findings": []
+  },
+  "workflow_nodes": [
+    { "node_id": "scope-probe", "route": "code_read", "status": "COMPLETED", "task_id": "7f4e4f6f-9f03-46cc-a468-fb6b30f0647a", "session_id": "ses_f0a4265d0ffegFjHMTT36KLalC" },
+    { "node_id": "feature-fix", "route": "code_change", "status": "COMPLETED", "task_id": "b6285aa5-187e-41fb-b555-8a031a802e83", "session_id": "ses_f0a41ccc2ffeqdtW9r4hPy5KnJ" },
+    { "node_id": "targeted-test", "route": "build_and_test", "status": "COMPLETED", "task_id": "dae8ecbf-0dae-445d-a90f-86e4851dd8b6", "session_id": "ses_f0a3cb424ffeWK2ZEL6bhG8QoA" },
+    { "node_id": "independent-review", "route": "independent_review", "status": "REVIEW_PASSED", "task_id": "9a93e09d-efe1-480a-8ad9-02c724f0b23a", "review_task_id": "14a39fbf-f861-40c7-b255-ee69c61be63b" },
+    { "node_id": "delivery-documentation", "route": "documentation_update", "status": "COMPLETED", "task_id": "7b45ebdd-6f95-44a5-882c-079d8e07b9da" },
+    { "node_id": "delivery-memory", "route": "long_term_memory_write", "status": "COMPLETED", "task_id": "a93ca82f-bf55-4524-82f2-d1e1cd956535" }
+  ],
+  "delivery": {
+    "documentation": "docs/workflows/cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6/delivery.md",
+    "memory": "memory:workflow:cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6"
+  },
+  "isolation": {
+    "production_repo": "D:/ai-dev/ruoyi-vue-pro",
+    "production_target_files_modified": false,
+    "database_or_business_api_calls": false,
+    "network_or_git_sync": false
+  },
+  "timestamp": "2026-10-01T04:49:06.000Z"
+}
