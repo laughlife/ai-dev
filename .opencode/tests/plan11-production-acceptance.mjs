@@ -142,4 +142,5 @@ const forgedEvidenceResult = runEvidenceGate({
 assert.ok(forgedEvidenceResult.missing.includes("PLAN8_DESKTOP_UI_SAMPLES"))
 assert.ok(forgedEvidenceResult.missing.includes("PLAN8_ROTATION_EVIDENCE"))
 assert.ok(forgedEvidenceResult.missing.includes("PRODUCTION_BUSINESS_FEATURE_E2E"))
-console.log("PLAN11_PRODUCTION_GATE_BLOCKED", JSON.stringify({ missing: result.missing, architecture: result.checks.architecture.status, plan9: result.checks.plan9 }))
+const resultLabel = result.status === "PASS" ? "PLAN11_PRODUCTION_GATE_PASS" : "PLAN11_PRODUCTION_GATE_BLOCKED"
+console.log(resultLabel, JSON.stringify({ missing: result.missing, architecture: result.checks.architecture.status, plan9: result.checks.plan9 }))

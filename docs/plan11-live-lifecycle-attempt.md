@@ -30,3 +30,13 @@ checkpoint、rotation 或 reconcile；没有生成新的 lifecycle ledger 行。
 这是真实运行时的安全失败证据，不能替代 Plan 8 要求的成功
 rotation/restore/reconcile 记录；在获得可验证的模型 context limit 前，Plan 11
 门禁必须继续拒绝 `RELEASE_READY`。
+
+## 后续隔离 fixture 成功证据
+
+同一 Desktop V2 Runtime 随后在新建的 `xxl-job` Project Reader 隔离 fixture 上
+取得了可验证的 `deepseek/deepseek-flash` `limit.context=1000000` 和
+`context_pct=5`。真实链路完成了 checkpoint `CHECKPOINT_WRITTEN`、generation 1→2
+的 `ROTATED`、generation 2 archive、generation 3 `RESTORED`，以及两次
+`OK/incomplete_found=0` reconcile。原始结构化证据、会话 ID、checkpoint 路径和
+fresh Reviewer PASS 记录在 `docs/plan8-rotation-evidence.json`；此前的安全失败
+记录仍保留为独立历史，未被改写。

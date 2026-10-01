@@ -24,10 +24,12 @@ does not replace the required live Desktop UI observation.
 
 ## Current gate
 
-Plan 8 automatic flags remain `false` until the dedicated runtime rotation
-evidence is supplied. The runtime
-implementation is fail-closed where rotation is mandatory; this is a safety
-gate, not an inferred PASS.
+The dedicated runtime rotation evidence is now supplied by
+`docs/plan8-rotation-evidence.json`. It records verified telemetry,
+checkpoint, a committed isolated rotation with a successor generation,
+restore, two idempotent reconcile calls, and a fresh Reviewer PASS. Automatic
+rotation remains disabled by policy; the evidence is for the explicit isolated
+fixture path.
 
 The recorded manual UI evidence contains:
 

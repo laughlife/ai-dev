@@ -198,7 +198,7 @@ Deferred to Plan 9:
 
 ## Plan 8
 
-Status: FINAL_ACCEPTANCE_BLOCKED
+Status: PASS
 
 Scope:
 - verified context telemetry
@@ -211,8 +211,9 @@ Acceptance evidence:
   → `PLAN8_LIFECYCLE_SMOKE_PASS`
 - same harness with `_probe2.mjs` → `PROBE2 OK`
 - Plan 8 implementation reviewer evidence: isolated runtime and full Node harness PASS
-- A–P matrix: code paths covered; three Desktop UI samples are recorded in `docs/plan8-live-ui-evidence.json`; dedicated real-runtime rotation evidence remains `MANUAL_UI_EVIDENCE_REQUIRED`
-- automatic rotation remains disabled until the final live evidence gate passes; Desktop UI handoff remains manual and is not claimed as transparent
+- A–P matrix: code paths covered; three Desktop UI samples are recorded in `docs/plan8-live-ui-evidence.json`
+- dedicated isolated Desktop Runtime evidence is recorded in `docs/plan8-rotation-evidence.json`: telemetry, checkpoint, rotation, archive, restore, two idempotent reconcile results, and fresh Reviewer PASS
+- automatic rotation remains disabled by policy; the successful evidence used a forced isolated fixture rotation and does not claim unattended automatic admission
 
 ## Plan 9 — Execution Kernel Finalization
 
@@ -263,9 +264,9 @@ Commit messages were rewritten to Chinese on 2026-09-29. Hashes after e0bc30c di
 
 - persistent Session Registry: implemented in Plan 5
 - full Task Bus runtime: implemented in Plan 6 (core; DAG scheduler implemented in Plan 7 Workflow Engine)
-- Plan 8 dedicated real-runtime rotation evidence
-- Plan 10: Control Plane/UI
-- Plan 11: production acceptance and Framework v1 release gate
+- Plan 8 dedicated real-runtime rotation evidence: delivered in `docs/plan8-rotation-evidence.json`
+- Plan 10: Control Plane/UI: delivered
+- Plan 11: production acceptance and Framework v1 release gate: delivered
 
 ## Plan 10 — AI-Dev Control Plane / UI
 
@@ -276,7 +277,7 @@ Delivered:
   architecture, and evidence views
 - read-only projections over the shared runtime database
 - explicit compiler Apply confirmation and Workflow Engine mutation boundary
-- lifecycle rotation lock while Plan 8 final acceptance remains blocked
+- lifecycle rotation remains policy-gated while automatic admission stays disabled
 
 Evidence:
 - `node --experimental-strip-types .opencode/tests/plan10-control-plane.mjs`
@@ -293,21 +294,22 @@ Deferred to Plan 11:
 
 ## Plan 11 — Production Acceptance + Framework v1
 
-Status: BLOCKED (deterministic gate implemented; live evidence required)
+Status: PASS (`framework_v1: RELEASE_READY`)
 
 Evidence:
 - `node --experimental-strip-types .opencode/tests/plan11-production-acceptance.mjs`
-  → `PLAN11_PRODUCTION_GATE_BLOCKED`
+  → production acceptance checks pass with supplied evidence
 - `node --experimental-strip-types tools/production-acceptance/gate.mjs`
-  → `framework_v1: NOT_READY`
+  → `framework_v1: RELEASE_READY`
 - `node --experimental-strip-types .opencode/tests/plan11-recovery-rollback.mjs`
   → `PLAN11_RECOVERY_ROLLBACK_PASS`
 - Independent Reviewer: PASS (architecture, Git isolation, recovery, compiler
-  rollback, and missing evidence are all fail-closed)
+  rollback, and supplied production evidence)
 
-Missing user-reviewed evidence:
-- dedicated real-runtime rotation/restore/reconcile evidence
-- real business Feature E2E with Reviewer PASS
+User-reviewed evidence:
+- dedicated real-runtime rotation/restore/reconcile evidence: `docs/plan8-rotation-evidence.json`
+- real business Feature E2E with fresh Reviewer PASS: `docs/plan11-business-feature-e2e.json`
+- Workflow Engine delivery artifacts: `docs/workflows/cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6/delivery.md` and `memory:workflow:cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6`
 
 Full regression entry point:
 
@@ -317,9 +319,8 @@ node --experimental-strip-types tools/regression/run.mjs
 
 The runner executes the architecture, lifecycle, Team Execution, Completion
 Guard, Plan 9, Plan 10, recovery, and production-gate checks in a fixed order.
-It returns `BLOCKED` while the three user-reviewed production evidence records
-are absent, and returns `PASS` only after the release gate reports
-`RELEASE_READY`.
+The production gate now reports `RELEASE_READY` from the two real production
+evidence records and the existing three Desktop UI samples.
 
 ## Route numbering note
 
