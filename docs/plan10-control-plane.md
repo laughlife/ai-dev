@@ -11,17 +11,27 @@ second source of truth.
 - `tools/control-plane/server.mjs` serves a localhost HTTP API and a static
   responsive dashboard.
 - Dashboard cards cover OpenCode/runtime health, Git HEAD, workflow/task/session
-  counts, architecture hashes and drift, Agent inventory, lifecycle state, and
+  counts, architecture hashes and drift, Agent inventory, lifecycle state, lane
+  utilization, blocked/failed counts, ready queue, DAG/resource reasons, and
   evidence export.
 - Workflow and session endpoints are read-only projections of the shared
-  `runtime/tasks.db`; workflow detail includes current nodes and task links.
+  `runtime/tasks.db`; workflow detail includes the parsed DAG, dependency
+  readiness, resource contract, task/reviewer history, ready queue, and wave
+  evidence. Lifecycle events and rotation ledger rows are exposed alongside
+  session rows.
 - Architecture status is obtained from the existing compiler. Architecture Apply
   requires the literal `APPLY_ARCHITECTURE` confirmation and still executes the
   compiler's transactional `apply --yes` path.
 - Workflow mutations are refused by the facade with
   `CONTROL_RUNTIME_REQUIRED`; they must be dispatched through the Workflow
-  Engine. Automatic lifecycle rotation returns `LIFECYCLE_LOCKED` until the
-  Plan 8 final evidence gate is closed.
+  Engine. The workflow control projection reports the run/resume/retry boundary
+  for each status. Checkpoint and reconcile controls are similarly routed to the
+  Lifecycle Agent, while automatic lifecycle rotation returns `LIFECYCLE_LOCKED`
+  until the Plan 8 final evidence gate is closed.
+- Evidence is available as JSON at `/api/evidence` and Markdown at
+  `/api/evidence?format=markdown` (or `/api/evidence.md`). The export includes
+  wave timing records when the runtime result contains them, reviewer/completion
+  gate state, lifecycle records, and architecture evidence.
 
 ## Contract and boundaries
 
@@ -37,9 +47,13 @@ runtime authority.
 PLAN10_CONTROL_PLANE_PASS {"health":"OK","architecture":"IN_SYNC","rotation":"LOCKED"}
 ```
 
-The acceptance harness verifies the dashboard, health, workflow, session,
-architecture, evidence, explicit-apply confirmation, workflow action refusal,
-and lifecycle lock routes against an isolated runtime fixture.
+The acceptance harness verifies the dashboard, health, workflow, ready queue,
+lane projection, session/lifecycle projection, architecture, JSON/Markdown
+evidence, explicit-apply confirmation, workflow action refusal, and lifecycle
+lock routes against an isolated runtime fixture. This is a localhost API/static
+fixture test; it does not claim a real browser/Desktop E2E run or production
+telemetry. Plan 11 remains responsible for browser-level and production
+evidence.
 
 An independent read-only review returned `PASS` after checking localhost
 binding, SQLite read-only access, compiler confirmation, workflow mutation

@@ -12,6 +12,21 @@ const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const compiler = path.resolve(moduleDir, "..", "architecture-sync", "cli.ts")
 const publicDir = path.join(moduleDir, "public")
 
+const LANE_BY_ROUTE = {
+  project_analysis: "controller",
+  project_coordination: "controller",
+  code_read: "read_probe",
+  code_change: "coding",
+  api_code_change: "coding",
+  build_and_test: "test_validation",
+  api_runtime_call: "api_integration",
+  api_regression: "api_integration",
+  independent_review: "reviewer",
+  documentation_update: "documentation",
+}
+const ACTIVE_TASK_STATES = new Set(["READY", "RUNNING", "BLOCKED", "REVIEWING", "REWORKING"])
+const SUCCESS_NODE_STATES = new Set(["COMPLETED", "PASS", "SUCCEEDED"])
+
 function json(res, status, value) {
   const body = JSON.stringify(value)
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" })
@@ -25,6 +40,36 @@ function text(res, status, value, contentType = "text/plain; charset=utf-8") {
 
 function safeJson(value, fallback = null) {
   try { return value ? JSON.parse(value) : fallback } catch { return fallback }
+}
+
+function routeLane(route) { return LANE_BY_ROUTE[route] ?? "controller" }
+
+function taskEnvelope(task) {
+  const input = safeJson(task?.input_json, {}) ?? {}
+  const result = safeJson(task?.result_json, {}) ?? {}
+  return { input, result }
+}
+
+function resourceContract(task, node = {}) {
+  const { input } = taskEnvelope(task)
+  const metadata = input?.metadata && typeof input.metadata === "object" ? input.metadata : {}
+  const resources = metadata.resources ?? input.resources ?? node.resources ?? {}
+  return {
+    lane: metadata.lane ?? input.lane ?? node.lane ?? routeLane(input.route ?? node.route),
+    project: resources.project ?? resources.project_id ?? input.project_id ?? node.project_id ?? null,
+    paths: Array.isArray(resources.paths) ? resources.paths : (Array.isArray(resources.read) ? resources.read : []),
+    locks: Array.isArray(resources.locks) ? resources.locks : [],
+    mode: resources.mode ?? "read",
+  }
+}
+
+function dependencyReason(node, nodeMap) {
+  const deps = Array.isArray(node.depends_on) ? node.depends_on : []
+  const missing = deps.filter((id) => !nodeMap.has(id))
+  if (missing.length) return { ready: false, code: "DEPENDENCY", detail: `unknown dependency: ${missing.join(", ")}` }
+  const pending = deps.filter((id) => !SUCCESS_NODE_STATES.has(String(nodeMap.get(id)?.status ?? "").toUpperCase()))
+  if (pending.length) return { ready: false, code: "DEPENDENCY", detail: `waiting for: ${pending.join(", ")}` }
+  return { ready: true, code: null, detail: null }
 }
 
 function yamlIds(file, section) {
@@ -91,11 +136,13 @@ function rows(db, sql, params = []) {
 
 function runtimeSnapshot() {
   return withDb((db, error) => {
-    const workflows = hasTable(db, "workflows") ? rows(db, "SELECT workflow_id, primary_project_id, objective, status, rework_cycle, created_at, updated_at, finished_at, completion_guard_finalized_at FROM workflows ORDER BY updated_at DESC") : []
-    const nodes = hasTable(db, "workflow_nodes") ? rows(db, "SELECT workflow_id, node_id, current_task_id, attempt, status, review_task_id, last_verdict, updated_at FROM workflow_nodes ORDER BY workflow_id, node_id") : []
-    const tasks = hasTable(db, "tasks") ? rows(db, "SELECT task_id, parent_task_id, project_id, target_role, target_session_key, status, created_at, updated_at FROM tasks ORDER BY updated_at DESC LIMIT 200") : []
-    const sessions = hasTable(db, "sessions") ? rows(db, "SELECT session_key, project_id, role, opencode_session_id, generation, agent_id, model_runtime_id, status, context_tokens, context_limit, context_pct, telemetry_source, telemetry_at, lifecycle_state, last_used_at FROM sessions ORDER BY last_used_at DESC LIMIT 200") : []
-    return { available: Boolean(db), error: error?.message ?? null, workflows, nodes, tasks, sessions }
+    const workflows = hasTable(db, "workflows") ? rows(db, "SELECT workflow_id, primary_project_id, objective, status, rework_cycle, planner_task_id, planner_session_id, plan_json, created_at, updated_at, finished_at, completion_guard_finalized_at FROM workflows ORDER BY updated_at DESC") : []
+    const nodes = hasTable(db, "workflow_nodes") ? rows(db, "SELECT workflow_id, node_id, current_task_id, attempt, status, review_task_id, last_verdict, task_history_json, review_history_json, updated_at FROM workflow_nodes ORDER BY workflow_id, node_id") : []
+    const tasks = hasTable(db, "tasks") ? rows(db, "SELECT task_id, parent_task_id, project_id, target_role, target_session_key, status, input_json, result_json, created_at, updated_at FROM tasks ORDER BY updated_at DESC LIMIT 500") : []
+    const sessions = hasTable(db, "sessions") ? rows(db, "SELECT session_key, project_id, role, opencode_session_id, generation, agent_id, model_runtime_id, status, checkpoint_path, replaced_by, context_tokens, context_limit, context_pct, telemetry_source, telemetry_at, lifecycle_state, lifecycle_updated_at, last_used_at FROM sessions ORDER BY last_used_at DESC LIMIT 200") : []
+    const lifecycle_events = hasTable(db, "lifecycle_events") ? rows(db, "SELECT event_id, session_key, generation, opencode_session_id, event_type, context_pct, checkpoint_path, details_json, created_at FROM lifecycle_events ORDER BY created_at DESC LIMIT 200") : []
+    const rotations = hasTable(db, "lifecycle_rotations") ? rows(db, "SELECT rotation_id, session_key, from_generation, from_session_id, to_generation, checkpoint_path, successor_session_id, status, error, created_at, updated_at FROM lifecycle_rotations ORDER BY updated_at DESC LIMIT 100") : []
+    return { available: Boolean(db), error: error?.message ?? null, workflows, nodes, tasks, sessions, lifecycle_events, rotations }
   })
 }
 
@@ -117,11 +164,100 @@ function configSnapshot() {
   }
 }
 
+function workflowProjection(snapshot, workflow) {
+  const plan = safeJson(workflow.plan_json, {}) ?? {}
+  const planNodes = Array.isArray(plan.nodes) ? plan.nodes : []
+  const rowsById = new Map(snapshot.nodes.filter((node) => node.workflow_id === workflow.workflow_id).map((node) => [node.node_id, node]))
+  const taskById = new Map(snapshot.tasks.map((task) => [task.task_id, task]))
+  const nodes = planNodes.map((planNode) => {
+    const row = rowsById.get(planNode.node_id) ?? {}
+    const task = taskById.get(row.current_task_id)
+    const dependencies = dependencyReason({ ...planNode, status: row.status }, rowsById)
+    const contract = resourceContract(task, planNode)
+    const { input } = taskEnvelope(task)
+    const metadata = input?.metadata && typeof input.metadata === "object" ? input.metadata : {}
+    const status = row.status ?? "PENDING"
+    let reason = null
+    if (!dependencies.ready) reason = dependencies
+    else if (status === "BLOCKED") reason = { ready: false, code: metadata.block_reason_code ?? "LIFECYCLE_GATE", detail: metadata.block_reason ?? "node is blocked by the runtime" }
+    else if (metadata.model_available === false) reason = { ready: false, code: "MODEL_UNAVAILABLE", detail: "required model is unavailable" }
+    else if (metadata.lane_capacity === 0) reason = { ready: false, code: "LANE_CAPACITY", detail: "lane capacity is exhausted" }
+    else if (metadata.resource_conflict_with) reason = { ready: false, code: "RESOURCE_CONFLICT", detail: `conflicts with ${metadata.resource_conflict_with}` }
+    else if (status === "FAILED") reason = { ready: false, code: "FAILED", detail: "node execution failed" }
+    return {
+      ...planNode,
+      status,
+      task_id: row.current_task_id ?? null,
+      attempt: row.attempt ?? 0,
+      review_task_id: row.review_task_id ?? null,
+      last_verdict: row.last_verdict ?? null,
+      resource_contract: contract,
+      ready: Boolean(dependencies.ready && !reason && ["READY", "PENDING"].includes(status)),
+      scheduling_reason: reason?.code ?? null,
+      scheduling_detail: reason?.detail ?? null,
+      task_history: safeJson(row.task_history_json, []),
+      review_history: safeJson(row.review_history_json, []),
+      updated_at: row.updated_at ?? null,
+    }
+  })
+  const ready_queue = nodes.filter((node) => node.ready).map((node) => ({ workflow_id: workflow.workflow_id, node_id: node.node_id, lane: node.resource_contract.lane, resource_contract: node.resource_contract }))
+  return { ...workflow, plan: planNodes.length ? plan : null, nodes, ready_queue }
+}
+
+function readyQueue(snapshot) {
+  return snapshot.workflows.flatMap((workflow) => workflowProjection(snapshot, workflow).ready_queue)
+}
+
+function laneUsage(snapshot, config) {
+  const counts = new Map(Object.keys(config.lanes ?? {}).map((lane) => [lane, { lane, active: 0, running: 0, ready: 0, max_parallel: config.lanes[lane].max_parallel, default_parallel: config.lanes[lane].default_parallel }]))
+  for (const task of snapshot.tasks) {
+    if (!ACTIVE_TASK_STATES.has(task.status)) continue
+    const { input } = taskEnvelope(task)
+    const lane = input?.metadata?.lane ?? input?.lane ?? routeLane(input?.route)
+    if (!counts.has(lane)) counts.set(lane, { lane, active: 0, running: 0, ready: 0, max_parallel: null, default_parallel: null })
+    const value = counts.get(lane); value.active += 1
+    if (task.status === "RUNNING") value.running += 1
+    if (task.status === "READY") value.ready += 1
+  }
+  return [...counts.values()].map((value) => ({ ...value, utilization_pct: value.max_parallel ? Math.round((value.active / value.max_parallel) * 100) : null }))
+}
+
+function waveEvidence(snapshot) {
+  const waves = []
+  for (const task of snapshot.tasks) {
+    const { result, input } = taskEnvelope(task)
+    const records = Array.isArray(result?.waves) ? result.waves : (Array.isArray(result?.run?.waves) ? result.run.waves : [])
+    for (const wave of records) waves.push({ workflow_id: input?.metadata?.workflow_id ?? null, ...wave })
+  }
+  return waves
+}
+
+function blockedFailed(snapshot) {
+  return snapshot.workflows.reduce((out, workflow) => {
+    if (workflow.status === "BLOCKED") out.blocked += 1
+    if (workflow.status === "FAILED" || workflow.status === "REWORK_LIMIT") out.failed += 1
+    return out
+  }, { blocked: 0, failed: 0 })
+}
+
 function completionSnapshot(snapshot) {
   return snapshot.workflows.map((workflow) => {
     const finalized = workflow.status === "COMPLETED" && workflow.finished_at && workflow.finished_at === workflow.completion_guard_finalized_at
-    const reviewPass = snapshot.nodes.some((node) => node.workflow_id === workflow.workflow_id && node.last_verdict === "PASS")
-    return { workflow_id: workflow.workflow_id, status: finalized ? "FINAL_REPORT_ALLOWED" : (reviewPass ? "DELIVERY_PENDING" : "REVIEW_PENDING"), reviewer_pass: reviewPass, finalized }
+    const workflowNodes = snapshot.nodes.filter((node) => node.workflow_id === workflow.workflow_id)
+    const reviewPass = workflowNodes.some((node) => node.last_verdict === "PASS")
+    const reviewPending = workflowNodes.filter((node) => !node.last_verdict || node.last_verdict === "FIX" || node.last_verdict === "REWORK").map((node) => node.node_id)
+    const executionGate = workflow.status === "COMPLETED" || workflow.status === "REVIEWING" || workflow.status === "REWORKING"
+    const deliveryGate = Boolean(reviewPass && workflow.status === "COMPLETED")
+    return {
+      workflow_id: workflow.workflow_id,
+      status: finalized ? "FINAL_REPORT_ALLOWED" : (reviewPass ? "DELIVERY_PENDING" : "REVIEW_PENDING"),
+      reviewer_pass: reviewPass,
+      finalized,
+      execution_gate: executionGate ? "PASS" : "PENDING",
+      delivery_gate: deliveryGate ? "PASS" : "PENDING",
+      final_report_permission: finalized ? "ALLOWED" : "DENIED",
+      missing_reasons: finalized ? [] : (reviewPending.length ? [`reviewer verdict missing for: ${reviewPending.join(", ")}`] : ["completion guard finalization is required"]),
+    }
   })
 }
 
@@ -150,6 +286,10 @@ async function dashboard() {
     lanes: config.lanes,
     counts: { workflows: snapshot.workflows.length, tasks: snapshot.tasks.length, sessions: snapshot.sessions.length, workflow_status: workflowStatuses },
     workflow_status: workflowStatuses,
+    blocked_failed: blockedFailed(snapshot),
+    lane_usage: laneUsage(snapshot, config),
+    ready_queue: readyQueue(snapshot),
+    waves: waveEvidence(snapshot),
     completion: completionSnapshot(snapshot),
     live_team: liveTeam,
   }
@@ -174,16 +314,49 @@ async function handle(request, response) {
   if (request.method === "GET" && url.pathname === "/api/architecture") return json(response, 200, architecture())
   if (request.method === "GET" && url.pathname === "/api/workflows") {
     const snapshot = runtimeSnapshot()
-    return json(response, 200, { workflows: snapshot.workflows.map((workflow) => ({ ...workflow, nodes: snapshot.nodes.filter((node) => node.workflow_id === workflow.workflow_id) })) })
+    return json(response, 200, { workflows: snapshot.workflows.map((workflow) => workflowProjection(snapshot, workflow)), ready_queue: readyQueue(snapshot), waves: waveEvidence(snapshot) })
   }
   const workflowMatch = url.pathname.match(/^\/api\/workflows\/([^/]+)$/)
   if (request.method === "GET" && workflowMatch) {
     const id = decodeURIComponent(workflowMatch[1]); const snapshot = runtimeSnapshot(); const workflow = snapshot.workflows.find((item) => item.workflow_id === id)
     if (!workflow) return json(response, 404, { status: "NOT_FOUND", code: "WORKFLOW_NOT_FOUND", workflow_id: id })
-    return json(response, 200, { workflow, nodes: snapshot.nodes.filter((node) => node.workflow_id === id), tasks: snapshot.tasks.filter((task) => snapshot.nodes.some((node) => node.workflow_id === id && node.current_task_id === task.task_id)) })
+    const projection = workflowProjection(snapshot, workflow)
+    return json(response, 200, { workflow: projection, nodes: projection.nodes, ready_queue: projection.ready_queue, tasks: snapshot.tasks.filter((task) => snapshot.nodes.some((node) => node.workflow_id === id && node.current_task_id === task.task_id)), waves: waveEvidence(snapshot).filter((wave) => wave.workflow_id === id) })
   }
-  if (request.method === "GET" && url.pathname === "/api/sessions") return json(response, 200, { sessions: runtimeSnapshot().sessions })
-  if (request.method === "GET" && url.pathname === "/api/evidence") return json(response, 200, { generated_at: new Date().toISOString(), architecture: architecture(), git: { head: run("git", ["rev-parse", "--short", "HEAD"]), status_short: run("git", ["status", "--short"]) }, runtime: runtimeSnapshot() })
+  if (request.method === "GET" && url.pathname === "/api/sessions") {
+    const snapshot = runtimeSnapshot()
+    return json(response, 200, { sessions: snapshot.sessions, lifecycle_events: snapshot.lifecycle_events, rotations: snapshot.rotations, automatic_rotation: "LOCKED", controls: { checkpoint: "CONTROL_RUNTIME_REQUIRED", reconcile: "CONTROL_RUNTIME_REQUIRED", rotate: "LIFECYCLE_LOCKED" } })
+  }
+  const sessionControl = url.pathname.match(/^\/api\/control\/sessions\/([^/]+)\/(checkpoint|reconcile|rotate)$/)
+  if (request.method === "POST" && sessionControl) {
+    const sessionKey = decodeURIComponent(sessionControl[1]); const action = sessionControl[2]
+    if (action === "rotate") return json(response, 423, { status: "LOCKED", code: "LIFECYCLE_LOCKED", session_key: sessionKey, detail: "Automatic rotation remains locked until Plan 8 final acceptance evidence is complete" })
+    return json(response, 409, { status: "REJECTED", code: "CONTROL_RUNTIME_REQUIRED", session_key: sessionKey, action, detail: "Lifecycle actions must be dispatched through the Lifecycle Agent runtime" })
+  }
+  const evidence = () => {
+    const snapshot = runtimeSnapshot()
+    return { generated_at: new Date().toISOString(), architecture: architecture(), git: { head: run("git", ["rev-parse", "--short", "HEAD"]), status_short: run("git", ["status", "--short"]) }, runtime: snapshot, waves: waveEvidence(snapshot), completion: completionSnapshot(snapshot), lifecycle: { automatic_rotation: "LOCKED", events: snapshot.lifecycle_events, rotations: snapshot.rotations } }
+  }
+  if (request.method === "GET" && url.pathname === "/api/evidence") {
+    const value = evidence()
+    if (url.searchParams.get("format") === "markdown") {
+      const lines = ["# AI-Dev Control Plane Evidence", "", `Generated: ${value.generated_at}`, `Architecture: ${value.architecture.status ?? "UNKNOWN"}`, `Git HEAD: ${value.git.head || "unknown"}`, `Automatic rotation: LOCKED`, "", "## Waves", value.waves.length ? value.waves.map((wave) => `- ${wave.workflow_id ?? "unknown"}: ${JSON.stringify(wave)}`).join("\n") : "- none", "", "## Completion", value.completion.length ? value.completion.map((item) => `- ${item.workflow_id}: ${item.status} (${item.final_report_permission})`).join("\n") : "- none"]
+      return text(response, 200, lines.join("\n"), "text/markdown; charset=utf-8")
+    }
+    return json(response, 200, value)
+  }
+  if (request.method === "GET" && url.pathname === "/api/evidence.md") {
+    url.searchParams.set("format", "markdown")
+    const value = evidence(); const lines = ["# AI-Dev Control Plane Evidence", "", `Generated: ${value.generated_at}`, `Architecture: ${value.architecture.status ?? "UNKNOWN"}`, `Git HEAD: ${value.git.head || "unknown"}`, "Automatic rotation: LOCKED"]
+    return text(response, 200, lines.join("\n"), "text/markdown; charset=utf-8")
+  }
+  const workflowControl = url.pathname.match(/^\/api\/workflows\/([^/]+)\/control$/)
+  if (request.method === "GET" && workflowControl) {
+    const id = decodeURIComponent(workflowControl[1]); const snapshot = runtimeSnapshot(); const workflow = snapshot.workflows.find((item) => item.workflow_id === id)
+    if (!workflow) return json(response, 404, { status: "NOT_FOUND", code: "WORKFLOW_NOT_FOUND", workflow_id: id })
+    const terminal = ["COMPLETED", "FAILED", "REWORK_LIMIT"].includes(workflow.status)
+    return json(response, 200, { workflow_id: id, status: workflow.status, actions: { run: !terminal && workflow.status === "READY" ? "RUNTIME_REQUIRED" : "DISABLED", resume: !terminal && ["BLOCKED", "RUNNING", "READY", "REVIEWING", "REWORKING"].includes(workflow.status) ? "RUNTIME_REQUIRED" : "DISABLED", retry: !terminal && ["BLOCKED", "FAILED"].includes(workflow.status) ? "RUNTIME_REQUIRED" : "DISABLED", cancel: "UNAVAILABLE" }, mutation_boundary: "Workflow Engine runtime" })
+  }
   if (request.method === "POST" && url.pathname === "/api/control/architecture/apply") {
     let input
     try { input = await body(request) } catch { return json(response, 400, { status: "REJECTED", code: "INVALID_JSON" }) }
@@ -195,7 +368,12 @@ async function handle(request, response) {
     } catch (error) { return json(response, 409, { status: "REJECTED", code: "ARCHITECTURE_APPLY_FAILED", detail: error?.stderr?.toString() ?? error?.message ?? String(error) }) }
   }
   const controlWorkflow = url.pathname.match(/^\/api\/control\/workflows\/([^/]+)$/)
-  if (request.method === "POST" && controlWorkflow) return json(response, 409, { status: "REJECTED", code: "CONTROL_RUNTIME_REQUIRED", workflow_id: decodeURIComponent(controlWorkflow[1]), detail: "Workflow actions must be dispatched through the Workflow Engine runtime" })
+  if (request.method === "POST" && controlWorkflow) {
+    let input = {}
+    try { input = await body(request) } catch { return json(response, 400, { status: "REJECTED", code: "INVALID_JSON" }) }
+    const action = ["run", "resume", "retry", "cancel"].includes(input.action) ? input.action : "unknown"
+    return json(response, 409, { status: "REJECTED", code: "CONTROL_RUNTIME_REQUIRED", workflow_id: decodeURIComponent(controlWorkflow[1]), action, detail: "Workflow actions must be dispatched through the Workflow Engine runtime", mutation_boundary: "Workflow Engine runtime" })
+  }
   if (request.method === "POST" && url.pathname === "/api/control/lifecycle/automatic-rotation") return json(response, 423, { status: "LOCKED", code: "LIFECYCLE_LOCKED", detail: "Plan 8 final acceptance evidence is still required" })
   return json(response, 404, { status: "NOT_FOUND", code: "ROUTE_NOT_FOUND" })
 }
