@@ -102,6 +102,27 @@ function mapKeys(file, section) {
   return out
 }
 
+function lanePolicies(file) {
+  if (!fs.existsSync(file)) return {}
+  const lines = fs.readFileSync(file, "utf8").split(/\r?\n/)
+  const start = lines.findIndex((line) => line.trim() === "lanes:")
+  if (start < 0) return {}
+  const baseIndent = lines[start].match(/^\s*/)?.[0].length ?? 0
+  const out = {}
+  let current = null
+  for (let i = start + 1; i < lines.length; i++) {
+    const line = lines[i]
+    if (!line.trim()) continue
+    const indent = line.match(/^\s*/)?.[0].length ?? 0
+    if (indent <= baseIndent) break
+    const lane = line.match(new RegExp(`^\\s{${baseIndent + 2}}([A-Za-z0-9_.-]+):\\s*$`))
+    if (lane) { current = lane[1]; out[current] = { default_parallel: null, max_parallel: null }; continue }
+    const value = line.match(new RegExp(`^\\s{${baseIndent + 4}}(default_parallel|max_parallel):\\s*([0-9]+)`))
+    if (value && current) out[current][value[1]] = Number(value[2])
+  }
+  return out
+}
+
 function run(command, args) {
   try { return execFileSync(command, args, { cwd: root, encoding: "utf8", timeout: 30000 }).trim() } catch { return "" }
 }
@@ -160,7 +181,7 @@ function configSnapshot() {
     agents: yamlIds(path.join(config, "agents.yaml"), "agents").map((id) => ({ id })),
     projects: yamlIds(path.join(config, "projects.yaml"), "projects").map((id) => ({ id })),
     routes: mapKeys(path.join(config, "routing.yaml"), "routes"),
-    lanes: mapKeys(path.join(config, "workflow.yaml"), "lanes"),
+    lanes: lanePolicies(path.join(config, "workflow.yaml")),
   }
 }
 
@@ -219,7 +240,7 @@ function laneUsage(snapshot, config) {
     if (task.status === "RUNNING") value.running += 1
     if (task.status === "READY") value.ready += 1
   }
-  return [...counts.values()].map((value) => ({ ...value, utilization_pct: value.max_parallel ? Math.round((value.active / value.max_parallel) * 100) : null }))
+  return [...counts.values()].map((value) => ({ ...value, over_capacity: Boolean(value.max_parallel && value.active > value.max_parallel), utilization_pct: value.max_parallel ? Math.min(100, Math.round((value.active / value.max_parallel) * 100)) : null }))
 }
 
 function waveEvidence(snapshot) {
