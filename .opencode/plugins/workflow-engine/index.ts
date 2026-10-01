@@ -79,6 +79,7 @@ import { buildPlannerPrompt, buildRepairPrompt } from "./planning.ts"
 import { createScheduler, notableLifecycleReports } from "./scheduler.ts"
 import { createReviewer } from "./review.ts"
 import { createWorkflowTestHooks, testHooksEnabled, HOOK_VERDICTS } from "./hooks.ts"
+import { normalizeDeliveryPlan } from "../../lib/delivery-chain.ts"
 
 const LIST_DEFAULT_LIMIT = 20 // §71: default 20
 const LIST_MAX_LIMIT = 100 // §71: max 100 — never unbounded
@@ -586,9 +587,12 @@ export default {
       for (let attempt = 0; ; attempt++) {
         const extracted = extractJsonObject(rawText)
         if (extracted.ok) {
-          const validation: any = validateWorkflowPlan(extracted.value, ctxInfo)
+          const normalized = normalizeDeliveryPlan(extracted.value, { workflowId, primaryProjectId: input.primary_project_id })
+          const validation: any = normalized.ok
+            ? validateWorkflowPlan(normalized.plan, ctxInfo)
+            : { ok: false, errors: [{ code: "DELIVERY_CHAIN_INVALID", message: normalized.reason }] }
           if (validation.ok) {
-            plan = extracted.value
+            plan = normalized.plan
             order = validation.order
             errors = []
             break

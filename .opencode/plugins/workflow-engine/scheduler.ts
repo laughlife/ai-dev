@@ -1,6 +1,7 @@
 import { normalizeLanePolicies } from "../../lib/lane-scheduler.ts"
 import { resolveResourceContract } from "../../lib/lane-resource-contract.ts"
 import { dispatchTeamWaves, normalizeTeamExecutionPolicy, isTeamExecutionRequired, shouldMustParallelize } from "../../lib/team-execution-coordinator.ts"
+import { validateDeliveryResult, withReviewerPassEvidence } from "../../lib/delivery-chain.ts"
 
 // Workflow Engine — automatic DAG scheduler (Plan 7 Phase 4+, T7b; §39-§44,
 // §60-§62, §68)
@@ -439,6 +440,7 @@ export function createScheduler(deps: SchedulerDeps) {
             "WHERE workflow_id = ? AND node_id = ?",
         ),
         taskGet: db.query("SELECT * FROM tasks WHERE task_id = ?"),
+        taskInputSet: db.query("UPDATE tasks SET input_json = ?, updated_at = ? WHERE task_id = ? AND status = 'READY'"),
         // Latest registry generation for every scoped worker under this
         // workflow. The scheduler still archives by each exact key; this
         // query prevents a project-only key assumption from losing workers.
@@ -515,6 +517,35 @@ export function createScheduler(deps: SchedulerDeps) {
 
       // all other routes → existing Task Bus dispatch (persistent/ephemeral)
       const dispatched: any = await bus.dispatchTask(taskId)
+      if (dispatched?.status === "COMPLETED" && (route === "documentation_update" || route === "long_term_memory_write")) {
+        const expectedEvidence = Array.isArray(planNode?.metadata?.required_evidence) ? planNode.metadata.required_evidence : []
+        const evidence = validateDeliveryResult(route, dispatched?.result, expectedEvidence)
+        if (!evidence.ok) {
+          const prior = dispatched?.result && typeof dispatched.result === "object" ? dispatched.result : {}
+          const failedResult = {
+            ...prior,
+            status: "FAILED",
+            output_text: typeof prior.output_text === "string" ? prior.output_text : "",
+            artifacts: Array.isArray(prior.artifacts) ? prior.artifacts : [],
+            error: `${evidence.reason}: delivery agent must return truthful artifacts for ${route}`,
+          }
+          bus.persistResult(taskId, "FAILED", taskRow.target_session_key ?? null, failedResult)
+          return {
+            ...base,
+            task_id: taskId,
+            started_at: startedAt,
+            ended_at: nowIso(),
+            kind: "failed",
+            code: evidence.reason,
+            detail: "delivery route completed without verifiable artifact evidence; workflow remains fail-closed",
+          }
+        }
+        const currentArtifacts = Array.isArray(dispatched.result?.artifacts) ? dispatched.result.artifacts : []
+        if (JSON.stringify(currentArtifacts) !== JSON.stringify(evidence.artifacts)) {
+          bus.persistResult(taskId, "COMPLETED", taskRow.target_session_key ?? null, { ...dispatched.result, artifacts: evidence.artifacts })
+          dispatched.result = { ...dispatched.result, artifacts: evidence.artifacts }
+        }
+      }
       return mapDispatchOutcome(base, taskId, startedAt, dispatched)
     } catch (e: any) {
       const endedAt = nowIso()
@@ -778,6 +809,31 @@ export function createScheduler(deps: SchedulerDeps) {
     return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "infra", code: code ?? "DISPATCH_INFRA_FAILED", detail }
   }
 
+  // The memory route has a reviewer-pass prerequisite in routing.yaml. The
+  // reviewer task is created dynamically, so its real task id is attached to
+  // delivery envelopes only after a PASS is persisted. A failed update parks
+  // the workflow instead of letting a delivery agent run without evidence.
+  function attachReviewerPassToDeliveryTasks(wfId: string, plan: any, reviewTaskId: string): any {
+    if (!reviewTaskId) return { ok: false, code: "REVIEW_TASK_ID_MISSING" }
+    const rows: any[] = q!.nodesGet.all(wfId)
+    const deliveryNodes = (Array.isArray(plan?.nodes) ? plan.nodes : []).filter(
+      (node: any) => node?.route === "documentation_update" || node?.route === "long_term_memory_write",
+    )
+    for (const node of deliveryNodes) {
+      const row = rows.find((candidate: any) => candidate.node_id === node.node_id)
+      if (!row?.current_task_id) return { ok: false, code: "DELIVERY_TASK_MISSING", node_id: node?.node_id }
+      const task: any = q!.taskGet.get(row.current_task_id)
+      const envelope = safeParse(task?.input_json)
+      if (!task || !envelope) return { ok: false, code: "DELIVERY_ENVELOPE_INVALID", node_id: node?.node_id }
+      const updated = withReviewerPassEvidence(envelope, reviewTaskId)
+      const result: any = q!.taskInputSet.run(JSON.stringify(updated), nowIso(), row.current_task_id)
+      if (!result || Number(result.changes ?? 0) !== 1) {
+        return { ok: false, code: "DELIVERY_EVIDENCE_ATTACH_FAILED", node_id: node?.node_id }
+      }
+    }
+    return { ok: true, attached: deliveryNodes.map((node: any) => node.node_id) }
+  }
+
   function extractResultErrorCode(result: any): string | null {
     const err = typeof result?.error === "string" ? result.error : ""
     const m = err.match(/^([A-Z][A-Z0-9_]+):/)
@@ -955,7 +1011,18 @@ export function createScheduler(deps: SchedulerDeps) {
           if (!fresh || fresh.status !== "REVIEWING") continue // reset by an earlier rework in this pass
           const outcome: any = await reviewer.runReview({ workflow_id: wfId, node_id: nr.node_id })
           for (const e of outcome?.history_entries ?? []) runState.verdicts.push({ node_id: nr.node_id, ...e })
-          if (outcome?.type === "PASS") continue
+          if (outcome?.type === "PASS") {
+            const attached = attachReviewerPassToDeliveryTasks(wfId, plan, String(outcome.review_task_id ?? ""))
+            if (!attached.ok) {
+              stopCode = attached.code ?? "DELIVERY_EVIDENCE_ATTACH_FAILED"
+              stopDetail = `reviewer PASS was recorded, but delivery evidence could not be attached (${attached.node_id ?? "unknown node"})`
+              q!.wfSetStatus.run("BLOCKED", nowIso(), wfId)
+              stop = true
+              break
+            }
+            runState.notes.push(`reviewer PASS attached to delivery chain: ${attached.attached.join(", ")}`)
+            continue
+          }
           if (outcome?.type === "FIX" || outcome?.type === "REWORK") {
             const rw: any = await reviewer.applyRework({
               workflow_id: wfId,
