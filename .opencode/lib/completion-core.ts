@@ -138,9 +138,39 @@ export function createCompletionCore(runtimeCore: any) {
     // The architecture contract requires an independent Reviewer PASS for
     // final delivery. Planner metadata cannot disable this safety gate.
     if (passNodes.length === 0) reviewMissing.push("<workflow-review-pass>")
-    const requiredRoutes = Array.isArray(plan?.metadata?.delivery?.required_routes) ? plan.metadata.delivery.required_routes : []
+    const deliverySpec = plan?.metadata?.delivery ?? {}
+    const requiredRoutes = [...new Set([
+      "documentation_update",
+      "long_term_memory_write",
+      ...(Array.isArray(deliverySpec.required_routes) ? deliverySpec.required_routes : []),
+    ])]
+    const requiredEvidence = Array.isArray(deliverySpec.required_evidence)
+      ? deliverySpec.required_evidence.filter((item: any) => typeof item === "string" && item.trim()).map((item: string) => item.trim())
+      : []
     const routeMissing = requiredRoutes.filter((route: string) => !requiredPlanNodes(plan).some((n: any) => n.route === route && NODE_SUCCESS.has(rows.find((r: any) => r.node_id === n.node_id)?.status)))
-    const pending = [...reviewMissing.map((node_id: string) => ({ node_id, reason: "REVIEW_PASS_REQUIRED" })), ...routeMissing.map((route: string) => ({ route, reason: "REQUIRED_DELIVERY_ROUTE" }))]
+    const deliveryArtifacts: string[] = []
+    const evidenceMissing: any[] = []
+    for (const route of requiredRoutes) {
+      const planNode = requiredPlanNodes(plan).find((node: any) => node.route === route)
+      const row = planNode ? rows.find((candidate: any) => candidate.node_id === planNode.node_id) : null
+      if (!row || !NODE_SUCCESS.has(row.status) || !row.current_task_id) continue
+      const task: any = db.query("SELECT result_json FROM tasks WHERE task_id = ?").get(row.current_task_id)
+      const result = parse(task?.result_json) ?? {}
+      const artifacts = Array.isArray(result.artifacts) ? result.artifacts.filter((item: any) => typeof item === "string" && item.trim()) : []
+      deliveryArtifacts.push(...artifacts)
+      if (artifacts.length === 0 || typeof result.output_text !== "string" || !result.output_text.trim()) {
+        evidenceMissing.push({ node_id: planNode.node_id, route, reason: "DELIVERY_ARTIFACT_EVIDENCE_MISSING" })
+      }
+    }
+    const evidenceContractMissing = requiredEvidence.length === 0
+      ? [{ reason: "DELIVERY_EVIDENCE_CONTRACT_MISSING" }]
+      : requiredEvidence.filter((item: string) => !deliveryArtifacts.includes(item)).map((item: string) => ({ evidence: item, reason: "DELIVERY_EVIDENCE_MISSING" }))
+    const pending = [
+      ...reviewMissing.map((node_id: string) => ({ node_id, reason: "REVIEW_PASS_REQUIRED" })),
+      ...routeMissing.map((route: string) => ({ route, reason: "REQUIRED_DELIVERY_ROUTE" })),
+      ...evidenceMissing,
+      ...evidenceContractMissing,
+    ]
     const complete = pending.length === 0 && ["REVIEW_PASSED", "DELIVERY_PENDING", "DELIVERY_COMPLETE", "COMPLETED"].includes(String(wf.status))
     return { ok: complete, status: complete ? "DELIVERY_COMPLETE" : "DELIVERY_PENDING", phase: "DELIVERY", workflow_id: id, execution: exec, missing: pending, reviewer_pass: reviewMissing.length === 0 }
   }

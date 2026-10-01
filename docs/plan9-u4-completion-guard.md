@@ -12,7 +12,9 @@ that owns the final Workflow transition and final-report permission.
    completion.
 2. `completion_final_report_permission` returns `FINAL_REPORT_ALLOWED` only
    when all required nodes and child tasks are terminal-success, required
-   reviewer evidence is `PASS`, and no `FIX`/`REWORK` remains unresolved.
+   reviewer evidence is `PASS`, documentation and long-term-memory delivery
+   routes are terminal-success with artifacts, the declared evidence contract
+   is satisfied, and no `FIX`/`REWORK` remains unresolved.
 3. `completion_finalize` performs the permission check and guarded transition
    in one SQLite transaction. It moves `REVIEW_PASSED`, `DELIVERY_PENDING`, or
    `DELIVERY_COMPLETE` to `COMPLETED`, recording matching `finished_at` and
@@ -24,6 +26,9 @@ that owns the final Workflow transition and final-report permission.
 6. All descendants of workflow node tasks are checked recursively, and a
    Reviewer PASS must be backed by matching history, a completed independent
    review task, and a PASS result envelope.
+7. Delivery evidence is fail-closed: missing documentation/memory routes,
+   missing result artifacts, or a missing/unsatisfied `required_evidence`
+   contract prevents final-report permission.
 
 ## Implemented files
 
@@ -36,13 +41,12 @@ that owns the final Workflow transition and final-report permission.
 
 ## Acceptance
 
-The Node harness and existing Plan 8/Plan 9 regression harnesses pass. A live
-Desktop V2 `2.0.20` runtime smoke completed on workflow
+The historical Desktop V2 `2.0.20` runtime smoke completed on workflow
 `cfc83688-d03d-48ab-b1a0-377e504e1e13` in session
 `ses_f0c85c8afffeP8NdLw9yCS3Aab`:
 
 - `completion_final_report_permission` returned `FINAL_REPORT_ALLOWED` with
-  `EXECUTION_COMPLETE`, `DELIVERY_COMPLETE`, and no missing evidence.
+  `EXECUTION_COMPLETE` and `DELIVERY_COMPLETE` under the earlier U4 contract.
 - `completion_finalize` returned `COMPLETED` with
   `final_report_permission: true`.
 - The runtime row records matching `finished_at` and
@@ -51,5 +55,6 @@ Desktop V2 `2.0.20` runtime smoke completed on workflow
 - A fresh independent Reviewer session (`ses_f0c83473affeJajCq8vyqDfCMD`)
   returned `{"schema_version":1,"verdict":"PASS","findings":[]}`.
 
-This accepted U4 evidence was carried into the subsequent U5 and U6 stages;
-their acceptance records are kept in the corresponding Plan 9 documents.
+That historical runtime record remains execution evidence, but it predates the
+mandatory documentation/memory/evidence delivery contract. A fresh Desktop V2
+run is required before treating U4 as current final-delivery evidence.

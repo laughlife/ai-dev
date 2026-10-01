@@ -39,19 +39,27 @@ function setup({ workflowStatus = "REVIEW_PASSED", childStatus = null } = {}) {
     );
   `)
   const plan = {
-    nodes: [{
-      node_id: "gate",
-      route: "code_change",
-      depends_on: [],
-      review: { required: true },
-      metadata: { required: true },
-    }],
-    metadata: { delivery: { reviewer_pass_required: true } },
+    nodes: [
+      {
+        node_id: "gate",
+        route: "code_change",
+        depends_on: [],
+        review: { required: true },
+        metadata: { required: true },
+      },
+      { node_id: "docs", route: "documentation_update", depends_on: ["gate"], metadata: { required: true } },
+      { node_id: "memory", route: "long_term_memory_write", depends_on: ["docs"], metadata: { required: true } },
+    ],
+    metadata: { delivery: { reviewer_pass_required: true, required_evidence: ["docs/acceptance.md", "memory:acceptance"] } },
   }
   db.prepare("INSERT INTO workflows VALUES (?,?,?,?,?,?)").run("wf", workflowStatus, JSON.stringify(plan), "", null, null)
   db.prepare("INSERT INTO workflow_nodes VALUES (?,?,?,?,?,?,?,?)").run("wf", "gate", "REVIEW_PASSED", "task-gate", "review-task", "PASS", "[]", JSON.stringify([{ task_id: "review-task", verdict: "PASS" }]))
   db.prepare("INSERT INTO tasks VALUES (?,?,?,?,?,?)").run("task-gate", null, "COMPLETED", "test-runner", JSON.stringify({ route: "build_and_test" }), JSON.stringify({ output_text: "ok" }))
   db.prepare("INSERT INTO tasks VALUES (?,?,?,?,?,?)").run("review-task", "task-gate", "COMPLETED", "reviewer", JSON.stringify({ route: "independent_review" }), JSON.stringify({ output_text: JSON.stringify({ schema_version: 1, verdict: "PASS" }) }))
+  db.prepare("INSERT INTO workflow_nodes VALUES (?,?,?,?,?,?,?,?)").run("wf", "docs", "COMPLETED", "task-docs", null, null, "[]", "[]")
+  db.prepare("INSERT INTO workflow_nodes VALUES (?,?,?,?,?,?,?,?)").run("wf", "memory", "COMPLETED", "task-memory", null, null, "[]", "[]")
+  db.prepare("INSERT INTO tasks VALUES (?,?,?,?,?,?)").run("task-docs", null, "COMPLETED", "documentation-agent", JSON.stringify({ route: "documentation_update" }), JSON.stringify({ output_text: "docs recorded", artifacts: ["docs/acceptance.md"] }))
+  db.prepare("INSERT INTO tasks VALUES (?,?,?,?,?,?)").run("task-memory", "task-docs", "COMPLETED", "memory-agent", JSON.stringify({ route: "long_term_memory_write" }), JSON.stringify({ output_text: "memory recorded", artifacts: ["memory:acceptance"] }))
   if (childStatus) db.prepare("INSERT INTO tasks VALUES (?,?,?,?,?,?)").run("child", "task-gate", childStatus, "test-runner", JSON.stringify({ route: "build_and_test" }), null)
   const adapter = {
     query(sql) {
@@ -142,6 +150,22 @@ function setup({ workflowStatus = "REVIEW_PASSED", childStatus = null } = {}) {
   }))
   db.prepare("UPDATE workflow_nodes SET last_verdict=NULL, review_history_json='[]' WHERE workflow_id='wf'").run()
   assert.equal(guard.finalReportPermission({ workflow_id: "wf" }).ok, false, "planner metadata cannot disable reviewer gate")
+  db.close()
+}
+
+{
+  const { db, guard } = setup()
+  db.prepare("DELETE FROM workflow_nodes WHERE node_id IN ('docs', 'memory')").run()
+  db.prepare("DELETE FROM tasks WHERE task_id IN ('task-docs', 'task-memory')").run()
+  db.prepare("UPDATE workflows SET plan_json=? WHERE workflow_id='wf'").run(JSON.stringify({
+    nodes: [{ node_id: "gate", route: "code_change", depends_on: [], review: { required: true }, metadata: { required: true } }],
+    metadata: { delivery: { required_evidence: [] } },
+  }))
+  const delivery = guard.deliveryCheck({ workflow_id: "wf" })
+  assert.equal(delivery.ok, false, "delivery requires the architecture completion contract")
+  assert.ok(delivery.missing.some((item) => item.reason === "REQUIRED_DELIVERY_ROUTE" && item.route === "documentation_update"))
+  assert.ok(delivery.missing.some((item) => item.reason === "REQUIRED_DELIVERY_ROUTE" && item.route === "long_term_memory_write"))
+  assert.ok(delivery.missing.some((item) => item.reason === "DELIVERY_EVIDENCE_CONTRACT_MISSING"))
   db.close()
 }
 
