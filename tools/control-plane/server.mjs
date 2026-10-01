@@ -4,6 +4,7 @@ import http from "node:http"
 import { execFileSync } from "node:child_process"
 import { DatabaseSync } from "node:sqlite"
 import { fileURLToPath } from "node:url"
+import { createCompletionCore } from "../../.opencode/lib/completion-core.ts"
 
 const root = path.resolve(process.env.AI_DEV_ROOT ?? process.cwd())
 const port = Number(process.env.CONTROL_PLANE_PORT ?? 4310)
@@ -65,7 +66,7 @@ function resourceContract(task, node = {}) {
   return {
     lane: metadata.lane ?? input.lane ?? node.lane ?? routeLane(input.route ?? node.route),
     project: resources.project ?? resources.project_id ?? input.project_id ?? node.project_id ?? null,
-    paths: Array.isArray(resources.paths) ? resources.paths : (Array.isArray(resources.read) ? resources.read : []),
+    paths: Array.isArray(resources.paths) ? resources.paths : (Array.isArray(resources.read) ? resources.read : (Array.isArray(resources.write) ? resources.write : [])),
     locks: Array.isArray(resources.locks) ? resources.locks : [],
     mode: resources.mode ?? "read",
   }
@@ -270,24 +271,62 @@ function blockedFailed(snapshot) {
   }, { blocked: 0, failed: 0 })
 }
 
-function completionSnapshot(snapshot) {
-  return snapshot.workflows.map((workflow) => {
-    const finalized = workflow.status === "COMPLETED" && workflow.finished_at && workflow.finished_at === workflow.completion_guard_finalized_at
-    const workflowNodes = snapshot.nodes.filter((node) => node.workflow_id === workflow.workflow_id)
-    const reviewPass = workflowNodes.some((node) => node.last_verdict === "PASS")
-    const reviewPending = workflowNodes.filter((node) => !node.last_verdict || node.last_verdict === "FIX" || node.last_verdict === "REWORK").map((node) => node.node_id)
-    const executionGate = workflow.status === "COMPLETED" || workflow.status === "REVIEWING" || workflow.status === "REWORKING"
-    const deliveryGate = Boolean(reviewPass && workflow.status === "COMPLETED")
+function liveTeamSnapshot(snapshot) {
+  const bySession = new Map()
+  for (const task of snapshot.tasks) {
+    if (!ACTIVE_TASK_STATES.has(task.status)) continue
+    const current = bySession.get(task.target_session_key)
+    if (!current || String(task.updated_at ?? "") > String(current.updated_at ?? "")) bySession.set(task.target_session_key, task)
+  }
+  return snapshot.sessions.map((session) => {
+    const task = bySession.get(session.session_key)
+    const { input } = taskEnvelope(task)
+    const started = Date.parse(task?.created_at ?? session.last_used_at ?? "")
+    const ended = Date.parse(task?.updated_at ?? "")
+    const elapsed_ms = Number.isFinite(started) ? Math.max(0, (Number.isFinite(ended) && task?.status !== "RUNNING" ? ended : Date.now()) - started) : null
     return {
-      workflow_id: workflow.workflow_id,
-      status: finalized ? "FINAL_REPORT_ALLOWED" : (reviewPass ? "DELIVERY_PENDING" : "REVIEW_PENDING"),
-      reviewer_pass: reviewPass,
-      finalized,
-      execution_gate: executionGate ? "PASS" : "PENDING",
-      delivery_gate: deliveryGate ? "PASS" : "PENDING",
-      final_report_permission: finalized ? "ALLOWED" : "DENIED",
-      missing_reasons: finalized ? [] : (reviewPending.length ? [`reviewer verdict missing for: ${reviewPending.join(", ")}`] : ["completion guard finalization is required"]),
+      lane: input?.metadata?.lane ?? input?.lane ?? routeLane(input?.route),
+      role: session.role,
+      model_runtime_id: session.model_runtime_id,
+      project_id: session.project_id,
+      task_id: task?.task_id ?? null,
+      node_id: input?.metadata?.workflow_node_id ?? null,
+      workflow_id: input?.metadata?.workflow_id ?? null,
+      session_key: session.session_key,
+      session_id: session.opencode_session_id,
+      generation: session.generation,
+      context_pct: session.context_pct,
+      resource_contract: resourceContract(task),
+      elapsed_ms,
+      status: task?.status ?? session.status,
+      updated_at: task?.updated_at ?? session.last_used_at,
     }
+  })
+}
+
+function completionSnapshot(snapshot) {
+  return withDb((db) => {
+    if (!db) return snapshot.workflows.map((workflow) => ({ workflow_id: workflow.workflow_id, status: "REVIEW_PENDING", reviewer_pass: false, finalized: false, execution_gate: "PENDING", delivery_gate: "PENDING", final_report_permission: "DENIED", missing_reasons: ["SQLITE_RUNTIME_UNAVAILABLE"] }))
+    const adapter = { query(sql) { const statement = db.prepare(sql); return { get: (...args) => statement.get(...args), all: (...args) => statement.all(...args) } } }
+    const guard = createCompletionCore({ db: adapter })
+    return snapshot.workflows.map((workflow) => {
+      const permission = guard.finalReportPermission({ workflow_id: workflow.workflow_id })
+      const delivery = permission?.delivery ?? {}
+      const execution = delivery?.execution ?? {}
+      const finalized = permission?.ok === true && permission?.permission === true
+      const missing = Array.isArray(delivery?.missing) ? delivery.missing : (permission?.detail ? [{ reason: permission.detail }] : [])
+      return {
+        workflow_id: workflow.workflow_id,
+        status: finalized ? "FINAL_REPORT_ALLOWED" : (delivery?.reviewer_pass ? "DELIVERY_PENDING" : "REVIEW_PENDING"),
+        reviewer_pass: delivery?.reviewer_pass === true,
+        finalized,
+        execution_gate: execution?.ok === true ? "PASS" : "PENDING",
+        delivery_gate: delivery?.ok === true ? "PASS" : "PENDING",
+        final_report_permission: finalized ? "ALLOWED" : "DENIED",
+        missing_reasons: missing.map((item) => typeof item === "string" ? item : [item.reason, item.route, item.node_id, item.evidence].filter(Boolean).join(":")),
+        guard_code: permission?.code ?? null,
+      }
+    })
   })
 }
 
@@ -308,7 +347,7 @@ async function dashboard() {
   const config = configSnapshot()
   const healthData = await health()
   const workflowStatuses = snapshot.workflows.reduce((map, row) => { map[row.status] = (map[row.status] ?? 0) + 1; return map }, {})
-  const liveTeam = snapshot.sessions.map((session) => ({ agent_id: session.agent_id, role: session.role, project_id: session.project_id, model_runtime_id: session.model_runtime_id, session_key: session.session_key, generation: session.generation, context_pct: session.context_pct, lifecycle_state: session.lifecycle_state, status: session.status }))
+  const liveTeam = liveTeamSnapshot(snapshot).map((item) => ({ ...item, agent_id: snapshot.sessions.find((session) => session.session_key === item.session_key)?.agent_id ?? null, lifecycle_state: snapshot.sessions.find((session) => session.session_key === item.session_key)?.lifecycle_state ?? null }))
   return {
     ...healthData,
     agents: config.agents,
