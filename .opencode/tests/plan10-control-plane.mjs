@@ -38,6 +38,7 @@ try {
   assert.equal(dashboard.lifecycle.automatic_rotation, "LOCKED")
   assert.ok(Array.isArray(dashboard.agents))
   assert.ok(Array.isArray(dashboard.lane_usage), "dashboard exposes lane usage")
+  assert.ok(dashboard.lane_usage.some((lane) => lane.lane === "coding" && lane.max_parallel === 6), "dashboard exposes lane limits")
   assert.ok(dashboard.blocked_failed && typeof dashboard.blocked_failed === "object", "dashboard exposes blocked/failed counts")
   assert.ok(Array.isArray(dashboard.ready_queue), "dashboard exposes ready queue")
   const workflows = await (await fetch(`${base}/api/workflows`)).json()
