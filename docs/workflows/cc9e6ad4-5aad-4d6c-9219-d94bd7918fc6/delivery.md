@@ -14,8 +14,11 @@
 | planner_session_id | `ses_f0a468abeffedZATa6OZl7FH5h` |
 | rework_cycle | 0 |
 | created_at | 2026-10-01T04:29:27.230Z |
-| updated_at | 2026-10-01T04:45:44.093Z |
+| updated_at | 2026-10-01T05:01:33.139Z |
 | 交付链 | `reviewer_pass -> documentation_update -> long_term_memory_write` |
+| workflow 终态 | `COMPLETED` |
+| finished_at | 2026-10-01T05:01:33.139Z |
+| completion_guard_finalized_at | 2026-10-01T05:01:33.139Z |
 | 交付工作目录 | 隔离 worktree `C:/Users/Administrator/AppData/Local/Temp/ruoyi-vue-pro-plan11-e2e-final` |
 | 基线提交 | `d4d7493c5428f6522d53187796a05ae9c38de320`（`fix: 放宽WMS签收的物流状态限制`，2026-09-30） |
 
@@ -34,7 +37,7 @@
 | `targeted-test` | build_and_test | test-runner | `dae8ecbf-0dae-445d-a90f-86e4851dd8b6` | `ses_f0a3cb424ffeWK2ZEL6bhG8QoA` | COMPLETED |
 | `independent-review` | independent_review | reviewer | `9a93e09d-efe1-480a-8ad9-02c724f0b23a` | `ses_f0a3b9048ffeL83nlhQAotuLzx`（review task `14a39fbf-f861-40c7-b255-ee69c61be63b`，session `ses_f0a3a4f8dffe6R2Z0t25aS75xi`） | **REVIEW_PASSED** |
 | `delivery-documentation` | documentation_update | documentation-agent | `7b45ebdd-6f95-44a5-882c-079d8e07b9da` | 本任务会话 | 本文档由该节点产出 |
-| `delivery-memory` | long_term_memory_write | memory-agent | `a93ca82f-bf55-4524-82f2-d1e1cd956535` | 尚未执行 | READY（待 Documentation 完成后由调度器推进） |
+| `delivery-memory` | long_term_memory_write | memory-agent | `a93ca82f-bf55-4524-82f2-d1e1cd956535` | `ses_f0a36f43affe7o24P9zWRf8qSb` | COMPLETED |
 
 依赖关系：`scope-probe` → `feature-fix` → `targeted-test` → `independent-review` → `delivery-documentation` → `delivery-memory`（单链，无并行分支）。
 
@@ -129,9 +132,14 @@ Reviewer 结果原文（`task:14a39fbf-f861-40c7-b255-ee69c61be63b` 的 `output_
 | 证据引用 | 状态 |
 |---|---|
 | `docs/workflows/cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6/delivery.md` | 已由 Documentation Agent 真实写入（本文件） |
-| `memory:workflow:cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6` | 待 `delivery-memory` 节点（memory-agent）执行 |
+| `memory:workflow:cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6` | 已核实的 Mem0 artifact：`9ae5f3a3-9ec4-4019-a81c-fd8d76b8dc84`；metadata 的 `workflow_id` 与 artifact 均绑定当前 workflow，回读与搜索命中一致 |
 
-## 7. 状态说明
+## 7. 最终状态与 Completion Guard
 
-- 本文件写入时，`workflow_get` 报告的 workflow `status` 为 `RUNNING`，`finished_at` 为 `null`；`delivery-memory` 节点为 `READY`。
-- 因此本文档**不声明**工作流已 COMPLETED，也**不声明** memory 证据已存在；终态与归档以 Workflow Engine 的后续真实输出为准。
+Completion Guard 已由真实 `completion` namespace 工具执行：
+
+- `completion_final_report_permission` 返回 `FINAL_REPORT_ALLOWED`，`missing=[]`，`reviewer_pass=true`。
+- `completion_finalize` 返回 `status=COMPLETED`。
+- `workflow_get` 回读 `workflow.status=COMPLETED`、`finished_at=2026-10-01T05:01:33.139Z`、`completion_guard_finalized_at=2026-10-01T05:01:33.139Z`。
+
+原 delivery-memory 节点已完成；随后使用新的 memory-agent 会话对长期记忆进行真实回读核验，并创建了当前 workflow 的正确 Mem0 记录。该记录的 `memory_id=9ae5f3a3-9ec4-4019-a81c-fd8d76b8dc84`，没有复用旧 workflow `ae194403-d640-415c-956a-3e1fc8338101` 的记录。

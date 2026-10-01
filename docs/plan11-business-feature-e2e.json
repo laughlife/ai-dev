@@ -2,6 +2,9 @@
   "schema_version": 1,
   "status": "PASS",
   "workflow_id": "cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6",
+  "workflow_status": "COMPLETED",
+  "finished_at": "2026-10-01T05:01:33.139Z",
+  "completion_guard_finalized_at": "2026-10-01T05:01:33.139Z",
   "independent_repo": "ruoyi-vue-pro",
   "feature": "WDAmountDivisionScopeSupport uses the only allowed BUSINESS_DIVISION_II as defaultDivisionType for the account withdrawal division scope.",
   "worktree": "C:/Users/Administrator/AppData/Local/Temp/ruoyi-vue-pro-plan11-e2e-final",
@@ -45,7 +48,28 @@
   ],
   "delivery": {
     "documentation": "docs/workflows/cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6/delivery.md",
-    "memory": "memory:workflow:cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6"
+    "memory": {
+      "artifact": "memory:workflow:cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6",
+      "memory_id": "9ae5f3a3-9ec4-4019-a81c-fd8d76b8dc84",
+      "metadata": {
+        "workflow_id": "cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6",
+        "artifact": "memory:workflow:cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6",
+        "repository": "ruoyi-vue-pro",
+        "component": "WDAmountDivisionScopeSupport",
+        "type": "repository-fact",
+        "status": "CURRENT",
+        "source_authority": "REVIEWER_PASS_AND_DOCUMENTATION_UPDATE",
+        "contains_credentials": false,
+        "app_id": "erp"
+      },
+      "verification": {
+        "readback_id": "9ae5f3a3-9ec4-4019-a81c-fd8d76b8dc84",
+        "search_match_id": "9ae5f3a3-9ec4-4019-a81c-fd8d76b8dc84",
+        "metadata_verified": true,
+        "old_memory_id_reused": false,
+        "verification_session_id": "ses_f0a2832daffePLJjkVf5qaVXnO"
+      }
+    }
   },
   "isolation": {
     "production_repo": "D:/ai-dev/ruoyi-vue-pro",
@@ -53,5 +77,10 @@
     "database_or_business_api_calls": false,
     "network_or_git_sync": false
   },
-  "timestamp": "2026-10-01T04:49:06.000Z"
+  "completion_guard": {
+    "permission": "FINAL_REPORT_ALLOWED",
+    "finalize_status": "COMPLETED",
+    "session_id": "ses_f0a295ed6ffelBf7n7LHMlLwxn"
+  },
+  "timestamp": "2026-10-01T05:04:10.000Z"
 }
