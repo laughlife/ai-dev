@@ -309,3 +309,22 @@ Missing user-reviewed evidence:
 - three live Desktop UI/runtime lifecycle samples
 - dedicated real-runtime rotation/restore/reconcile evidence
 - real business Feature E2E with Reviewer PASS
+
+Full regression entry point:
+
+```text
+node --experimental-strip-types tools/regression/run.mjs
+```
+
+The runner executes the architecture, lifecycle, Team Execution, Completion
+Guard, Plan 9, Plan 10, recovery, and production-gate checks in a fixed order.
+It returns `BLOCKED` while the three user-reviewed production evidence records
+are absent, and returns `PASS` only after the release gate reports
+`RELEASE_READY`.
+
+## Route numbering note
+
+The frozen roadmap and architecture sources define Plan 9, Plan 10, and Plan
+11; no Plan 12 is defined in the drawio, framework-config, or repository
+documentation. The external objective references “Plan12”, so that label is an
+unresolved scope conflict. No new architecture stage is inferred from it.

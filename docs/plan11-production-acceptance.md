@@ -50,3 +50,13 @@ expects `BLOCKED` with the corresponding failure markers.
 
 Once those records exist, rerun the gate and the full regression suite. A
 `RELEASE_READY` result is the final Framework v1 release gate.
+
+The reproducible full regression command is:
+
+```text
+node --experimental-strip-types tools/regression/run.mjs
+```
+
+It keeps the deterministic harness checks separate from the production gate:
+local harnesses may all pass while the final result remains `BLOCKED` until
+the three user-reviewed evidence records are present and structurally valid.
