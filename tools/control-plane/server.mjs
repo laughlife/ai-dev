@@ -357,6 +357,12 @@ async function handle(request, response) {
     const snapshot = runtimeSnapshot()
     return json(response, 200, { sessions: snapshot.sessions, lifecycle_events: snapshot.lifecycle_events, rotations: snapshot.rotations, automatic_rotation: "LOCKED", controls: { checkpoint: "CONTROL_RUNTIME_REQUIRED", reconcile: "CONTROL_RUNTIME_REQUIRED", rotate: "LIFECYCLE_LOCKED" } })
   }
+  const sessionMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)$/)
+  if (request.method === "GET" && sessionMatch) {
+    const sessionKey = decodeURIComponent(sessionMatch[1]); const snapshot = runtimeSnapshot(); const session = snapshot.sessions.find((item) => item.session_key === sessionKey)
+    if (!session) return json(response, 404, { status: "NOT_FOUND", code: "SESSION_NOT_FOUND", session_key: sessionKey })
+    return json(response, 200, { session, lifecycle_events: snapshot.lifecycle_events.filter((event) => event.session_key === sessionKey), rotations: snapshot.rotations.filter((rotation) => rotation.session_key === sessionKey), controls: { checkpoint: "CONTROL_RUNTIME_REQUIRED", reconcile: "CONTROL_RUNTIME_REQUIRED", rotate: "LIFECYCLE_LOCKED" }, automatic_rotation: "LOCKED" })
+  }
   const sessionControl = url.pathname.match(/^\/api\/control\/sessions\/([^/]+)\/(checkpoint|reconcile|rotate)$/)
   if (request.method === "POST" && sessionControl) {
     const sessionKey = decodeURIComponent(sessionControl[1]); const action = sessionControl[2]
