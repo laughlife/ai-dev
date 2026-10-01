@@ -222,6 +222,7 @@ function workflowProjection(snapshot, workflow) {
       review_task_id: row.review_task_id ?? null,
       last_verdict: row.last_verdict ?? null,
       resource_contract: contract,
+      resources: contract,
       ready: Boolean(dependencies.ready && !reason && ["READY", "PENDING"].includes(status)),
       scheduling_reason: reason?.code ?? null,
       scheduling_detail: reason?.detail ?? null,
@@ -284,6 +285,7 @@ function liveTeamSnapshot(snapshot) {
     const started = Date.parse(task?.created_at ?? session.last_used_at ?? "")
     const ended = Date.parse(task?.updated_at ?? "")
     const elapsed_ms = Number.isFinite(started) ? Math.max(0, (Number.isFinite(ended) && task?.status !== "RUNNING" ? ended : Date.now()) - started) : null
+    const contract = resourceContract(task)
     return {
       lane: input?.metadata?.lane ?? input?.lane ?? routeLane(input?.route),
       role: session.role,
@@ -296,7 +298,8 @@ function liveTeamSnapshot(snapshot) {
       session_id: session.opencode_session_id,
       generation: session.generation,
       context_pct: session.context_pct,
-      resource_contract: resourceContract(task),
+      resource_contract: contract,
+      resources: contract,
       elapsed_ms,
       status: task?.status ?? session.status,
       updated_at: task?.updated_at ?? session.last_used_at,
