@@ -70,8 +70,8 @@ const validSamples = Array.from({ length: 3 }, (_, index) => ({
   workflow: `workflow-${index + 1}`,
   runtime_version: "OpenCode 2.0.20",
   ui_pct: 40 + index,
-  runtime_pct: 40 + index,
-  delta_pp: 0,
+  runtime_pct: 38 + index,
+  delta_pp: 2,
   timestamp: `2026-10-01T00:0${index}:00Z`,
 }))
 const validEvidenceResult = runEvidenceGate({
@@ -83,6 +83,11 @@ const validEvidenceResult = runEvidenceGate({
     rotation: "COMMITTED",
     restore: "RESTORED",
     reconcile: "IDEMPOTENT",
+    generation: 2,
+    source: "session-rotation-0",
+    successor: "session-rotation-1",
+    checkpoint: "runtime/checkpoints/session-rotation-1/gen-0001-cp.json",
+    timestamp: "2026-10-01T00:10:00Z",
     reviewer: "PASS",
   },
   "plan11-business-feature-e2e.json": {
@@ -97,4 +102,40 @@ const validEvidenceResult = runEvidenceGate({
 assert.ok(!validEvidenceResult.missing.includes("PLAN8_DESKTOP_UI_SAMPLES"))
 assert.ok(!validEvidenceResult.missing.includes("PLAN8_ROTATION_EVIDENCE"))
 assert.ok(!validEvidenceResult.missing.includes("PRODUCTION_BUSINESS_FEATURE_E2E"))
+
+const forgedEvidenceResult = runEvidenceGate({
+  "plan8-live-ui-evidence.json": {
+    status: "PASS",
+    samples: [
+      { session: "same-session", workflow: "workflow-1", runtime_version: "runtime", ui_pct: 1000, runtime_pct: -1, delta_pp: 0, timestamp: "2026-10-01T00:00:00Z" },
+      { session: "same-session", workflow: "workflow-2", runtime_version: "runtime", ui_pct: 1000, runtime_pct: -1, delta_pp: 0, timestamp: "2026-10-01T00:01:00Z" },
+      { session: "same-session", workflow: "workflow-3", runtime_version: "runtime", ui_pct: 1000, runtime_pct: -1, delta_pp: 0, timestamp: "2026-10-01T00:02:00Z" },
+    ],
+  },
+  "plan8-rotation-evidence.json": {
+    status: "PASS",
+    workflow: "workflow-forged",
+    session: "session-forged",
+    rotation: "FAILED",
+    restore: "NO",
+    reconcile: "NO",
+    generation: 1,
+    source: "session-forged",
+    successor: "session-forged-successor",
+    checkpoint: "checkpoint.json",
+    timestamp: "2026-10-01T00:10:00Z",
+    reviewer: "PASS",
+  },
+  "plan11-business-feature-e2e.json": {
+    status: "PASS",
+    independent_repo: "ai-dev",
+    feature: "framework-only-feature",
+    test: "PASS",
+    reviewer: "PASS",
+    commit: "framework-commit",
+  },
+})
+assert.ok(forgedEvidenceResult.missing.includes("PLAN8_DESKTOP_UI_SAMPLES"))
+assert.ok(forgedEvidenceResult.missing.includes("PLAN8_ROTATION_EVIDENCE"))
+assert.ok(forgedEvidenceResult.missing.includes("PRODUCTION_BUSINESS_FEATURE_E2E"))
 console.log("PLAN11_PRODUCTION_GATE_BLOCKED", JSON.stringify({ missing: result.missing, architecture: result.checks.architecture.status, plan9: result.checks.plan9 }))
