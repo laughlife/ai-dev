@@ -1,0 +1,54 @@
+{
+  "status": "PASS",
+  "source": "OpenCode Desktop 2.0.20 context panels inspected after the user manually connected the local OpenCode server",
+  "samples": [
+    {
+      "session": "ses_f0b131c89ffeUkhzA7lSk4S044",
+      "workflow": "89ad17f9-6e6c-4f08-bdbe-9bc2fcf877bf",
+      "node": "audit-plan8",
+      "runtime_version": "OpenCode 2.0.20",
+      "provider": "DeepSeek",
+      "model": "DeepSeek V4.1 Flash",
+      "context_limit": 1000000,
+      "total_tokens": 53893,
+      "ui_pct": 5,
+      "runtime_pct": 5,
+      "delta_pp": 0,
+      "ui_created_at": "2026-10-01T00:46:00.000Z",
+      "ui_last_activity_at": "2026-10-01T00:47:00.000Z",
+      "timestamp": "2026-10-01T00:47:00.000Z"
+    },
+    {
+      "session": "ses_f0b131c8bfferYMO24umzb7t8X",
+      "workflow": "89ad17f9-6e6c-4f08-bdbe-9bc2fcf877bf",
+      "node": "audit-plan10",
+      "runtime_version": "OpenCode 2.0.20",
+      "provider": "DeepSeek",
+      "model": "DeepSeek V4.1 Flash",
+      "context_limit": 1000000,
+      "total_tokens": 48841,
+      "ui_pct": 5,
+      "runtime_pct": 5,
+      "delta_pp": 0,
+      "ui_created_at": "2026-10-01T00:46:00.000Z",
+      "ui_last_activity_at": "2026-10-01T00:46:00.000Z",
+      "timestamp": "2026-10-01T00:46:00.000Z"
+    },
+    {
+      "session": "ses_f0b131c8affeOHE1y2zyqyqjld",
+      "workflow": "89ad17f9-6e6c-4f08-bdbe-9bc2fcf877bf",
+      "node": "audit-plan11",
+      "runtime_version": "OpenCode 2.0.20",
+      "provider": "DeepSeek",
+      "model": "DeepSeek V4.1 Flash",
+      "context_limit": 1000000,
+      "total_tokens": 116902,
+      "ui_pct": 12,
+      "runtime_pct": 12,
+      "delta_pp": 0,
+      "ui_created_at": "2026-10-01T00:46:00.000Z",
+      "ui_last_activity_at": "2026-10-01T00:48:00.000Z",
+      "timestamp": "2026-10-01T00:48:00.000Z"
+    }
+  ]
+}
