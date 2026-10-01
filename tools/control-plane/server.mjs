@@ -247,7 +247,8 @@ function waveEvidence(snapshot) {
   const waves = []
   for (const task of snapshot.tasks) {
     const { result, input } = taskEnvelope(task)
-    const records = Array.isArray(result?.waves) ? result.waves : (Array.isArray(result?.run?.waves) ? result.run.waves : [])
+    const nested = safeJson(result?.output_text, null)
+    const records = Array.isArray(result?.waves) ? result.waves : (Array.isArray(result?.run?.waves) ? result.run.waves : (Array.isArray(nested?.waves) ? nested.waves : (Array.isArray(nested?.run?.waves) ? nested.run.waves : [])))
     for (const wave of records) waves.push({ workflow_id: input?.metadata?.workflow_id ?? null, ...wave })
   }
   return waves
