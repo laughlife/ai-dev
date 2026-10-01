@@ -1,13 +1,14 @@
 // Lifecycle Engine — OpenCode V2 local plugin (Plan 8 T5A)
 //
 // Purpose: expose the shared lifecycle core (.opencode/lib/lifecycle-core.ts,
-// Plan 8 T4) as EXACTLY five production tools under the `lifecycle`
+// Plan 8 T4) as six production tools under the `lifecycle`
 // namespace:
 //
 //   lifecycle_status     — per-session lifecycle + telemetry + rotation view
 //   lifecycle_list       — latest-generation lifecycle overview (read-only)
 //   lifecycle_checkpoint — ensure a v1 checkpoint file (atomic write)
 //   lifecycle_rotate     — manual/forced session generation rotation
+//   lifecycle_restore    — restore a successor from a validated checkpoint
 //   lifecycle_reconcile  — crash resolution of incomplete rotations
 //
 // Follows the Plan 6/7 shared-core plugin pattern (task-bus/index.ts,
@@ -180,7 +181,7 @@ export default {
     }
 
     // ===================================================================
-    // Tool registration: EXACTLY five production tools, namespace
+    // Tool registration: exactly six production tools, namespace
     // `lifecycle` — no more, no less, no test hook tool.
     // ===================================================================
     await ctx.tool.transform((editor: any) => {
@@ -359,6 +360,37 @@ export default {
       })
 
       editor.add({
+        name: "lifecycle_restore",
+        description:
+          "Restore a successor generation from a validated v1 checkpoint after the latest generation is " +
+          "STALE, ARCHIVED, or otherwise unavailable. The core refuses to replace a live ACTIVE session, " +
+          "requires a checkpoint inside runtime/checkpoints, creates the next generation with the stored " +
+          "agent/model, records SESSION_RESTORED, and leaves any registration failure auditable. " +
+          "Provide session_key (or project_id+role) and optionally checkpoint_path; no context is fabricated.",
+        input: {
+          type: "object",
+          properties: {
+            session_key: sessionKeyProp,
+            project_id: projectIdProp,
+            role: roleProp,
+            checkpoint_path: {
+              type: "string",
+              description: "Optional runtime/checkpoints-relative v1 checkpoint path; otherwise use the latest recorded checkpoint",
+            },
+          },
+          additionalProperties: false,
+        },
+        options: { namespace: "lifecycle" },
+        execute: (input: any) =>
+          result(() => {
+            const sel = selectSession(input)
+            if (!sel.ok) return sel.value
+            const checkpointPath = str(input?.checkpoint_path)
+            return lifecycle.restoreSession({ ...sel.value, ...(checkpointPath ? { checkpoint_path: checkpointPath } : {}) })
+          }),
+      })
+
+      editor.add({
         name: "lifecycle_reconcile",
         description:
           "Crash recovery for the rotation ledger: resolves every incomplete rotation (status PREPARING / " +
@@ -418,7 +450,7 @@ export default {
       `[lifecycle-engine] loaded root=${core.root} db=${core.db ? "ok" : "unavailable:" + core.dbError} ` +
         `lifecycle-schema=${core.schemaMigration?.lifecycle_schema_applied ? "applied" : "skipped:" + (core.schemaMigration?.lifecycle_schema_skipped_reason ?? "unknown")} ` +
         `lifecycle-tables=${d.lifecycle_tables_ready} telemetry-columns=${d.telemetry_columns_ready} ` +
-      `tasks-table=${d.tasks_table_ready} workflows-table=${d.workflows_table_ready} config=${core.configReady} tools=${lifecycleTestHooks ? 6 : 5}`,
+        `tasks-table=${d.tasks_table_ready} workflows-table=${d.workflows_table_ready} config=${core.configReady} tools=${lifecycleTestHooks ? 7 : 6}`,
     )
 
     // Teardown: close the ONE shared runtime core (it owns the runtime/tasks.db

@@ -7,7 +7,7 @@ Lifecycle Engine 插件：持久会话的上下文遥测、阈值分带、checkp
 **不注册自动 hook、不启用自动换代、绝不触碰 Mem0 与业务仓库写入**。
 
 - Plugin id: `lifecycle-engine`
-- 工具 namespace：`lifecycle`（生产恰好 5 个工具；marker-gated 测试钩子不算生产工具，见下）
+- 工具 namespace：`lifecycle`（生产 6 个工具；marker-gated 测试钩子不算生产工具，见下）
 - Architecture Source of Truth：`diagrams/multi_agent_framework_v4_completion_guard.drawio`
 - 遥测协议（normative）：`docs/runtime-context-telemetry.md`（OpenCode 2.0.20 实测 VERIFIED）
 - Checkpoint 合同：`templates/checkpoint.schema.json`（schema_version 1）
@@ -28,7 +28,7 @@ Lifecycle Engine 插件：持久会话的上下文遥测、阈值分带、checkp
 .opencode/lib/global-lock.ts          进程级 per-session_key 锁（与 runtime core withLock 同一把锁）
 ```
 
-## 工具面（namespace `lifecycle`，恰好 5 个）
+## 工具面（namespace `lifecycle`，6 个生产工具）
 
 所有工具接受 `session_key`（原样存储的键，含 scoped key）或
 `project_id + role` 简写（经 runtime core `sessionKey()` 解析）；输入不符返回
@@ -41,11 +41,12 @@ Lifecycle Engine 插件：持久会话的上下文遥测、阈值分带、checkp
 | `lifecycle_list` | 可按 `session_key` / `project_id` / `role` 等值过滤，纯只读列出每个 key 最新 generation（包含 scoped role），不调用模型 |
 | `lifecycle_checkpoint` | 输入 `session_key`（+`force`）→ "ensure"语义：该代已有 checkpoint 文件且非 force 则 `CHECKPOINT_REUSED`；否则先取一次**验证过**的实测（拿不到就 `CHECKPOINT_TELEMETRY_UNAVAILABLE`，绝不带估算值落盘），组装 v1 checkpoint（活跃 task/workflow 引用、只读 git 状态、有界摘要）经 schema 校验后原子写入，返回 `CHECKPOINT_WRITTEN` + `checkpoint_path`（相对 `runtime/`）+ 路径/摘要/git 摘要。成功后 `lifecycle_state → CHECKPOINT_READY`（仅在原值为 band 标签或 null 时） |
 | `lifecycle_rotate` | **手动换代 API**。输入 `session_key`（+`reason`、`force`）。无 `force` 时必须存在验证过的 `context_pct` 且分带达到 ROTATE_AFTER_ATOMIC_STEP / HARD_ROTATE，否则 `ROTATION_TELEMETRY_UNAVAILABLE` / `ROTATION_NOT_DUE`。成功输出 `ROTATED`：rotation_id、from/to generation、新旧 session_id、checkpoint_path、old_row(ARCHIVED)/successor_row(ACTIVE, HANDOFF_READY) |
+| `lifecycle_restore` | 从合法 v1 checkpoint 恢复后继 generation。最新 generation 必须不可用或已归档；活跃且可验证的 session 返回 `RESTORE_NOT_NEEDED`，不会被替换。成功输出 `RESTORED` 并记录 `SESSION_RESTORED`。 |
 | `lifecycle_reconcile` | 崩溃/半途失败换代账本对账。输入可选 `session_key`（缺省扫全库非终态 rotation 行）。每 key 在锁内逐行解决：仅当后继已注册且与 ledger 记录的 session ID 相同才滚动提交；未注册或无法验证的后继一律安全失败并保留旧代 ACTIVE。输出 `incomplete_found` + 每行 resolution；**绝不新建第二个后继、绝不删除任何 OpenCode 会话** |
 
-`restoreSession` 目前是 lifecycle core 的受控 API（不是生产工具），用于主控在
-`HANDOFF_READY` 后执行人工 restore/reload 流程；它同样只接受合法 v1 checkpoint，
-没有 checkpoint 时拒绝伪造上下文。生产工具面严格保持上述 5 个名称。
+`restoreSession` 由 `lifecycle_restore` 薄封装暴露为生产工具，用于主控在
+checkpoint 已验证且旧 generation 不可用时执行受控 restore/reload 流程；它同样只接受合法 v1 checkpoint，
+没有 checkpoint 时拒绝伪造上下文。
 
 ## 遥测与"零估算"政策（normative）
 

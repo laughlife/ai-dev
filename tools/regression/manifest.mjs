@@ -6,6 +6,7 @@ export const REGRESSION_CHECKS = [
   test("architecture-compiler", ".opencode/tests/architecture-compiler.mjs"),
   test("architecture-compiler-hardening", ".opencode/tests/architecture-compiler-hardening.mjs"),
   test("lifecycle-smoke", ".opencode/tests/lifecycle-smoke.mjs", ["--import", "./.opencode/tests/register-hooks.mjs"]),
+  test("lifecycle-restore-tool-contract", ".opencode/tests/lifecycle-restore-tool-contract.mjs"),
   test("team-execution-contract", ".opencode/tests/u3-team-execution-contract.mjs"),
   test("team-execution-coordinator", ".opencode/tests/team-execution-coordinator.mjs"),
   test("workflow-team-worker-sessions", ".opencode/tests/workflow-team-worker-sessions.mjs"),
