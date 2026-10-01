@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "workflow": "runtime-fixture:project:xxl-job:reader",
+  "session": "ses_f0a80b93cffebFtE5Clc01pIDG",
+  "session_key": "project:xxl-job:reader",
+  "runtime_version": "OpenCode Desktop 2.0.20",
+  "source": "ses_f0a8155abffeYJ3oLuWsa6q26H",
+  "source_generation": 1,
+  "source_session": "ses_f0a8155abffeYJ3oLuWsa6q26H",
+  "successor": "ses_f0a80e14bffeZ6tBZT9TA1wLxR",
+  "successor_generation": 2,
+  "successor_session": "ses_f0a80e14bffeZ6tBZT9TA1wLxR",
+  "restored_generation": 3,
+  "restored_session": "ses_f0a80b93cffebFtE5Clc01pIDG",
+  "telemetry": {
+    "context_tokens": 48296,
+    "context_limit": 1000000,
+    "context_pct": 5,
+    "telemetry_source": "ctx.session.context last-assistant tokens + ctx.model.list limit.context",
+    "telemetry_at": "2026-10-01T03:25:35.653Z",
+    "model_runtime_id": "deepseek/deepseek-flash"
+  },
+  "checkpoint": "runtime/checkpoints/project_xxl-job_reader/gen-0001-cp-b5bac7f8-5130-439d-b5b2-e665868abce8.json",
+  "checkpoint_result": {
+    "status": "CHECKPOINT_WRITTEN",
+    "generation": 1,
+    "checkpoint_id": "cp-2a0e2537-88a4-43fc-a1aa-5909ba177034",
+    "context_pct": 5,
+    "summary_source": "structured-fallback"
+  },
+  "rotation": "ROTATED",
+  "rotation_result": {
+    "status": "ROTATED",
+    "rotation_id": "rot-6a1daab4-14be-4d1e-b94c-907c40110538",
+    "from_generation": 1,
+    "to_generation": 2,
+    "checkpoint_path": "runtime/checkpoints/project_xxl-job_reader/gen-0001-cp-b5bac7f8-5130-439d-b5b2-e665868abce8.json",
+    "reason": "plan8-isolated-runtime-fixture"
+  },
+  "archive_result": {
+    "status": "ARCHIVED",
+    "generation": 2,
+    "session_id": "ses_f0a80e14bffeZ6tBZT9TA1wLxR",
+    "opencode_session_deleted": false
+  },
+  "restore": "RESTORED",
+  "restore_result": {
+    "status": "RESTORED",
+    "generation": 3,
+    "session_id": "ses_f0a80b93cffebFtE5Clc01pIDG",
+    "checkpoint_path": "runtime/checkpoints/project_xxl-job_reader/gen-0001-cp-b5bac7f8-5130-439d-b5b2-e665868abce8.json",
+    "lifecycle_state": "HANDOFF_READY"
+  },
+  "reconcile": "OK",
+  "reconcile_runs": [
+    { "status": "OK", "incomplete_found": 0, "count": 0, "reconciled": [] },
+    { "status": "OK", "incomplete_found": 0, "count": 0, "reconciled": [] }
+  ],
+  "safety": {
+    "database_or_business_api_calls": false,
+    "business_file_writes": false,
+    "fixture_scope": "newly created xxl-job project-reader runtime session; no pre-existing registry row"
+  },
+  "reviewer": "PASS",
+  "reviewer_session": "ses_f0a7c1526ffenMMa7dSmrD5RrJ",
+  "reviewer_model": "openai/gpt-5.6-sol#high",
+  "reviewer_result": { "schema_version": 1, "verdict": "PASS", "findings": [] },
+  "timestamp": "2026-10-01T03:25:35.653Z"
+}
