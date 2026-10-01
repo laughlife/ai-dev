@@ -17,7 +17,8 @@ worker session 和 Wave 时间证据。
   Markdown evidence 和受控边界；真实浏览器页面可以加载这些投影，生产认证和
   Desktop runtime telemetry 仍由 Plan 11 门禁单独约束。
 - Plan 8 的 lifecycle 实现和 no-estimation 遥测协议已有静态/隔离运行证据；三份
-  Desktop UI side-by-side 样本以及真实 rotation/restore/reconcile 记录仍未形成。
+  Desktop UI side-by-side 样本已记录在 `docs/plan8-live-ui-evidence.json`，真实
+  rotation/restore/reconcile 记录仍未形成。
 - Plan 11 的 gate、Completion Guard delivery contract、recovery/rollback 和
   evidence schema 已 fail-closed；独立业务 Feature E2E、上述两类 Plan 8 证据仍
   是 `RELEASE_READY` 的必要条件。

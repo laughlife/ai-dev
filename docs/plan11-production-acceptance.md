@@ -17,7 +17,7 @@ node --experimental-strip-types tools/production-acceptance/gate.mjs
 Current result:
 
 ```text
-PLAN11_PRODUCTION_GATE_BLOCKED {"missing":["PLAN8_DESKTOP_UI_SAMPLES","PLAN8_ROTATION_EVIDENCE","PRODUCTION_BUSINESS_FEATURE_E2E"],"architecture":"IN_SYNC","plan9":"PASS"}
+PLAN11_PRODUCTION_GATE_BLOCKED {"missing":["PLAN8_ROTATION_EVIDENCE","PRODUCTION_BUSINESS_FEATURE_E2E"],"architecture":"IN_SYNC","plan9":"PASS"}
 ```
 
 The gate verifies the Plan 9 close, architecture synchronization, business
@@ -61,6 +61,11 @@ rotation, restore, and reconcile results, plus a Reviewer `PASS`. The business
 record must include the independent repository, feature name, test `PASS`,
 Reviewer `PASS`, and either a commit or an ISO timestamp. Empty placeholder
 records are rejected as missing evidence.
+
+The three Desktop UI/runtime samples are now recorded in
+`docs/plan8-live-ui-evidence.json`; each was inspected in the connected
+OpenCode Desktop context panel and has a 0pp UI/runtime delta. The dedicated
+rotation/restore/reconcile record and real business Feature E2E remain open.
 
 The local recovery/rollback drill is executable and currently passes:
 

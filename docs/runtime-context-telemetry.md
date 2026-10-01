@@ -126,9 +126,10 @@ same catalog lookup, same `Math.round`), the formula is proven **identical,
 not approximated**; the ≤2pp tolerance is expected to resolve to 0pp.
 
 Scope note: T1 was strictly read-only. The formal live side-by-side check
-against the Desktop UI rendering for ≥3 sessions remains
-`MANUAL_UI_EVIDENCE_REQUIRED`; API/DB agreement is not substituted for the
-Desktop observation. See `docs/plan8-acceptance-matrix.md`.
+against the Desktop UI rendering for three sessions is recorded in
+`docs/plan8-live-ui-evidence.json`; API/DB agreement was not substituted for
+the Desktop observation. The dedicated runtime rotation check remains
+`MANUAL_UI_EVIDENCE_REQUIRED`. See `docs/plan8-acceptance-matrix.md`.
 
 ## 5. Compaction behavior
 

@@ -6,7 +6,7 @@ does not replace the required live Desktop UI observation.
 | ID | Evidence | State |
 | --- | --- | --- |
 | A | Schema migration and legacy lifecycle-table repair in `lifecycle-smoke.mjs` | PASS |
-| B | Three live Desktop UI side-by-side samples | `MANUAL_UI_EVIDENCE_REQUIRED` |
+| B | Three live Desktop UI side-by-side samples | PASS (`docs/plan8-live-ui-evidence.json`) |
 | C | Below-60 reuse policy | PASS (state-machine/runtime coverage) |
 | D | 60–70 checkpoint preparation and retry path | PASS (preflight implementation; isolated runtime proof pending) |
 | E | >=70 automatic rotation admission | PASS (fail-closed implementation; automatic flag remains gated) |
@@ -24,18 +24,18 @@ does not replace the required live Desktop UI observation.
 
 ## Current gate
 
-Plan 8 automatic flags remain `false` until the user supplies the three live
-Desktop UI samples and the dedicated runtime rotation evidence. The runtime
+Plan 8 automatic flags remain `false` until the dedicated runtime rotation
+evidence is supplied. The runtime
 implementation is fail-closed where rotation is mandatory; this is a safety
 gate, not an inferred PASS.
 
-Required manual evidence format:
+The recorded manual UI evidence contains:
 
 ```text
 session | UI pct | runtime pct | delta pp
-small   |         |             |
-medium  |         |             |
-high    |         |             |
+audit-plan8  | 5%  | 5%  | 0pp |
+audit-plan10 | 5%  | 5%  | 0pp |
+audit-plan11 | 12% | 12% | 0pp |
 ```
 
 The existing isolated **Node 24** smoke uses

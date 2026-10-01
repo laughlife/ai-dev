@@ -211,7 +211,7 @@ Acceptance evidence:
   → `PLAN8_LIFECYCLE_SMOKE_PASS`
 - same harness with `_probe2.mjs` → `PROBE2 OK`
 - Plan 8 implementation reviewer evidence: isolated runtime and full Node harness PASS
-- A–P matrix: code paths covered; Desktop UI and dedicated real-runtime samples remain `MANUAL_UI_EVIDENCE_REQUIRED`
+- A–P matrix: code paths covered; three Desktop UI samples are recorded in `docs/plan8-live-ui-evidence.json`; dedicated real-runtime rotation evidence remains `MANUAL_UI_EVIDENCE_REQUIRED`
 - automatic rotation remains disabled until the final live evidence gate passes; Desktop UI handoff remains manual and is not claimed as transparent
 
 ## Plan 9 — Execution Kernel Finalization
@@ -263,7 +263,7 @@ Commit messages were rewritten to Chinese on 2026-09-29. Hashes after e0bc30c di
 
 - persistent Session Registry: implemented in Plan 5
 - full Task Bus runtime: implemented in Plan 6 (core; DAG scheduler implemented in Plan 7 Workflow Engine)
-- Plan 8 live Desktop UI evidence and dedicated real-runtime rotation evidence
+- Plan 8 dedicated real-runtime rotation evidence
 - Plan 10: Control Plane/UI
 - Plan 11: production acceptance and Framework v1 release gate
 
@@ -306,7 +306,6 @@ Evidence:
   rollback, and missing evidence are all fail-closed)
 
 Missing user-reviewed evidence:
-- three live Desktop UI/runtime lifecycle samples
 - dedicated real-runtime rotation/restore/reconcile evidence
 - real business Feature E2E with Reviewer PASS
 
