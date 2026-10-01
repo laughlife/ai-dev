@@ -20,6 +20,38 @@ function architecture() {
 
 function file(pathname) { return path.join(root, pathname) }
 
+function nonEmpty(value) { return typeof value === "string" && value.trim().length > 0 }
+function finiteNumber(value) { return typeof value === "number" && Number.isFinite(value) }
+function timestamp(value) { return nonEmpty(value) && Number.isFinite(Date.parse(value)) }
+function passVerdict(value) {
+  return value === "PASS" || (value && typeof value === "object" && (value.status === "PASS" || value.verdict === "PASS"))
+}
+
+function uiEvidence(value) {
+  if (value?.status !== "PASS" || !Array.isArray(value.samples) || value.samples.length < 3) return false
+  return value.samples.every((sample) => sample &&
+    nonEmpty(sample.session) && nonEmpty(sample.workflow) && nonEmpty(sample.runtime_version) &&
+    finiteNumber(sample.ui_pct) && finiteNumber(sample.runtime_pct) && finiteNumber(sample.delta_pp) &&
+    timestamp(sample.timestamp))
+}
+
+function rotationEvidence(value) {
+  if (value?.status !== "PASS" || !value || typeof value !== "object") return false
+  const workflow = value.workflow ?? value.workflow_id
+  const session = value.session ?? value.session_id
+  const rotation = value.rotation ?? value.rotation_status
+  const restore = value.restore ?? value.restore_status
+  const reconcile = value.reconcile ?? value.reconcile_status
+  return nonEmpty(workflow) && nonEmpty(session) && nonEmpty(rotation) && nonEmpty(restore) &&
+    nonEmpty(reconcile) && passVerdict(value.reviewer)
+}
+
+function businessEvidence(value) {
+  if (value?.status !== "PASS" || !value || typeof value !== "object") return false
+  return nonEmpty(value.independent_repo) && nonEmpty(value.feature) && passVerdict(value.test) &&
+    passVerdict(value.reviewer) && (nonEmpty(value.commit) || timestamp(value.timestamp))
+}
+
 function businessRepositoriesIsolated() {
   return ["ruoyi-vue-pro", "yudao-ui-admin-vue3", "xxl-job", "nyamtn"].every((project) => {
     const result = run("git", ["ls-files", project])
@@ -27,12 +59,12 @@ function businessRepositoriesIsolated() {
   })
 }
 
-function evidenceFile(name) {
+function evidenceFile(name, validate) {
   const pathname = file(`docs/${name}`)
   if (!fs.existsSync(pathname)) return null
   try {
     const value = JSON.parse(fs.readFileSync(pathname, "utf8"))
-    return value?.status === "PASS" ? value : null
+    return validate(value) ? value : null
   } catch { return null }
 }
 
@@ -45,9 +77,9 @@ const checks = {
   rollback_drill: fs.existsSync(file(".opencode/tests/architecture-compiler-hardening.mjs")) ? "STATIC_EVIDENCE_PRESENT" : "MISSING",
 }
 const missing = []
-if (!evidenceFile("plan8-live-ui-evidence.json")) missing.push("PLAN8_DESKTOP_UI_SAMPLES")
-if (!evidenceFile("plan8-rotation-evidence.json")) missing.push("PLAN8_ROTATION_EVIDENCE")
-if (!evidenceFile("plan11-business-feature-e2e.json")) missing.push("PRODUCTION_BUSINESS_FEATURE_E2E")
+if (!evidenceFile("plan8-live-ui-evidence.json", uiEvidence)) missing.push("PLAN8_DESKTOP_UI_SAMPLES")
+if (!evidenceFile("plan8-rotation-evidence.json", rotationEvidence)) missing.push("PLAN8_ROTATION_EVIDENCE")
+if (!evidenceFile("plan11-business-feature-e2e.json", businessEvidence)) missing.push("PRODUCTION_BUSINESS_FEATURE_E2E")
 if (checks.plan9 !== "PASS") missing.push("PLAN9_FINAL_ACCEPTANCE")
 if (!checks.business_repositories_isolated) missing.push("BUSINESS_REPOSITORY_ISOLATION")
 if (checks.architecture.status !== "IN_SYNC") missing.push("ARCHITECTURE_SYNC")
