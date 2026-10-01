@@ -37,6 +37,31 @@ does not synthesize or infer these records. This preserves the Plan 8 matrix's
 manual evidence requirement and prevents a static harness from being presented
 as a production observation.
 
+The minimum accepted fields are:
+
+```json
+{
+  "status": "PASS",
+  "samples": [
+    {
+      "session": "ses_...",
+      "workflow": "wf_...",
+      "runtime_version": "2.0.20",
+      "ui_pct": 2,
+      "runtime_pct": 2,
+      "delta_pp": 0,
+      "timestamp": "2026-10-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+The rotation record must include workflow/session identifiers, non-empty
+rotation, restore, and reconcile results, plus a Reviewer `PASS`. The business
+record must include the independent repository, feature name, test `PASS`,
+Reviewer `PASS`, and either a commit or an ISO timestamp. Empty placeholder
+records are rejected as missing evidence.
+
 The local recovery/rollback drill is executable and currently passes:
 
 ```text
