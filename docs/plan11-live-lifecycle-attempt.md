@@ -20,6 +20,13 @@ SQLite、没有修改业务仓库、没有修改配置，也没有启用 automat
   `{"ok":true,"status":"OK","incomplete_found":0,"count":0}`，证明空
   rotation ledger 的 reconcile 是幂等的。
 
+随后对架构注册的 Project Main `project:ruoyi-vue-pro:main` 又执行了一次真实
+状态检查。该会话为 generation `1`、session
+`ses_f1347dd61ffe7TclIzrRRPlDR6`、模型
+`openai/gpt-5.6-sol-fast#high`，但同样返回 `context_limit=null` 与
+`context_pct=null`。Global Orchestrator 因此按 no-estimation 规则没有继续调用
+checkpoint、rotation 或 reconcile；没有生成新的 lifecycle ledger 行。
+
 这是真实运行时的安全失败证据，不能替代 Plan 8 要求的成功
 rotation/restore/reconcile 记录；在获得可验证的模型 context limit 前，Plan 11
 门禁必须继续拒绝 `RELEASE_READY`。
