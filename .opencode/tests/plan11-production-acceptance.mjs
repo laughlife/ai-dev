@@ -36,4 +36,65 @@ try {
 } finally {
   fs.rmSync(missingRoot, { recursive: true, force: true })
 }
+
+function runEvidenceGate(evidence) {
+  const evidenceRoot = fs.mkdtempSync(path.join(os.tmpdir(), "plan11-evidence-"))
+  try {
+    fs.mkdirSync(path.join(evidenceRoot, "docs"), { recursive: true })
+    for (const [name, value] of Object.entries(evidence)) {
+      fs.writeFileSync(path.join(evidenceRoot, "docs", name), JSON.stringify(value))
+    }
+    return JSON.parse(execFileSync(process.execPath, ["--experimental-strip-types", "tools/production-acceptance/gate.mjs"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, AI_DEV_ROOT: evidenceRoot },
+      stdio: ["ignore", "pipe", "ignore"],
+    }))
+  } finally {
+    fs.rmSync(evidenceRoot, { recursive: true, force: true })
+  }
+}
+
+const shellPass = {
+  "plan8-live-ui-evidence.json": { status: "PASS" },
+  "plan8-rotation-evidence.json": { status: "PASS" },
+  "plan11-business-feature-e2e.json": { status: "PASS" },
+}
+const shellPassResult = runEvidenceGate(shellPass)
+assert.ok(shellPassResult.missing.includes("PLAN8_DESKTOP_UI_SAMPLES"))
+assert.ok(shellPassResult.missing.includes("PLAN8_ROTATION_EVIDENCE"))
+assert.ok(shellPassResult.missing.includes("PRODUCTION_BUSINESS_FEATURE_E2E"))
+
+const validSamples = Array.from({ length: 3 }, (_, index) => ({
+  session: `session-${index + 1}`,
+  workflow: `workflow-${index + 1}`,
+  runtime_version: "OpenCode 2.0.20",
+  ui_pct: 40 + index,
+  runtime_pct: 40 + index,
+  delta_pp: 0,
+  timestamp: `2026-10-01T00:0${index}:00Z`,
+}))
+const validEvidenceResult = runEvidenceGate({
+  "plan8-live-ui-evidence.json": { status: "PASS", samples: validSamples },
+  "plan8-rotation-evidence.json": {
+    status: "PASS",
+    workflow: "workflow-rotation-1",
+    session: "session-rotation-1",
+    rotation: "COMMITTED",
+    restore: "RESTORED",
+    reconcile: "IDEMPOTENT",
+    reviewer: "PASS",
+  },
+  "plan11-business-feature-e2e.json": {
+    status: "PASS",
+    independent_repo: "ruoyi-vue-pro",
+    feature: "production-feature",
+    test: "PASS",
+    reviewer: "PASS",
+    commit: "abc1234",
+  },
+})
+assert.ok(!validEvidenceResult.missing.includes("PLAN8_DESKTOP_UI_SAMPLES"))
+assert.ok(!validEvidenceResult.missing.includes("PLAN8_ROTATION_EVIDENCE"))
+assert.ok(!validEvidenceResult.missing.includes("PRODUCTION_BUSINESS_FEATURE_E2E"))
 console.log("PLAN11_PRODUCTION_GATE_BLOCKED", JSON.stringify({ missing: result.missing, architecture: result.checks.architecture.status, plan9: result.checks.plan9 }))
