@@ -37,7 +37,8 @@
 | `targeted-test` | build_and_test | test-runner | `dae8ecbf-0dae-445d-a90f-86e4851dd8b6` | `ses_f0a3cb424ffeWK2ZEL6bhG8QoA` | COMPLETED |
 | `independent-review` | independent_review | reviewer | `9a93e09d-efe1-480a-8ad9-02c724f0b23a` | `ses_f0a3b9048ffeL83nlhQAotuLzx`（review task `14a39fbf-f861-40c7-b255-ee69c61be63b`，session `ses_f0a3a4f8dffe6R2Z0t25aS75xi`） | **REVIEW_PASSED** |
 | `delivery-documentation` | documentation_update | documentation-agent | `7b45ebdd-6f95-44a5-882c-079d8e07b9da` | 本任务会话 | 本文档由该节点产出 |
-| `delivery-memory` | long_term_memory_write | memory-agent | `a93ca82f-bf55-4524-82f2-d1e1cd956535` | `ses_f0a36f43affe7o24P9zWRf8qSb` | COMPLETED |
+| `delivery-memory` | long_term_memory_write | memory-agent | `a93ca82f-bf55-4524-82f2-d1e1cd956535` | `ses_f0a36f43affe7o24P9zWRf8qSb` | COMPLETED；结果证据由 replacement task 校正 |
+| `delivery-memory-correction` | long_term_memory_write | memory-agent | `182ed2a0-76fd-42d3-90f9-8b8a03d6b9f1`（parent `a93ca82f-bf55-4524-82f2-d1e1cd956535`） | `ses_f0a18f331ffe4wqc3WXltkGRd7` | **COMPLETED**；当前 workflow artifact 与 Mem0 id 已核实 |
 
 依赖关系：`scope-probe` → `feature-fix` → `targeted-test` → `independent-review` → `delivery-documentation` → `delivery-memory`（单链，无并行分支）。
 
@@ -132,7 +133,7 @@ Reviewer 结果原文（`task:14a39fbf-f861-40c7-b255-ee69c61be63b` 的 `output_
 | 证据引用 | 状态 |
 |---|---|
 | `docs/workflows/cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6/delivery.md` | 已由 Documentation Agent 真实写入（本文件） |
-| `memory:workflow:cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6` | 已核实的 Mem0 artifact：`9ae5f3a3-9ec4-4019-a81c-fd8d76b8dc84`；metadata 的 `workflow_id` 与 artifact 均绑定当前 workflow，回读与搜索命中一致 |
+| `memory:workflow:cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6` | replacement task `182ed2a0-76fd-42d3-90f9-8b8a03d6b9f1` 的真实 Result Envelope：Mem0 id `9ae5f3a3-9ec4-4019-a81c-fd8d76b8dc84`；metadata 的 `workflow_id` 与 artifact 均绑定当前 workflow，回读与搜索命中一致 |
 
 ## 7. 最终状态与 Completion Guard
 
@@ -142,4 +143,4 @@ Completion Guard 已由真实 `completion` namespace 工具执行：
 - `completion_finalize` 返回 `status=COMPLETED`。
 - `workflow_get` 回读 `workflow.status=COMPLETED`、`finished_at=2026-10-01T05:01:33.139Z`、`completion_guard_finalized_at=2026-10-01T05:01:33.139Z`。
 
-原 delivery-memory 节点已完成；随后使用新的 memory-agent 会话对长期记忆进行真实回读核验，并创建了当前 workflow 的正确 Mem0 记录。该记录的 `memory_id=9ae5f3a3-9ec4-4019-a81c-fd8d76b8dc84`，没有复用旧 workflow `ae194403-d640-415c-956a-3e1fc8338101` 的记录。
+原 delivery-memory 节点已完成；其结果证据通过真实 Task Bus replacement task `182ed2a0-76fd-42d3-90f9-8b8a03d6b9f1` 校正。replacement task 的 Result Envelope 只引用当前 workflow 的 `memory_id=9ae5f3a3-9ec4-4019-a81c-fd8d76b8dc84` 与 artifact，没有复用旧 workflow `ae194403-d640-415c-956a-3e1fc8338101` 的记录。

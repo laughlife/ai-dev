@@ -44,7 +44,7 @@
     { "node_id": "targeted-test", "route": "build_and_test", "status": "COMPLETED", "task_id": "dae8ecbf-0dae-445d-a90f-86e4851dd8b6", "session_id": "ses_f0a3cb424ffeWK2ZEL6bhG8QoA" },
     { "node_id": "independent-review", "route": "independent_review", "status": "REVIEW_PASSED", "task_id": "9a93e09d-efe1-480a-8ad9-02c724f0b23a", "review_task_id": "14a39fbf-f861-40c7-b255-ee69c61be63b" },
     { "node_id": "delivery-documentation", "route": "documentation_update", "status": "COMPLETED", "task_id": "7b45ebdd-6f95-44a5-882c-079d8e07b9da" },
-    { "node_id": "delivery-memory", "route": "long_term_memory_write", "status": "COMPLETED", "task_id": "a93ca82f-bf55-4524-82f2-d1e1cd956535" }
+    { "node_id": "delivery-memory", "route": "long_term_memory_write", "status": "COMPLETED", "task_id": "a93ca82f-bf55-4524-82f2-d1e1cd956535", "replacement_task_id": "182ed2a0-76fd-42d3-90f9-8b8a03d6b9f1" }
   ],
   "delivery": {
     "documentation": "docs/workflows/cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6/delivery.md",
@@ -68,6 +68,14 @@
         "metadata_verified": true,
         "old_memory_id_reused": false,
         "verification_session_id": "ses_f0a2832daffePLJjkVf5qaVXnO"
+      },
+      "replacement_task": {
+        "task_id": "182ed2a0-76fd-42d3-90f9-8b8a03d6b9f1",
+        "parent_task_id": "a93ca82f-bf55-4524-82f2-d1e1cd956535",
+        "session_id": "ses_f0a18f331ffe4wqc3WXltkGRd7",
+        "status": "COMPLETED",
+        "result_memory_id": "9ae5f3a3-9ec4-4019-a81c-fd8d76b8dc84",
+        "result_artifact": "memory:workflow:cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6"
       }
     }
   },
