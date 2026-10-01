@@ -50,6 +50,14 @@ function taskEnvelope(task) {
   return { input, result }
 }
 
+function embeddedJson(text) {
+  if (typeof text !== "string") return null
+  const direct = safeJson(text, null)
+  if (direct && typeof direct === "object") return direct
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+  return fenced ? safeJson(fenced[1], null) : null
+}
+
 function resourceContract(task, node = {}) {
   const { input } = taskEnvelope(task)
   const metadata = input?.metadata && typeof input.metadata === "object" ? input.metadata : {}
@@ -247,8 +255,8 @@ function waveEvidence(snapshot) {
   const waves = []
   for (const task of snapshot.tasks) {
     const { result, input } = taskEnvelope(task)
-    const nested = safeJson(result?.output_text, null)
-    const records = Array.isArray(result?.waves) ? result.waves : (Array.isArray(result?.run?.waves) ? result.run.waves : (Array.isArray(nested?.waves) ? nested.waves : (Array.isArray(nested?.run?.waves) ? nested.run.waves : [])))
+    const nested = embeddedJson(result?.output_text)
+    const records = Array.isArray(result?.waves) ? result.waves : (Array.isArray(result?.run?.waves) ? result.run.waves : (Array.isArray(nested?.waves) ? nested.waves : (Array.isArray(nested?.run?.waves) ? nested.run.waves : (nested?.wave && typeof nested.wave === "object" ? [nested.wave] : []))))
     for (const wave of records) waves.push({ workflow_id: input?.metadata?.workflow_id ?? null, ...wave })
   }
   return waves
