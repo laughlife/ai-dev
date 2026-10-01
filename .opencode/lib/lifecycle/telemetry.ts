@@ -73,6 +73,7 @@ import {
   type TelemetryRefreshResult,
   type TokenUsage,
 } from "./types.ts"
+import { extractContextMessages } from "../session-context.ts"
 
 // ---------------------------------------------------------------------------
 // Pure helpers (no ctx, no fs, no DB) — exported for the lifecycle-core
@@ -278,7 +279,7 @@ export function buildTelemetrySample(params: {
 // unpaginated, compaction-bounded live context view (§2.1/§5/§6.4).
 export async function readSessionContextMessages(ctx: any, sessionID: string): Promise<any[]> {
   const res: any = await ctx.session.context({ sessionID })
-  return Array.isArray(res) ? res : (res?.messages ?? [])
+  return extractContextMessages(res)
 }
 
 // Raw model catalog (Model.Info entries with limit.context — §2.2).

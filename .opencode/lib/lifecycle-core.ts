@@ -56,6 +56,7 @@ import * as fs from "node:fs"
 import * as path from "node:path"
 import { globalWithLock } from "./global-lock.ts"
 import { parseRuntimeId } from "./runtime-registry-core.ts"
+import { extractContextMessages } from "./session-context.ts"
 import { createRotationCore } from "./lifecycle/rotation.ts"
 import { createReconcileCore } from "./lifecycle/reconcile.ts"
 import { parseThresholds, classifyLifecycleState } from "./lifecycle/state-machine.ts"
@@ -651,11 +652,7 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
     } catch (e: any) {
       return { ...none, reason: `ctx.session.context failed: ${errMsg(e)}` }
     }
-    const messages: any[] = Array.isArray(contextRes)
-      ? contextRes
-      : Array.isArray(contextRes?.messages)
-        ? contextRes.messages
-        : []
+    const messages: any[] = extractContextMessages(contextRes)
     const usage = extractLatestAssistantUsage(messages)
     if (!usage) {
       return { ...none, messages, reason: "no assistant message with verified tokens found (nothing measured yet or only streaming messages)" }
