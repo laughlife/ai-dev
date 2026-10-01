@@ -127,182 +127,396 @@
     "session_id": "ses_f0a295ed6ffelBf7n7LHMlLwxn"
   },
   "timestamp": "2026-10-01T05:04:10.000Z",
-  "waves": [
-    {
-      "wave_index": 0,
-      "node_ids": [
-        "scope-probe"
-      ],
-      "parallelism": 1,
-      "locks": [
-        {
-          "node_id": "scope-probe",
-          "route_class": "safe",
-          "lock_key": null
-        }
-      ],
-      "started_at": "2026-10-01T04:33:58.829Z",
-      "ended_at": "2026-10-01T04:34:38.011Z",
-      "results": [
-        {
-          "node_id": "scope-probe",
-          "task_id": "7f4e4f6f-9f03-46cc-a468-fb6b30f0647a",
-          "kind": "completed",
-          "started_at": "2026-10-01T04:33:58.829Z",
-          "ended_at": "2026-10-01T04:34:38.010Z"
-        }
-      ]
-    },
-    {
-      "wave_index": 1,
-      "node_ids": [
-        "feature-fix"
-      ],
-      "parallelism": 1,
-      "locks": [
-        {
-          "node_id": "feature-fix",
-          "route_class": "safe",
-          "lock_key": null
-        }
-      ],
-      "started_at": "2026-10-01T04:34:38.012Z",
-      "ended_at": "2026-10-01T04:40:11.992Z",
-      "results": [
-        {
-          "node_id": "feature-fix",
-          "task_id": "b6285aa5-187e-41fb-b555-8a031a802e83",
-          "kind": "completed",
-          "started_at": "2026-10-01T04:34:38.012Z",
-          "ended_at": "2026-10-01T04:40:11.991Z"
-        }
-      ]
-    },
-    {
-      "wave_index": 2,
-      "node_ids": [
-        "targeted-test"
-      ],
-      "parallelism": 1,
-      "locks": [
-        {
-          "node_id": "targeted-test",
-          "route_class": "project_serial",
-          "lock_key": "project:ruoyi-vue-pro:write"
-        }
-      ],
-      "started_at": "2026-10-01T04:40:11.993Z",
-      "ended_at": "2026-10-01T04:41:26.707Z",
-      "results": [
-        {
-          "node_id": "targeted-test",
-          "task_id": "dae8ecbf-0dae-445d-a90f-86e4851dd8b6",
-          "kind": "completed",
-          "started_at": "2026-10-01T04:40:11.993Z",
-          "ended_at": "2026-10-01T04:41:26.707Z"
-        }
-      ]
-    },
-    {
-      "wave_index": 3,
-      "node_ids": [
-        "independent-review"
-      ],
-      "parallelism": 1,
-      "locks": [
-        {
-          "node_id": "independent-review",
-          "route_class": "project_serial",
-          "lock_key": "project:ruoyi-vue-pro:write"
-        }
-      ],
-      "started_at": "2026-10-01T04:41:26.709Z",
-      "ended_at": "2026-10-01T04:42:48.813Z",
-      "results": [
-        {
-          "node_id": "independent-review",
-          "task_id": "9a93e09d-efe1-480a-8ad9-02c724f0b23a",
-          "kind": "completed",
-          "started_at": "2026-10-01T04:41:26.709Z",
-          "ended_at": "2026-10-01T04:42:48.813Z"
-        }
-      ]
-    },
-    {
-      "wave_index": 4,
-      "node_ids": [
-        "delivery-documentation"
-      ],
-      "parallelism": 1,
-      "locks": [
-        {
-          "node_id": "delivery-documentation",
-          "route_class": "project_serial",
-          "lock_key": "project:ruoyi-vue-pro:write"
-        }
-      ],
-      "started_at": "2026-10-01T04:45:44.094Z",
-      "ended_at": "2026-10-01T04:46:28.802Z",
-      "results": [
-        {
-          "node_id": "delivery-documentation",
-          "task_id": "7b45ebdd-6f95-44a5-882c-079d8e07b9da",
-          "kind": "completed",
-          "started_at": "2026-10-01T04:45:44.094Z",
-          "ended_at": "2026-10-01T04:46:28.802Z"
-        }
-      ]
-    },
-    {
-      "wave_index": 5,
-      "node_ids": [
-        "delivery-memory"
-      ],
-      "parallelism": 1,
-      "locks": [
-        {
-          "node_id": "delivery-memory",
-          "route_class": "global_serial",
-          "lock_key": "global:memory"
-        }
-      ],
-      "started_at": "2026-10-01T04:46:28.803Z",
-      "ended_at": "2026-10-01T04:47:16.424Z",
-      "results": [
-        {
-          "node_id": "delivery-memory",
-          "task_id": "a93ca82f-bf55-4524-82f2-d1e1cd956535",
-          "kind": "completed",
-          "started_at": "2026-10-01T04:46:28.803Z",
-          "ended_at": "2026-10-01T04:47:16.424Z"
-        }
-      ]
-    }
-  ],
+  "waves": [],
   "wave_source": {
-    "file": "C:/Users/Administrator/AppData/Local/Temp/plan11-cc9-wave-source.json",
-    "sha256": "3E542ED79E2C535FFCBE7EE54E78ED4890B11C9420821F5A0640DB306DC265D7",
+    "database": "D:/ai-dev/runtime/tasks.db",
+    "access_mode": "read-only",
     "workflow_id": "cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6",
-    "origin": {
-      "database": "C:/Users/Administrator/.local/share/opencode/opencode.db",
-      "table": "session_message",
-      "read_mode": "ro",
-      "session_id": "ses_f0a6bab21ffequIiL92hUhIQXQ",
-      "message_id": "msg_0f5b8c1ba0017N76Jcw4R7H04i",
-      "message_type": "assistant",
-      "message_seq": 78,
-      "message_time_created_ms": 1790828921386,
-      "message_time_updated_ms": 1790830036629,
-      "tool_name": "execute",
-      "tool_call_id": "call_r2yDWiMEkTR3UGwmDHa77X5b",
-      "tool_state": "completed",
-      "tool_time": {
-        "created": 1790828939549,
-        "ran": 1790828967215,
-        "completed": 1790830036427
+    "tables": [
+      "lifecycle_events",
+      "lifecycle_rotations",
+      "registry_meta",
+      "sessions",
+      "tasks",
+      "workflow_nodes",
+      "workflows"
+    ],
+    "indexes": 13,
+    "views_or_triggers": 0,
+    "columns_scanned": 77,
+    "wave_lock_parallel_columns": [],
+    "source_workflow_wave_records": 0,
+    "note": "waves is the verified empty set. runtime/tasks.db contains no wave table, no wave index, no view or trigger, and no column whose name contains wave, lock or parallel; source workflow cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6 has 0 wave records."
+  },
+  "waves_evidence": {
+    "verification_workflow_id": "95c6f981-c5c6-4d2a-98a1-13fa03b435d6",
+    "documentation_task_id": "53eee54b-f899-41cf-95df-721db496f866",
+    "verification_tasks": [
+      {
+        "node_id": "wave-source-read",
+        "task_id": "42a3322f-befb-42fc-b405-aedb8d234ab5",
+        "attempt": 3,
+        "route": "code_read",
+        "target_role": "project-reader",
+        "session_id": "ses_f13476d28ffeuq6UZovPjdgHxD",
+        "status": "COMPLETED",
+        "created_at": "2026-10-01T07:14:19.758Z",
+        "updated_at": "2026-10-01T07:14:41.878Z"
       },
-      "source_tool_output_sha256": "a080f882ca01dc9eca5d7e17a88f43ca42e4d4b67f552e501de913aa1da0fd67"
+      {
+        "node_id": "wave-evidence-validation",
+        "task_id": "21990927-b21e-4919-8a7d-6d4a981442c2",
+        "attempt": 3,
+        "route": "code_read",
+        "target_role": "project-reader",
+        "session_id": "ses_f13476d28ffeuq6UZovPjdgHxD",
+        "status": "COMPLETED",
+        "created_at": "2026-10-01T07:14:19.761Z",
+        "updated_at": "2026-10-01T07:14:52.074Z"
+      }
+    ],
+    "review": {
+      "task_id": "04e89c4d-b999-44ae-a8c0-b2117f0a87df",
+      "route": "independent_review",
+      "target_role": "reviewer",
+      "session_id": "ses_f09af19cbffe572aVVgET9IRgh",
+      "verdict": "PASS",
+      "findings": [],
+      "summary": "已只读核验 runtime/tasks.db，源 workflow 不存在可核对的 Team Scheduler wave 记录，waves 应为真实空集合；node/task/session 与 source workflow provenance 可追溯，未使用非 runtime 来源或推测数据。",
+      "started_at": "2026-10-01T07:14:52.083Z",
+      "finished_at": "2026-10-01T07:16:48.854Z",
+      "earlier_rounds": [
+        {
+          "round": 1,
+          "task_id": "1047ecc6-8bdd-43af-84a7-07192ac0b691",
+          "session_id": "ses_f09b43aaaffepNibejDRjmtRfk",
+          "verdict": "REWORK",
+          "ts": "2026-10-01T07:12:10.754Z"
+        },
+        {
+          "round": 2,
+          "task_id": "288bf825-e0eb-4bd6-8c56-ff58f5bd7ce4",
+          "session_id": "ses_f09b07c93ffe7O4rDqo4yZF6Gs",
+          "verdict": "REWORK",
+          "ts": "2026-10-01T07:14:19.756Z"
+        }
+      ]
     },
-    "note": "waves and their node_id/task_id/parallelism/locks/started_at/ended_at are copied verbatim from the temporary Team Scheduler wave source; not recomputed."
+    "removed_unsupported_claim": {
+      "removed_entries": 6,
+      "removed_fields": [
+        "waves[].wave_index",
+        "waves[].node_ids",
+        "waves[].parallelism",
+        "waves[].locks",
+        "waves[].started_at",
+        "waves[].ended_at",
+        "waves[].results",
+        "wave_source.file",
+        "wave_source.sha256",
+        "wave_source.origin"
+      ],
+      "previous_source": "temporary Team Scheduler wave source JSON and opencode.db session_message origin; not runtime/tasks.db",
+      "removal_reason": "runtime/tasks.db has no wave record for source workflow cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6, so the previous six waves, their parallelism, locks, wave-level times and wave-level results cannot be verified from runtime evidence.",
+      "required_by": [
+        "task:1047ecc6-8bdd-43af-84a7-07192ac0b691",
+        "task:288bf825-e0eb-4bd6-8c56-ff58f5bd7ce4"
+      ]
+    },
+    "corrections": [
+      {
+        "subject": "task 9a93e09d-efe1-480a-8ad9-02c724f0b23a (node independent-review)",
+        "attempt_1_claim": "session_id, started_at and finished_at reported as null",
+        "verified_values": {
+          "session_id": "ses_f0a3b9048ffeL83nlhQAotuLzx",
+          "started_at": "2026-10-01T04:41:26.710Z",
+          "finished_at": "2026-10-01T04:42:48.812Z"
+        },
+        "correction_basis": "runtime read in attempt 2, re-verified in attempt 3"
+      }
+    ]
+  },
+  "source_workflow_provenance": {
+    "workflow_row": {
+      "workflow_id": "cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6",
+      "primary_project_id": "ruoyi-vue-pro",
+      "status": "COMPLETED",
+      "rework_cycle": 0,
+      "created_at": "2026-10-01T04:29:27.230Z",
+      "updated_at": "2026-10-01T05:01:33.139Z",
+      "finished_at": "2026-10-01T05:01:33.139Z",
+      "completion_guard_finalized_at": "2026-10-01T05:01:33.139Z",
+      "planner_task_id": "af0a25e6-35a6-4590-9cd7-bfad8527debe",
+      "planner_session_id": "ses_f0a468abeffedZATa6OZl7FH5h"
+    },
+    "node_task_session": [
+      {
+        "node_id": "scope-probe",
+        "task_id": "7f4e4f6f-9f03-46cc-a468-fb6b30f0647a",
+        "attempt": 1,
+        "node_status": "COMPLETED",
+        "review_task_id": null,
+        "last_verdict": null,
+        "session_id": "ses_f0a4265d0ffegFjHMTT36KLalC",
+        "node_updated_at": "2026-10-01T04:34:38.011Z"
+      },
+      {
+        "node_id": "feature-fix",
+        "task_id": "b6285aa5-187e-41fb-b555-8a031a802e83",
+        "attempt": 1,
+        "node_status": "COMPLETED",
+        "review_task_id": null,
+        "last_verdict": null,
+        "session_id": "ses_f0a41ccc2ffeqdtW9r4hPy5KnJ",
+        "node_updated_at": "2026-10-01T04:40:11.992Z"
+      },
+      {
+        "node_id": "targeted-test",
+        "task_id": "dae8ecbf-0dae-445d-a90f-86e4851dd8b6",
+        "attempt": 1,
+        "node_status": "COMPLETED",
+        "review_task_id": null,
+        "last_verdict": null,
+        "session_id": "ses_f0a3cb424ffeWK2ZEL6bhG8QoA",
+        "node_updated_at": "2026-10-01T04:41:26.707Z"
+      },
+      {
+        "node_id": "independent-review",
+        "task_id": "9a93e09d-efe1-480a-8ad9-02c724f0b23a",
+        "attempt": 1,
+        "node_status": "REVIEW_PASSED",
+        "review_task_id": "14a39fbf-f861-40c7-b255-ee69c61be63b",
+        "last_verdict": "PASS",
+        "session_id": "ses_f0a3b9048ffeL83nlhQAotuLzx",
+        "node_updated_at": "2026-10-01T04:45:44.091Z"
+      },
+      {
+        "node_id": "delivery-documentation",
+        "task_id": "7b45ebdd-6f95-44a5-882c-079d8e07b9da",
+        "attempt": 1,
+        "node_status": "COMPLETED",
+        "review_task_id": null,
+        "last_verdict": null,
+        "session_id": "ses_f0a37a2deffen33pE3vDLog6hq",
+        "node_updated_at": "2026-10-01T04:46:28.802Z"
+      },
+      {
+        "node_id": "delivery-memory",
+        "task_id": "a93ca82f-bf55-4524-82f2-d1e1cd956535",
+        "attempt": 1,
+        "node_status": "COMPLETED",
+        "review_task_id": null,
+        "last_verdict": null,
+        "session_id": "ses_f0a36f43affe7o24P9zWRf8qSb",
+        "node_updated_at": "2026-10-01T04:47:16.424Z"
+      }
+    ],
+    "review_subtask": {
+      "task_id": "14a39fbf-f861-40c7-b255-ee69c61be63b",
+      "parent_task_id": "9a93e09d-efe1-480a-8ad9-02c724f0b23a",
+      "target_role": "reviewer",
+      "session_id": "ses_f0a3a4f8dffe6R2Z0t25aS75xi",
+      "verdict": "PASS",
+      "ts": "2026-10-01T04:45:44.091Z"
+    },
+    "tasks": [
+      {
+        "task_id": "af0a25e6-35a6-4590-9cd7-bfad8527debe",
+        "parent_task_id": null,
+        "target_role": "planner",
+        "target_session_key": "present (planner session key of source workflow, abbreviated in the verification report)",
+        "status": "COMPLETED",
+        "created_at": "2026-10-01T04:29:27.232Z",
+        "updated_at": "2026-10-01T04:33:58.823Z",
+        "result_session_id": "ses_f0a468abeffedZATa6OZl7FH5h",
+        "result_started_at": "2026-10-01T04:29:27.330Z",
+        "result_finished_at": "2026-10-01T04:33:58.823Z",
+        "artifacts": []
+      },
+      {
+        "task_id": "7f4e4f6f-9f03-46cc-a468-fb6b30f0647a",
+        "parent_task_id": "af0a25e6-35a6-4590-9cd7-bfad8527debe",
+        "target_role": "project-reader",
+        "target_session_key": "present (abbreviated in the verification report)",
+        "status": "COMPLETED",
+        "created_at": "2026-10-01T04:33:58.825Z",
+        "updated_at": "2026-10-01T04:34:38.010Z",
+        "result_session_id": "ses_f0a4265d0ffegFjHMTT36KLalC",
+        "result_started_at": "2026-10-01T04:33:58.829Z",
+        "result_finished_at": "2026-10-01T04:34:38.010Z",
+        "artifacts": []
+      },
+      {
+        "task_id": "b6285aa5-187e-41fb-b555-8a031a802e83",
+        "parent_task_id": "af0a25e6-35a6-4590-9cd7-bfad8527debe",
+        "target_role": "feature-executor",
+        "target_session_key": "present (abbreviated in the verification report)",
+        "status": "COMPLETED",
+        "created_at": "2026-10-01T04:33:58.825Z",
+        "updated_at": "2026-10-01T04:40:11.991Z",
+        "result_session_id": "ses_f0a41ccc2ffeqdtW9r4hPy5KnJ",
+        "result_started_at": "2026-10-01T04:34:38.012Z",
+        "result_finished_at": "2026-10-01T04:40:11.991Z",
+        "artifacts": []
+      },
+      {
+        "task_id": "dae8ecbf-0dae-445d-a90f-86e4851dd8b6",
+        "parent_task_id": "af0a25e6-35a6-4590-9cd7-bfad8527debe",
+        "target_role": "test-runner",
+        "target_session_key": "session:ses_f0a3cb424ffeWK2ZEL6bhG8QoA",
+        "status": "COMPLETED",
+        "created_at": "2026-10-01T04:33:58.826Z",
+        "updated_at": "2026-10-01T04:41:26.706Z",
+        "result_session_id": "ses_f0a3cb424ffeWK2ZEL6bhG8QoA",
+        "result_started_at": "2026-10-01T04:40:11.995Z",
+        "result_finished_at": "2026-10-01T04:41:26.706Z",
+        "artifacts": []
+      },
+      {
+        "task_id": "9a93e09d-efe1-480a-8ad9-02c724f0b23a",
+        "parent_task_id": "af0a25e6-35a6-4590-9cd7-bfad8527debe",
+        "target_role": "reviewer",
+        "target_session_key": "session:ses_f0a3b9048ffeL83nlhQAotuLzx",
+        "status": "COMPLETED",
+        "created_at": "2026-10-01T04:33:58.826Z",
+        "updated_at": "2026-10-01T04:42:48.812Z",
+        "result_session_id": "ses_f0a3b9048ffeL83nlhQAotuLzx",
+        "result_started_at": "2026-10-01T04:41:26.710Z",
+        "result_finished_at": "2026-10-01T04:42:48.812Z",
+        "artifacts": []
+      },
+      {
+        "task_id": "14a39fbf-f861-40c7-b255-ee69c61be63b",
+        "parent_task_id": "9a93e09d-efe1-480a-8ad9-02c724f0b23a",
+        "target_role": "reviewer",
+        "target_session_key": "session:ses_f0a3a4f8dffe6R2Z0t25aS75xi",
+        "status": "COMPLETED",
+        "created_at": "2026-10-01T04:42:48.816Z",
+        "updated_at": "2026-10-01T04:45:44.090Z",
+        "result_session_id": "ses_f0a3a4f8dffe6R2Z0t25aS75xi",
+        "result_started_at": "2026-10-01T04:42:48.817Z",
+        "result_finished_at": "2026-10-01T04:45:44.090Z",
+        "artifacts": []
+      },
+      {
+        "task_id": "7b45ebdd-6f95-44a5-882c-079d8e07b9da",
+        "parent_task_id": "af0a25e6-35a6-4590-9cd7-bfad8527debe",
+        "target_role": "documentation-agent",
+        "target_session_key": null,
+        "status": "COMPLETED",
+        "created_at": "2026-10-01T04:33:58.827Z",
+        "updated_at": "2026-10-01T04:46:28.802Z",
+        "result_session_id": "ses_f0a37a2deffen33pE3vDLog6hq",
+        "result_started_at": "2026-10-01T04:45:44.096Z",
+        "result_finished_at": "2026-10-01T04:46:28.801Z",
+        "artifacts": [
+          "docs/workflows/cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6/delivery.md"
+        ]
+      },
+      {
+        "task_id": "a93ca82f-bf55-4524-82f2-d1e1cd956535",
+        "parent_task_id": "af0a25e6-35a6-4590-9cd7-bfad8527debe",
+        "target_role": "memory-agent",
+        "target_session_key": null,
+        "status": "COMPLETED",
+        "created_at": "2026-10-01T04:33:58.827Z",
+        "updated_at": "2026-10-01T04:47:16.424Z",
+        "result_session_id": "ses_f0a36f43affe7o24P9zWRf8qSb",
+        "result_started_at": "2026-10-01T04:46:28.804Z",
+        "result_finished_at": "2026-10-01T04:47:16.423Z",
+        "artifacts": [
+          "memory:workflow:cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6"
+        ]
+      },
+      {
+        "task_id": "182ed2a0-76fd-42d3-90f9-8b8a03d6b9f1",
+        "parent_task_id": "a93ca82f-bf55-4524-82f2-d1e1cd956535",
+        "target_role": "memory-agent",
+        "target_session_key": "session:ses_f0a18f331ffe4wqc3WXltkGRd7",
+        "status": "COMPLETED",
+        "created_at": "2026-10-01T05:19:15.147Z",
+        "updated_at": "2026-10-01T05:19:29.194Z",
+        "result_session_id": "ses_f0a18f331ffe4wqc3WXltkGRd7",
+        "result_started_at": "2026-10-01T05:19:15.149Z",
+        "result_finished_at": "2026-10-01T05:19:29.194Z",
+        "artifacts": [],
+        "note": "Created and completed after the source workflow terminal timestamp 2026-10-01T05:01:33.139Z; recorded as a runtime fact only."
+      }
+    ],
+    "plan_level_declarations": {
+      "note": "plan_json depends_on and resources.exclusive are plan-level declarations. They are not runtime wave, parallelism or lock evidence.",
+      "depends_on": [
+        {
+          "node_id": "scope-probe",
+          "depends_on": []
+        },
+        {
+          "node_id": "feature-fix",
+          "depends_on": [
+            "scope-probe"
+          ]
+        },
+        {
+          "node_id": "targeted-test",
+          "depends_on": [
+            "feature-fix"
+          ]
+        },
+        {
+          "node_id": "independent-review",
+          "depends_on": [
+            "targeted-test"
+          ]
+        },
+        {
+          "node_id": "delivery-documentation",
+          "depends_on": [
+            "independent-review"
+          ]
+        },
+        {
+          "node_id": "delivery-memory",
+          "depends_on": [
+            "delivery-documentation"
+          ]
+        }
+      ],
+      "resources_exclusive_declarations": [
+        {
+          "node_ids": [
+            "scope-probe",
+            "feature-fix",
+            "targeted-test",
+            "independent-review"
+          ],
+          "declared": [
+            "worktree (plan11 e2e final worktree; path abbreviated in the verification report)"
+          ]
+        },
+        {
+          "node_ids": [
+            "delivery-documentation"
+          ],
+          "declared": [
+            "framework-docs:docs/workflows/cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6"
+          ]
+        },
+        {
+          "node_ids": [
+            "delivery-memory"
+          ],
+          "declared": [
+            "global:memory",
+            "memory:workflow:cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6"
+          ]
+        }
+      ],
+      "delivery_chain": "reviewer_pass -> documentation_update -> long_term_memory_write"
+    },
+    "delivery_artifacts": [
+      "docs/workflows/cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6/delivery.md",
+      "memory:workflow:cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6"
+    ],
+    "note": "All values above are copied from the read-only runtime verification in workflow 95c6f981-c5c6-4d2a-98a1-13fa03b435d6 (node wave-source-read attempt 3, task 42a3322f-befb-42fc-b405-aedb8d234ab5, and node wave-evidence-validation attempt 3, task 21990927-b21e-4919-8a7d-6d4a981442c2); nothing is recomputed or speculated."
   }
 }
