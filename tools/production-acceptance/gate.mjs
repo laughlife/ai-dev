@@ -23,16 +23,32 @@ function file(pathname) { return path.join(root, pathname) }
 function nonEmpty(value) { return typeof value === "string" && value.trim().length > 0 }
 function finiteNumber(value) { return typeof value === "number" && Number.isFinite(value) }
 function timestamp(value) { return nonEmpty(value) && Number.isFinite(Date.parse(value)) }
+function boundedPercent(value) { return finiteNumber(value) && value >= 0 && value <= 100 }
 function passVerdict(value) {
   return value === "PASS" || (value && typeof value === "object" && (value.status === "PASS" || value.verdict === "PASS"))
 }
 
 function uiEvidence(value) {
   if (value?.status !== "PASS" || !Array.isArray(value.samples) || value.samples.length < 3) return false
-  return value.samples.every((sample) => sample &&
+  const sessions = new Set(value.samples.map((sample) => sample?.session).filter(nonEmpty))
+  return sessions.size >= 3 && value.samples.every((sample) => sample &&
     nonEmpty(sample.session) && nonEmpty(sample.workflow) && nonEmpty(sample.runtime_version) &&
-    finiteNumber(sample.ui_pct) && finiteNumber(sample.runtime_pct) && finiteNumber(sample.delta_pp) &&
+    boundedPercent(sample.ui_pct) && boundedPercent(sample.runtime_pct) && finiteNumber(sample.delta_pp) &&
+    Math.abs(sample.ui_pct - sample.runtime_pct) <= 2 &&
+    Math.abs(sample.delta_pp - (sample.ui_pct - sample.runtime_pct)) <= 1e-9 &&
     timestamp(sample.timestamp))
+}
+
+const registeredIndependentRepos = new Set(["ruoyi-vue-pro", "yudao-ui-admin-vue3", "xxl-job", "nyamtn"])
+const registeredIndependentRepoPaths = new Set([...registeredIndependentRepos].map((name) => path.normalize(`D:\\ai-dev\\${name}`).toLowerCase()))
+const successfulRotationStates = new Set(["COMMITTED", "ROTATED"])
+const successfulRestoreStates = new Set(["RESTORED"])
+const successfulReconcileStates = new Set(["IDEMPOTENT", "OK", "COMMITTED"])
+function integerGeneration(value) { return Number.isInteger(value) && value >= 1 }
+function anyString(value, names) { return names.map((name) => value?.[name]).find(nonEmpty) }
+function registeredIndependentRepo(value) {
+  return registeredIndependentRepos.has(value) ||
+    (nonEmpty(value) && registeredIndependentRepoPaths.has(path.normalize(value).toLowerCase()))
 }
 
 function rotationEvidence(value) {
@@ -42,13 +58,20 @@ function rotationEvidence(value) {
   const rotation = value.rotation ?? value.rotation_status
   const restore = value.restore ?? value.restore_status
   const reconcile = value.reconcile ?? value.reconcile_status
-  return nonEmpty(workflow) && nonEmpty(session) && nonEmpty(rotation) && nonEmpty(restore) &&
-    nonEmpty(reconcile) && passVerdict(value.reviewer)
+  const generation = integerGeneration(value.generation) ||
+    (integerGeneration(value.from_generation) && integerGeneration(value.to_generation) && value.to_generation > value.from_generation)
+  return nonEmpty(workflow) && nonEmpty(session) && successfulRotationStates.has(rotation) &&
+    successfulRestoreStates.has(restore) && successfulReconcileStates.has(reconcile) && generation &&
+    nonEmpty(anyString(value, ["source", "source_session", "from_session", "from_session_id"])) &&
+    nonEmpty(anyString(value, ["successor", "successor_session", "successor_session_id"])) &&
+    nonEmpty(anyString(value, ["checkpoint", "checkpoint_path"])) && timestamp(value.timestamp) &&
+    passVerdict(value.reviewer)
 }
 
 function businessEvidence(value) {
   if (value?.status !== "PASS" || !value || typeof value !== "object") return false
-  return nonEmpty(value.independent_repo) && nonEmpty(value.feature) && passVerdict(value.test) &&
+  return registeredIndependentRepo(value.independent_repo) &&
+    nonEmpty(value.feature) && passVerdict(value.test) &&
     passVerdict(value.reviewer) && (nonEmpty(value.commit) || timestamp(value.timestamp))
 }
 
