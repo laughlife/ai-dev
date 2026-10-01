@@ -59,6 +59,7 @@
 
 import * as fs from "node:fs"
 import * as path from "node:path"
+import { extractContextMessages } from "./session-context.ts"
 
 export const SCHEMA_VERSION = 1
 export const DEFAULT_LIST_LIMIT = 50 // §35: default to the most recent 50 rows
@@ -679,7 +680,7 @@ export function createTaskBusCore(ctx: any, runtimeCore: any) {
         clearTimeout(timer)
       }
       const contextRes: any = await ctx.session.context({ sessionID })
-      const messages: any[] = Array.isArray(contextRes) ? contextRes : (contextRes?.messages ?? [])
+      const messages: any[] = extractContextMessages(contextRes)
       for (let i = messages.length - 1; i >= 0; i--) {
         const m = messages[i]
         if (m?.type !== "assistant") continue

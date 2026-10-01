@@ -91,6 +91,7 @@ import { Database } from "bun:sqlite"
 import * as fs from "node:fs"
 import * as path from "node:path"
 import { globalWithLock } from "./global-lock.ts"
+import { extractContextMessages } from "./session-context.ts"
 
 const SCHEMA_VERSION = "2" // Plan 8 T3: registry schema v2 (sessions telemetry/lifecycle columns + lifecycle tables)
 const WAIT_TIMEOUT_MS = 15 * 60 * 1000
@@ -657,7 +658,7 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
       clearTimeout(timer)
     }
     const contextRes: any = await ctx.session.context({ sessionID })
-    const messages: any[] = Array.isArray(contextRes) ? contextRes : (contextRes?.messages ?? [])
+    const messages: any[] = extractContextMessages(contextRes)
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i]
       if (m?.type !== "assistant") continue
