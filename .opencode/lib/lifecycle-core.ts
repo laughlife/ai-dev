@@ -610,7 +610,11 @@ export function createLifecycleCore(ctx: any, runtimeCore: any, options?: any) {
       }
       if (typeof node.id === "string" && node.limit) addModel(pid, node)
     }
-    harvest(res)
+    // Desktop V2 returns the catalog in an envelope (`{ location, data }`)
+    // while older/plugin fixtures may return the array directly. Walk the
+    // payload itself so verified limits are resolved in both shapes without
+    // weakening the no-estimation policy.
+    harvest(res?.data ?? res)
     return { map, error: map.size === 0 ? "model catalog returned no usable limit.context entries" : null }
   }
 

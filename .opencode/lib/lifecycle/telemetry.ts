@@ -176,6 +176,11 @@ export function resolveCatalogEntry(catalog: any, providerID: string, modelID: s
   }
 
   if (catalog && typeof catalog === "object") {
+    // Desktop V2 wraps model results as `{ location, data }`; recurse into
+    // the payload so the lookup remains exact for the live runtime shape.
+    if (Array.isArray((catalog as any).data)) {
+      return resolveCatalogEntry((catalog as any).data, providerID, modelID)
+    }
     // shape 3: { providers: [...] } wrapper
     if (Array.isArray((catalog as any).providers)) {
       return resolveCatalogEntry((catalog as any).providers, providerID, modelID)

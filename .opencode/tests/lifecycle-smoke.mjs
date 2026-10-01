@@ -53,7 +53,7 @@ const ctx = {
   },
   model: {
     async list() {
-      return [{ providerID: "openai", id: "gpt-5.6-sol-fast", limit: catalogLimit == null ? {} : { context: catalogLimit } }]
+      return { location: tempRoot, data: [{ providerID: "openai", id: "gpt-5.6-sol-fast", limit: catalogLimit == null ? {} : { context: catalogLimit } }] }
     },
   },
 }
