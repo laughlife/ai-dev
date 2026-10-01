@@ -2,6 +2,7 @@
   "schema_version": 1,
   "status": "PASS",
   "workflow_id": "cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6",
+  "source_workflow_id": "cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6",
   "workflow_status": "COMPLETED",
   "finished_at": "2026-10-01T05:01:33.139Z",
   "completion_guard_finalized_at": "2026-10-01T05:01:33.139Z",
@@ -39,12 +40,47 @@
     "findings": []
   },
   "workflow_nodes": [
-    { "node_id": "scope-probe", "route": "code_read", "status": "COMPLETED", "task_id": "7f4e4f6f-9f03-46cc-a468-fb6b30f0647a", "session_id": "ses_f0a4265d0ffegFjHMTT36KLalC" },
-    { "node_id": "feature-fix", "route": "code_change", "status": "COMPLETED", "task_id": "b6285aa5-187e-41fb-b555-8a031a802e83", "session_id": "ses_f0a41ccc2ffeqdtW9r4hPy5KnJ" },
-    { "node_id": "targeted-test", "route": "build_and_test", "status": "COMPLETED", "task_id": "dae8ecbf-0dae-445d-a90f-86e4851dd8b6", "session_id": "ses_f0a3cb424ffeWK2ZEL6bhG8QoA" },
-    { "node_id": "independent-review", "route": "independent_review", "status": "REVIEW_PASSED", "task_id": "9a93e09d-efe1-480a-8ad9-02c724f0b23a", "review_task_id": "14a39fbf-f861-40c7-b255-ee69c61be63b" },
-    { "node_id": "delivery-documentation", "route": "documentation_update", "status": "COMPLETED", "task_id": "7b45ebdd-6f95-44a5-882c-079d8e07b9da" },
-    { "node_id": "delivery-memory", "route": "long_term_memory_write", "status": "COMPLETED", "task_id": "a93ca82f-bf55-4524-82f2-d1e1cd956535", "replacement_task_id": "182ed2a0-76fd-42d3-90f9-8b8a03d6b9f1" }
+    {
+      "node_id": "scope-probe",
+      "route": "code_read",
+      "status": "COMPLETED",
+      "task_id": "7f4e4f6f-9f03-46cc-a468-fb6b30f0647a",
+      "session_id": "ses_f0a4265d0ffegFjHMTT36KLalC"
+    },
+    {
+      "node_id": "feature-fix",
+      "route": "code_change",
+      "status": "COMPLETED",
+      "task_id": "b6285aa5-187e-41fb-b555-8a031a802e83",
+      "session_id": "ses_f0a41ccc2ffeqdtW9r4hPy5KnJ"
+    },
+    {
+      "node_id": "targeted-test",
+      "route": "build_and_test",
+      "status": "COMPLETED",
+      "task_id": "dae8ecbf-0dae-445d-a90f-86e4851dd8b6",
+      "session_id": "ses_f0a3cb424ffeWK2ZEL6bhG8QoA"
+    },
+    {
+      "node_id": "independent-review",
+      "route": "independent_review",
+      "status": "REVIEW_PASSED",
+      "task_id": "9a93e09d-efe1-480a-8ad9-02c724f0b23a",
+      "review_task_id": "14a39fbf-f861-40c7-b255-ee69c61be63b"
+    },
+    {
+      "node_id": "delivery-documentation",
+      "route": "documentation_update",
+      "status": "COMPLETED",
+      "task_id": "7b45ebdd-6f95-44a5-882c-079d8e07b9da"
+    },
+    {
+      "node_id": "delivery-memory",
+      "route": "long_term_memory_write",
+      "status": "COMPLETED",
+      "task_id": "a93ca82f-bf55-4524-82f2-d1e1cd956535",
+      "replacement_task_id": "182ed2a0-76fd-42d3-90f9-8b8a03d6b9f1"
+    }
   ],
   "delivery": {
     "documentation": "docs/workflows/cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6/delivery.md",
@@ -90,5 +126,183 @@
     "finalize_status": "COMPLETED",
     "session_id": "ses_f0a295ed6ffelBf7n7LHMlLwxn"
   },
-  "timestamp": "2026-10-01T05:04:10.000Z"
+  "timestamp": "2026-10-01T05:04:10.000Z",
+  "waves": [
+    {
+      "wave_index": 0,
+      "node_ids": [
+        "scope-probe"
+      ],
+      "parallelism": 1,
+      "locks": [
+        {
+          "node_id": "scope-probe",
+          "route_class": "safe",
+          "lock_key": null
+        }
+      ],
+      "started_at": "2026-10-01T04:33:58.829Z",
+      "ended_at": "2026-10-01T04:34:38.011Z",
+      "results": [
+        {
+          "node_id": "scope-probe",
+          "task_id": "7f4e4f6f-9f03-46cc-a468-fb6b30f0647a",
+          "kind": "completed",
+          "started_at": "2026-10-01T04:33:58.829Z",
+          "ended_at": "2026-10-01T04:34:38.010Z"
+        }
+      ]
+    },
+    {
+      "wave_index": 1,
+      "node_ids": [
+        "feature-fix"
+      ],
+      "parallelism": 1,
+      "locks": [
+        {
+          "node_id": "feature-fix",
+          "route_class": "safe",
+          "lock_key": null
+        }
+      ],
+      "started_at": "2026-10-01T04:34:38.012Z",
+      "ended_at": "2026-10-01T04:40:11.992Z",
+      "results": [
+        {
+          "node_id": "feature-fix",
+          "task_id": "b6285aa5-187e-41fb-b555-8a031a802e83",
+          "kind": "completed",
+          "started_at": "2026-10-01T04:34:38.012Z",
+          "ended_at": "2026-10-01T04:40:11.991Z"
+        }
+      ]
+    },
+    {
+      "wave_index": 2,
+      "node_ids": [
+        "targeted-test"
+      ],
+      "parallelism": 1,
+      "locks": [
+        {
+          "node_id": "targeted-test",
+          "route_class": "project_serial",
+          "lock_key": "project:ruoyi-vue-pro:write"
+        }
+      ],
+      "started_at": "2026-10-01T04:40:11.993Z",
+      "ended_at": "2026-10-01T04:41:26.707Z",
+      "results": [
+        {
+          "node_id": "targeted-test",
+          "task_id": "dae8ecbf-0dae-445d-a90f-86e4851dd8b6",
+          "kind": "completed",
+          "started_at": "2026-10-01T04:40:11.993Z",
+          "ended_at": "2026-10-01T04:41:26.707Z"
+        }
+      ]
+    },
+    {
+      "wave_index": 3,
+      "node_ids": [
+        "independent-review"
+      ],
+      "parallelism": 1,
+      "locks": [
+        {
+          "node_id": "independent-review",
+          "route_class": "project_serial",
+          "lock_key": "project:ruoyi-vue-pro:write"
+        }
+      ],
+      "started_at": "2026-10-01T04:41:26.709Z",
+      "ended_at": "2026-10-01T04:42:48.813Z",
+      "results": [
+        {
+          "node_id": "independent-review",
+          "task_id": "9a93e09d-efe1-480a-8ad9-02c724f0b23a",
+          "kind": "completed",
+          "started_at": "2026-10-01T04:41:26.709Z",
+          "ended_at": "2026-10-01T04:42:48.813Z"
+        }
+      ]
+    },
+    {
+      "wave_index": 4,
+      "node_ids": [
+        "delivery-documentation"
+      ],
+      "parallelism": 1,
+      "locks": [
+        {
+          "node_id": "delivery-documentation",
+          "route_class": "project_serial",
+          "lock_key": "project:ruoyi-vue-pro:write"
+        }
+      ],
+      "started_at": "2026-10-01T04:45:44.094Z",
+      "ended_at": "2026-10-01T04:46:28.802Z",
+      "results": [
+        {
+          "node_id": "delivery-documentation",
+          "task_id": "7b45ebdd-6f95-44a5-882c-079d8e07b9da",
+          "kind": "completed",
+          "started_at": "2026-10-01T04:45:44.094Z",
+          "ended_at": "2026-10-01T04:46:28.802Z"
+        }
+      ]
+    },
+    {
+      "wave_index": 5,
+      "node_ids": [
+        "delivery-memory"
+      ],
+      "parallelism": 1,
+      "locks": [
+        {
+          "node_id": "delivery-memory",
+          "route_class": "global_serial",
+          "lock_key": "global:memory"
+        }
+      ],
+      "started_at": "2026-10-01T04:46:28.803Z",
+      "ended_at": "2026-10-01T04:47:16.424Z",
+      "results": [
+        {
+          "node_id": "delivery-memory",
+          "task_id": "a93ca82f-bf55-4524-82f2-d1e1cd956535",
+          "kind": "completed",
+          "started_at": "2026-10-01T04:46:28.803Z",
+          "ended_at": "2026-10-01T04:47:16.424Z"
+        }
+      ]
+    }
+  ],
+  "wave_source": {
+    "file": "C:/Users/Administrator/AppData/Local/Temp/plan11-cc9-wave-source.json",
+    "sha256": "3E542ED79E2C535FFCBE7EE54E78ED4890B11C9420821F5A0640DB306DC265D7",
+    "workflow_id": "cc9e6ad4-5aad-4d6c-9219-d94bd7918fc6",
+    "origin": {
+      "database": "C:/Users/Administrator/.local/share/opencode/opencode.db",
+      "table": "session_message",
+      "read_mode": "ro",
+      "session_id": "ses_f0a6bab21ffequIiL92hUhIQXQ",
+      "message_id": "msg_0f5b8c1ba0017N76Jcw4R7H04i",
+      "message_type": "assistant",
+      "message_seq": 78,
+      "message_time_created_ms": 1790828921386,
+      "message_time_updated_ms": 1790830036629,
+      "tool_name": "execute",
+      "tool_call_id": "call_r2yDWiMEkTR3UGwmDHa77X5b",
+      "tool_state": "completed",
+      "tool_time": {
+        "created": 1790828939549,
+        "ran": 1790828967215,
+        "completed": 1790830036427
+      },
+      "source_tool_output_sha256": "a080f882ca01dc9eca5d7e17a88f43ca42e4d4b67f552e501de913aa1da0fd67"
+    },
+    "note": "waves and their node_id/task_id/parallelism/locks/started_at/ended_at are copied verbatim from the temporary Team Scheduler wave source; not recomputed."
+  }
 }
