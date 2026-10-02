@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-dev.local/templates/plan12-control-plane-config.schema.json",
+  "title": "Plan 12 Control Plane Config Snapshot v1",
+  "description": "Versioned, immutable control-plane configuration vocabulary. This schema is a structural contract and does not create runtime/control-plane.db.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1, "type": "integer" },
+    "config_revision": { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/identifier" },
+    "parent_revision": {
+      "anyOf": [
+        { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/identifier" },
+        { "type": "null" }
+      ]
+    },
+    "state": { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/configState" },
+    "source_kind": { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/identifier" },
+    "drawio_raw_sha256": { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/sha256" },
+    "drawio_semantic_sha256": { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/sha256" },
+    "ir_sha256": { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/sha256" },
+    "config_digest": { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/sha256" },
+    "model_catalog_digest": { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/sha256" },
+    "route_bindings_digest": { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/sha256" },
+    "canonical_json": { "type": "string", "minLength": 2 },
+    "created_by": { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/identifier" },
+    "created_at": { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/utcDateTime" },
+    "activated_at": {
+      "anyOf": [
+        { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/utcDateTime" },
+        { "type": "null" }
+      ]
+    },
+    "rollback_of": {
+      "anyOf": [
+        { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/identifier" },
+        { "type": "null" }
+      ]
+    },
+    "active_revision": {
+      "anyOf": [
+        { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/identifier" },
+        { "type": "null" }
+      ]
+    },
+    "model_catalog": {
+      "type": "array",
+      "items": { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/modelCatalogEntry" }
+    },
+    "route_bindings": {
+      "type": "array",
+      "items": { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/routeBinding" }
+    },
+    "workflow_config_snapshots": {
+      "type": "array",
+      "items": { "$ref": "plan12-runtime-evidence-envelope.schema.json#/$defs/workflowConfigSnapshot" }
+    }
+  },
+  "required": [
+    "schema_version",
+    "config_revision",
+    "parent_revision",
+    "state",
+    "source_kind",
+    "drawio_raw_sha256",
+    "drawio_semantic_sha256",
+    "ir_sha256",
+    "config_digest",
+    "model_catalog_digest",
+    "route_bindings_digest",
+    "canonical_json",
+    "created_by",
+    "created_at",
+    "activated_at",
+    "rollback_of",
+    "active_revision",
+    "model_catalog",
+    "route_bindings",
+    "workflow_config_snapshots"
+  ],
+  "allOf": [
+    {
+      "if": { "properties": { "state": { "const": "ACTIVE" } } },
+      "then": { "required": ["active_revision"] }
+    }
+  ]
+}

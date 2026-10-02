@@ -1,0 +1,404 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-dev.local/templates/plan12-runtime-evidence-envelope.schema.json",
+  "title": "Plan 12 Runtime Evidence Envelope v1",
+  "description": "Canonical envelope and fact vocabulary for Plan 12 runtime evidence. These schemas define structure only; they do not create or imply a runtime database.",
+  "oneOf": [
+    { "$ref": "#/$defs/workflowRunFact" },
+    { "$ref": "#/$defs/workflowWaveFact" },
+    { "$ref": "#/$defs/workflowWaveNodeFact" },
+    { "$ref": "#/$defs/workflowLockEvent" },
+    { "$ref": "#/$defs/executionEvent" },
+    { "$ref": "#/$defs/workflowConfigSnapshot" },
+    { "$ref": "#/$defs/modelCatalogEntry" },
+    { "$ref": "#/$defs/routeBinding" }
+  ],
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 191,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#@+-]*$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "utcDateTime": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
+    },
+    "nullableIdentifier": {
+      "anyOf": [
+        { "$ref": "#/$defs/identifier" },
+        { "type": "null" }
+      ]
+    },
+    "evidenceLevel": {
+      "type": "string",
+      "enum": ["L0", "L1", "L2", "L3", "L4"]
+    },
+    "l3EvidenceLevel": {
+      "const": "L3",
+      "type": "string"
+    },
+    "configState": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "VALIDATED",
+        "STAGED",
+        "APPLIED",
+        "ACTIVE",
+        "SUPERSEDED",
+        "REJECTED",
+        "ROLLED_BACK"
+      ]
+    },
+    "factStatus": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "RUNNING",
+        "READY",
+        "SUCCEEDED",
+        "COMPLETED",
+        "FAILED",
+        "BLOCKED",
+        "INCOMPLETE",
+        "EVIDENCE_INCOMPLETE",
+        "CANCELLED",
+        "PASS",
+        "EVIDENCE_BLOCKED"
+      ]
+    },
+    "evidenceWriteStatus": {
+      "type": "string",
+      "enum": ["COMPLETE", "INCOMPLETE", "FAILED"]
+    },
+    "lockEventType": {
+      "type": "string",
+      "enum": ["ACQUIRE", "WAIT", "RELEASE", "CONFLICT", "EXPIRE"]
+    },
+    "executionEventType": {
+      "type": "string",
+      "enum": [
+        "RUN_STARTED",
+        "WAVE_STARTED",
+        "NODE_STARTED",
+        "NODE_FINISHED",
+        "WAVE_FINISHED",
+        "RUN_FINISHED",
+        "EVIDENCE_WRITE_FAILED"
+      ]
+    },
+    "routeStatus": {
+      "type": "string",
+      "enum": ["BOUND", "MODEL_UNASSIGNED", "UNAVAILABLE", "REJECTED"]
+    },
+    "modelSource": {
+      "type": "string",
+      "enum": ["runtime_catalog", "verified_config", "unavailable_probe"]
+    },
+    "modelAvailability": {
+      "type": "string",
+      "enum": ["VERIFIED", "UNKNOWN", "UNAVAILABLE", "EXPIRED"]
+    },
+    "commonEnvelopeProperties": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "const": 1, "type": "integer" },
+        "config_revision": { "$ref": "#/$defs/identifier" },
+        "source": { "$ref": "#/$defs/identifier" },
+        "observed_at": { "$ref": "#/$defs/utcDateTime" },
+        "payload_sha256": { "$ref": "#/$defs/sha256" },
+        "idempotency_key": { "$ref": "#/$defs/identifier" },
+        "evidence_level": { "$ref": "#/$defs/evidenceLevel" }
+      },
+      "required": [
+        "schema_version",
+        "config_revision",
+        "source",
+        "observed_at",
+        "payload_sha256",
+        "idempotency_key",
+        "evidence_level"
+      ]
+    },
+    "workflowRunFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": { "const": 1, "type": "integer" },
+        "config_revision": { "$ref": "#/$defs/identifier" },
+        "source": { "$ref": "#/$defs/identifier" },
+        "observed_at": { "$ref": "#/$defs/utcDateTime" },
+        "payload_sha256": { "$ref": "#/$defs/sha256" },
+        "idempotency_key": { "$ref": "#/$defs/identifier" },
+        "evidence_level": { "$ref": "#/$defs/l3EvidenceLevel" },
+        "fact_type": { "const": "workflow_run", "type": "string" },
+        "run_id": { "$ref": "#/$defs/identifier" },
+        "workflow_id": { "$ref": "#/$defs/identifier" },
+        "parent_run_id": { "$ref": "#/$defs/nullableIdentifier" },
+        "plan_digest": { "$ref": "#/$defs/sha256" },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "trigger": { "$ref": "#/$defs/identifier" },
+        "project_id": { "$ref": "#/$defs/identifier" },
+        "status": { "$ref": "#/$defs/factStatus" },
+        "started_at": { "$ref": "#/$defs/utcDateTime" },
+        "ended_at": { "anyOf": [{ "$ref": "#/$defs/utcDateTime" }, { "type": "null" }] },
+        "outcome_digest": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+        "evidence_write_status": { "$ref": "#/$defs/evidenceWriteStatus" },
+        "error_code": { "anyOf": [{ "$ref": "#/$defs/identifier" }, { "type": "null" }] },
+        "error_detail": { "anyOf": [{ "type": "string", "maxLength": 4000 }, { "type": "null" }] },
+        "engine_version": { "$ref": "#/$defs/identifier" }
+      },
+      "required": [
+        "schema_version", "config_revision", "source", "observed_at", "payload_sha256",
+        "idempotency_key", "evidence_level", "fact_type", "run_id", "workflow_id",
+        "parent_run_id", "plan_digest", "attempt", "trigger", "project_id", "status",
+        "started_at", "ended_at", "outcome_digest", "evidence_write_status", "error_code",
+        "error_detail", "engine_version"
+      ]
+    },
+    "workflowWaveFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": { "const": 1, "type": "integer" },
+        "config_revision": { "$ref": "#/$defs/identifier" },
+        "source": { "$ref": "#/$defs/identifier" },
+        "observed_at": { "$ref": "#/$defs/utcDateTime" },
+        "payload_sha256": { "$ref": "#/$defs/sha256" },
+        "idempotency_key": { "$ref": "#/$defs/identifier" },
+        "evidence_level": { "$ref": "#/$defs/l3EvidenceLevel" },
+        "fact_type": { "const": "workflow_wave", "type": "string" },
+        "run_id": { "$ref": "#/$defs/identifier" },
+        "wave_id": { "$ref": "#/$defs/identifier" },
+        "wave_index": { "type": "integer", "minimum": 0 },
+        "ready_set_digest": { "$ref": "#/$defs/sha256" },
+        "policy_digest": { "$ref": "#/$defs/sha256" },
+        "parallelism": { "type": "integer", "minimum": 1 },
+        "status": { "$ref": "#/$defs/factStatus" },
+        "started_at": { "$ref": "#/$defs/utcDateTime" },
+        "ended_at": { "anyOf": [{ "$ref": "#/$defs/utcDateTime" }, { "type": "null" }] },
+        "lock_snapshot_json": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+        "evidence_digest": { "$ref": "#/$defs/sha256" }
+      },
+      "required": [
+        "schema_version", "config_revision", "source", "observed_at", "payload_sha256",
+        "idempotency_key", "evidence_level", "fact_type", "run_id", "wave_id",
+        "wave_index", "ready_set_digest", "policy_digest", "parallelism", "status",
+        "started_at", "ended_at", "lock_snapshot_json", "evidence_digest"
+      ]
+    },
+    "workflowWaveNodeFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": { "const": 1, "type": "integer" },
+        "config_revision": { "$ref": "#/$defs/identifier" },
+        "source": { "$ref": "#/$defs/identifier" },
+        "observed_at": { "$ref": "#/$defs/utcDateTime" },
+        "payload_sha256": { "$ref": "#/$defs/sha256" },
+        "idempotency_key": { "$ref": "#/$defs/identifier" },
+        "evidence_level": { "$ref": "#/$defs/l3EvidenceLevel" },
+        "fact_type": { "const": "workflow_wave_node", "type": "string" },
+        "run_id": { "$ref": "#/$defs/identifier" },
+        "wave_id": { "$ref": "#/$defs/identifier" },
+        "node_id": { "$ref": "#/$defs/identifier" },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "task_id": { "$ref": "#/$defs/identifier" },
+        "route": { "$ref": "#/$defs/identifier" },
+        "resource_digest": { "$ref": "#/$defs/sha256" },
+        "lock_key_json": { "type": "string" },
+        "status": { "$ref": "#/$defs/factStatus" },
+        "event_seq": { "type": "integer", "minimum": 1 },
+        "started_at": { "$ref": "#/$defs/utcDateTime" },
+        "ended_at": { "anyOf": [{ "$ref": "#/$defs/utcDateTime" }, { "type": "null" }] },
+        "result_digest": { "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }] },
+        "error_code": { "anyOf": [{ "$ref": "#/$defs/identifier" }, { "type": "null" }] },
+        "session_id": { "$ref": "#/$defs/identifier" }
+      },
+      "required": [
+        "schema_version", "config_revision", "source", "observed_at", "payload_sha256",
+        "idempotency_key", "evidence_level", "fact_type", "run_id", "wave_id", "node_id",
+        "attempt", "task_id", "route", "resource_digest", "lock_key_json", "status",
+        "event_seq", "started_at", "ended_at", "result_digest", "error_code", "session_id"
+      ]
+    },
+    "workflowLockEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": { "const": 1, "type": "integer" },
+        "config_revision": { "$ref": "#/$defs/identifier" },
+        "source": { "$ref": "#/$defs/identifier" },
+        "observed_at": { "$ref": "#/$defs/utcDateTime" },
+        "payload_sha256": { "$ref": "#/$defs/sha256" },
+        "idempotency_key": { "$ref": "#/$defs/identifier" },
+        "evidence_level": { "$ref": "#/$defs/l3EvidenceLevel" },
+        "fact_type": { "const": "workflow_lock_event", "type": "string" },
+        "event_id": { "$ref": "#/$defs/identifier" },
+        "run_id": { "$ref": "#/$defs/identifier" },
+        "wave_id": { "$ref": "#/$defs/identifier" },
+        "node_id": { "$ref": "#/$defs/identifier" },
+        "lock_key": { "$ref": "#/$defs/identifier" },
+        "event_type": { "$ref": "#/$defs/lockEventType" },
+        "owner_token": { "$ref": "#/$defs/identifier" },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "occurred_at": { "$ref": "#/$defs/utcDateTime" },
+        "outcome": { "$ref": "#/$defs/identifier" },
+        "error_code": { "anyOf": [{ "$ref": "#/$defs/identifier" }, { "type": "null" }] }
+      },
+      "required": [
+        "schema_version", "config_revision", "source", "observed_at", "payload_sha256",
+        "idempotency_key", "evidence_level", "fact_type", "event_id", "run_id", "wave_id",
+        "node_id", "lock_key", "event_type", "owner_token", "sequence", "occurred_at",
+        "outcome", "error_code"
+      ]
+    },
+    "executionEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": { "const": 1, "type": "integer" },
+        "config_revision": { "$ref": "#/$defs/identifier" },
+        "source": { "$ref": "#/$defs/identifier" },
+        "observed_at": { "$ref": "#/$defs/utcDateTime" },
+        "payload_sha256": { "$ref": "#/$defs/sha256" },
+        "idempotency_key": { "$ref": "#/$defs/identifier" },
+        "evidence_level": { "$ref": "#/$defs/l3EvidenceLevel" },
+        "fact_type": { "const": "execution_event", "type": "string" },
+        "event_id": { "$ref": "#/$defs/identifier" },
+        "run_id": { "$ref": "#/$defs/identifier" },
+        "workflow_id": { "$ref": "#/$defs/identifier" },
+        "wave_id": { "$ref": "#/$defs/identifier" },
+        "node_id": { "$ref": "#/$defs/identifier" },
+        "task_id": { "$ref": "#/$defs/identifier" },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "event_type": { "$ref": "#/$defs/executionEventType" },
+        "status": { "$ref": "#/$defs/factStatus" },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "payload_digest": { "$ref": "#/$defs/sha256" },
+        "payload_ref": { "$ref": "#/$defs/identifier" },
+        "occurred_at": { "$ref": "#/$defs/utcDateTime" },
+        "error_code": { "anyOf": [{ "$ref": "#/$defs/identifier" }, { "type": "null" }] }
+      },
+      "required": [
+        "schema_version", "config_revision", "source", "observed_at", "payload_sha256",
+        "idempotency_key", "evidence_level", "fact_type", "event_id", "run_id", "workflow_id", "wave_id",
+        "node_id", "task_id", "attempt", "event_type", "status", "sequence", "payload_digest",
+        "payload_ref", "occurred_at", "error_code"
+      ]
+    },
+    "workflowConfigSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": { "const": 1, "type": "integer" },
+        "config_revision": { "$ref": "#/$defs/identifier" },
+        "source": { "$ref": "#/$defs/identifier" },
+        "observed_at": { "$ref": "#/$defs/utcDateTime" },
+        "payload_sha256": { "$ref": "#/$defs/sha256" },
+        "idempotency_key": { "$ref": "#/$defs/identifier" },
+        "evidence_level": { "$ref": "#/$defs/l3EvidenceLevel" },
+        "fact_type": { "const": "workflow_config_snapshot", "type": "string" },
+        "parent_revision": { "$ref": "#/$defs/nullableIdentifier" },
+        "source_kind": { "$ref": "#/$defs/identifier" },
+        "drawio_raw_sha256": { "$ref": "#/$defs/sha256" },
+        "drawio_semantic_sha256": { "$ref": "#/$defs/sha256" },
+        "ir_sha256": { "$ref": "#/$defs/sha256" },
+        "config_digest": { "$ref": "#/$defs/sha256" },
+        "model_catalog_digest": { "$ref": "#/$defs/sha256" },
+        "route_bindings_digest": { "$ref": "#/$defs/sha256" },
+        "canonical_json": { "type": "string", "minLength": 2 },
+        "state": { "$ref": "#/$defs/configState" },
+        "created_by": { "$ref": "#/$defs/identifier" },
+        "created_at": { "$ref": "#/$defs/utcDateTime" },
+        "activated_at": { "anyOf": [{ "$ref": "#/$defs/utcDateTime" }, { "type": "null" }] },
+        "rollback_of": { "$ref": "#/$defs/nullableIdentifier" }
+      },
+      "required": [
+        "schema_version", "config_revision", "source", "observed_at", "payload_sha256",
+        "idempotency_key", "evidence_level", "fact_type", "parent_revision", "source_kind",
+        "drawio_raw_sha256", "drawio_semantic_sha256", "ir_sha256", "config_digest",
+        "model_catalog_digest", "route_bindings_digest", "canonical_json", "state", "created_by",
+        "created_at", "activated_at", "rollback_of"
+      ]
+    },
+    "modelCatalogEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model_ref": { "$ref": "#/$defs/identifier" },
+        "provider_id": { "$ref": "#/$defs/identifier" },
+        "model_id": { "$ref": "#/$defs/identifier" },
+        "variant": { "anyOf": [{ "$ref": "#/$defs/identifier" }, { "type": "null" }] },
+        "runtime_id": { "$ref": "#/$defs/identifier" },
+        "source": { "$ref": "#/$defs/modelSource" },
+        "availability_status": { "$ref": "#/$defs/modelAvailability" },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "context_limit": { "anyOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }] },
+            "input": { "type": "boolean" },
+            "output": { "type": "boolean" }
+          },
+          "required": ["context_limit", "input", "output"]
+        },
+        "verified_at": { "$ref": "#/$defs/utcDateTime" },
+        "evidence_ref": { "$ref": "#/$defs/nullableIdentifier" },
+        "config_revision": { "$ref": "#/$defs/identifier" }
+      },
+      "required": [
+        "model_ref", "provider_id", "model_id", "variant", "runtime_id", "source",
+        "availability_status", "capabilities", "verified_at", "evidence_ref", "config_revision"
+      ]
+    },
+    "routeBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "route_id": { "$ref": "#/$defs/identifier" },
+        "project_id": { "$ref": "#/$defs/nullableIdentifier" },
+        "role": { "$ref": "#/$defs/identifier" },
+        "model_ref": { "$ref": "#/$defs/nullableIdentifier" },
+        "provider_id": { "$ref": "#/$defs/nullableIdentifier" },
+        "model_id": { "$ref": "#/$defs/nullableIdentifier" },
+        "variant": { "$ref": "#/$defs/nullableIdentifier" },
+        "runtime_id": { "$ref": "#/$defs/nullableIdentifier" },
+        "status": { "$ref": "#/$defs/routeStatus" },
+        "config_revision": { "$ref": "#/$defs/identifier" },
+        "evidence_ref": { "$ref": "#/$defs/nullableIdentifier" }
+      },
+      "required": [
+        "route_id", "project_id", "role", "model_ref", "provider_id", "model_id",
+        "variant", "runtime_id", "status", "config_revision", "evidence_ref"
+      ],
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "BOUND" } } },
+          "then": { "required": ["model_ref", "provider_id", "model_id", "runtime_id"] }
+        },
+        {
+          "if": { "properties": { "status": { "const": "MODEL_UNASSIGNED" } } },
+          "then": {
+            "properties": {
+              "model_ref": { "type": "null" },
+              "provider_id": { "type": "null" },
+              "model_id": { "type": "null" },
+              "variant": { "type": "null" },
+              "runtime_id": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "required": ["project_id"], "properties": { "project_id": { "const": "xxl-job" } } },
+          "then": { "properties": { "status": { "const": "MODEL_UNASSIGNED" } } }
+        }
+      ]
+    }
+  }
+}
