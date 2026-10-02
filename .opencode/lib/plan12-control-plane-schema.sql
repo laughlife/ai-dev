@@ -42,6 +42,45 @@ CREATE TABLE IF NOT EXISTS workflow_config_snapshots (
     FOREIGN KEY (parent_revision) REFERENCES workflow_config_snapshots(config_revision)
 );
 
+-- Plan 12.3 mutable lifecycle projection.  The snapshot row above remains
+-- immutable; this projection is the CAS-protected current state and carries
+-- lifecycle timestamps that must not be written back into the snapshot.
+CREATE TABLE IF NOT EXISTS config_revision_state (
+    config_revision TEXT PRIMARY KEY,
+    workflow_scope TEXT NOT NULL DEFAULT 'global',
+    current_state TEXT NOT NULL CHECK (current_state IN ('DRAFT','VALIDATED','STAGED','APPLIED','ACTIVE','SUPERSEDED','REJECTED','ROLLED_BACK')),
+    version INTEGER NOT NULL DEFAULT 0 CHECK (version >= 0),
+    parent_revision TEXT,
+    created_at TEXT NOT NULL,
+    validated_at TEXT,
+    staged_at TEXT,
+    applied_at TEXT,
+    activated_at TEXT,
+    superseded_at TEXT,
+    rejected_at TEXT,
+    rolled_back_at TEXT,
+    reason TEXT,
+    correlation_id TEXT,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (config_revision) REFERENCES workflow_config_snapshots(config_revision),
+    FOREIGN KEY (parent_revision) REFERENCES workflow_config_snapshots(config_revision)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cp_revision_one_active
+ON config_revision_state(current_state)
+WHERE current_state = 'ACTIVE';
+
+CREATE TABLE IF NOT EXISTS config_active_head (
+    head_key TEXT PRIMARY KEY CHECK (head_key = 'global'),
+    active_revision TEXT,
+    version INTEGER NOT NULL DEFAULT 0 CHECK (version >= 0),
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (active_revision) REFERENCES workflow_config_snapshots(config_revision)
+);
+
+INSERT OR IGNORE INTO config_active_head(head_key, active_revision, version, updated_at)
+VALUES ('global', NULL, 0, '1970-01-01T00:00:00.000Z');
+
 CREATE TABLE IF NOT EXISTS workflow_runs (
     run_id TEXT PRIMARY KEY,
     schema_version INTEGER NOT NULL,
@@ -187,6 +226,59 @@ CREATE INDEX IF NOT EXISTS idx_cp_nodes_run_node ON workflow_wave_nodes(run_id, 
 CREATE INDEX IF NOT EXISTS idx_cp_locks_run_key_seq ON workflow_lock_events(run_id, lock_key, sequence);
 CREATE INDEX IF NOT EXISTS idx_cp_events_run_seq ON execution_events(run_id, sequence);
 
+-- Plan 12.3 configuration lifecycle journal.  Revision payloads remain
+-- immutable in workflow_config_snapshots; lifecycle state is reconstructed
+-- from successful append-only journal entries.
+CREATE TABLE IF NOT EXISTS config_operation_idempotency (
+    idempotency_key TEXT PRIMARY KEY,
+    request_digest TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    config_revision TEXT NOT NULL,
+    target_revision TEXT,
+    correlation_id TEXT NOT NULL,
+    result TEXT NOT NULL,
+    error_code TEXT,
+    error_detail TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS config_revision_journal (
+    journal_seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    journal_id TEXT NOT NULL UNIQUE,
+    config_revision TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    from_state TEXT,
+    to_state TEXT,
+    expected_revision TEXT,
+    actual_revision TEXT,
+    actor TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    correlation_id TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    payload_sha256 TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    result TEXT NOT NULL,
+    error_code TEXT,
+    error_detail TEXT,
+    FOREIGN KEY (actual_revision) REFERENCES workflow_config_snapshots(config_revision)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cp_revision_journal_revision ON config_revision_journal(config_revision, journal_seq);
+CREATE INDEX IF NOT EXISTS idx_cp_revision_journal_correlation ON config_revision_journal(correlation_id, journal_seq);
+CREATE INDEX IF NOT EXISTS idx_cp_revision_journal_idempotency ON config_revision_journal(idempotency_key, journal_seq);
+CREATE TRIGGER IF NOT EXISTS trg_cp_operation_no_update
+BEFORE UPDATE ON config_operation_idempotency
+BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_UPDATE_FORBIDDEN'); END;
+CREATE TRIGGER IF NOT EXISTS trg_cp_operation_no_delete
+BEFORE DELETE ON config_operation_idempotency
+BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_DELETE_FORBIDDEN'); END;
+CREATE TRIGGER IF NOT EXISTS trg_cp_revision_journal_no_update
+BEFORE UPDATE ON config_revision_journal
+BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_UPDATE_FORBIDDEN'); END;
+CREATE TRIGGER IF NOT EXISTS trg_cp_revision_journal_no_delete
+BEFORE DELETE ON config_revision_journal
+BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_DELETE_FORBIDDEN'); END;
+
 CREATE TRIGGER IF NOT EXISTS trg_cp_meta_no_update
 BEFORE UPDATE ON control_plane_meta
 BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_UPDATE_FORBIDDEN'); END;
@@ -207,6 +299,24 @@ BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_UPDATE_FORBIDDEN'); END;
 CREATE TRIGGER IF NOT EXISTS trg_cp_snapshot_no_delete
 BEFORE DELETE ON workflow_config_snapshots
 BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_DELETE_FORBIDDEN'); END;
+
+CREATE TRIGGER IF NOT EXISTS trg_cp_snapshot_lifecycle_state
+AFTER INSERT ON workflow_config_snapshots
+BEGIN
+    INSERT OR IGNORE INTO config_revision_state
+      (config_revision, workflow_scope, current_state, version, parent_revision,
+       created_at, activated_at, updated_at)
+    VALUES
+      (NEW.config_revision, 'global', NEW.state, 0, NEW.parent_revision,
+       NEW.created_at, NEW.activated_at, NEW.created_at);
+    UPDATE config_active_head
+       SET active_revision = NEW.config_revision,
+           version = version + 1,
+           updated_at = NEW.created_at
+     WHERE NEW.state = 'ACTIVE'
+       AND head_key = 'global'
+       AND active_revision IS NULL;
+END;
 
 CREATE TRIGGER IF NOT EXISTS trg_cp_run_no_update
 BEFORE UPDATE ON workflow_runs
