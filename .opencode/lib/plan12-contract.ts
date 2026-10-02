@@ -24,9 +24,9 @@ export const ROUTE_STATES = new Set(["BOUND", "MODEL_UNASSIGNED", "UNAVAILABLE",
 export const MODEL_SOURCES = new Set(["runtime_catalog", "verified_config", "unavailable_probe"])
 export const MODEL_AVAILABILITY = new Set(["VERIFIED", "UNKNOWN", "UNAVAILABLE", "EXPIRED"])
 
-// These are the exact IDs currently present in framework-config/runtime-model-map.yaml
-// or the architecture-defined provider/model fields. Presence in this set is only an
-// identity check; it never claims that the provider is reachable or available.
+// These are legacy architecture/config candidates. They are retained for reporting and
+// migration compatibility only; runtime identity validation is syntax-based and must not
+// reject a model merely because a newer Runtime has not been added to this set.
 export const KNOWN_RUNTIME_IDS = new Set([
   "deepseek/deepseek-flash",
   "openai/gpt-5.6-sol#high",
@@ -463,8 +463,6 @@ function validateRuntimeIdentity(value: any, context?: Plan12ValidationContext):
   if (typeof value.runtime_id !== "string" || !RUNTIME_ID_RE.test(value.runtime_id)) return failure("RUNTIME_ID_INVALID", "runtime_id must be provider/model[#variant]", "$.runtime_id")
   const expected = `${value.provider_id}/${value.model_id}${value.variant ? `#${value.variant}` : ""}`
   if (value.runtime_id !== expected) return failure("RUNTIME_ID_MISMATCH", "runtime_id must be composed from exact provider/model/variant", "$.runtime_id")
-  const known = contextOf(context).knownRuntimeIds
-  if (!known.has(value.runtime_id)) return failure("MODEL_ID_UNKNOWN", "provider/model/variant is not an exact known identity", "$.runtime_id")
   return null
 }
 

@@ -1,9 +1,5 @@
 import crypto from "node:crypto"
-import {
-  KNOWN_RUNTIME_IDS,
-  canonicalizePlan12Json,
-  sha256Canonical,
-} from "./plan12-contract.ts"
+import { canonicalizePlan12Json, sha256Canonical } from "./plan12-contract.ts"
 import { type ControlPlaneStore } from "./plan12-control-plane.ts"
 
 type AnyRecord = Record<string, any>
@@ -18,6 +14,8 @@ const ROLE_NAMES = new Set([
   "DB Operator", "API Runner", "Test Runner", "Memory Agent",
 ])
 const REVISION_BLOCKED = new Set(["SUPERSEDED", "ROLLED_BACK", "REJECTED"])
+const RUNTIME_PART_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,190}$/
+const REQUIRED_RUNTIME_TOOLS = ["workflow_plan", "workflow_run", "workflow_execute", "workflow_get", "workflow_list"]
 
 function failure(code: string, detail: string, path?: string): Failure {
   return { ok: false, status: "REJECTED", code, detail, ...(path ? { path } : {}) }
@@ -36,13 +34,18 @@ function validUtc(value: any): boolean {
 }
 function exactIdentity(provider: any, modelId: any, exact: any): { ok: true; variant: string | null } | Failure {
   if (!isString(provider)) return failure("MODEL_PROVIDER_REQUIRED", "provider is required", "$.provider")
+  if (!RUNTIME_PART_RE.test(provider)) return failure("MODEL_PROVIDER_INVALID", "provider must be a single runtime identifier segment", "$.provider")
   if (!isString(modelId)) return failure("MODEL_ID_MISSING", "model_id is required", "$.model_id")
+  if (!RUNTIME_PART_RE.test(modelId)) return failure("MODEL_ID_INVALID", "model_id must be a single runtime identifier segment", "$.model_id")
   if (!isString(exact)) return failure("MODEL_EXACT_REF_REQUIRED", "exact_model_ref is required", "$.exact_model_ref")
-  const slash = exact.indexOf("/")
-  const hash = exact.indexOf("#")
-  const base = hash >= 0 ? exact.slice(0, hash) : exact
-  const variant = hash >= 0 ? exact.slice(hash + 1) : null
-  if (slash <= 0 || slash === base.length - 1 || (hash >= 0 && !variant)) return failure("MODEL_ID_INVALID", "exact_model_ref must be provider/model or provider/model#variant", "$.exact_model_ref")
+  const parts = exact.split("/")
+  if (parts.length !== 2) return failure("MODEL_ID_INVALID", "exact_model_ref must contain exactly one provider/model separator", "$.exact_model_ref")
+  const [refProvider, refModelAndVariant] = parts
+  const hashParts = refModelAndVariant.split("#")
+  if (hashParts.length > 2 || !hashParts[0] || (hashParts.length === 2 && !hashParts[1])) return failure("MODEL_ID_INVALID", "exact_model_ref must be provider/model or provider/model#variant", "$.exact_model_ref")
+  const refModel = hashParts[0]
+  const variant = hashParts.length === 2 ? hashParts[1] : null
+  if (!RUNTIME_PART_RE.test(refProvider) || !RUNTIME_PART_RE.test(refModel) || (variant !== null && !RUNTIME_PART_RE.test(variant))) return failure("MODEL_ID_INVALID", "runtime identity contains an invalid identifier segment", "$.exact_model_ref")
   const expected = `${provider}/${modelId}${variant ? `#${variant}` : ""}`
   if (exact !== expected) return failure("MODEL_RUNTIME_REF_MISMATCH", "exact_model_ref must be composed from exact provider/model/variant", "$.exact_model_ref")
   return { ok: true, variant }
@@ -102,7 +105,6 @@ export function validateModelCatalogRecord(input: unknown, store?: ControlPlaneS
   if (!isString(exact)) return failure("MODEL_EXACT_REF_REQUIRED", "exact_model_ref is required", "$.exact_model_ref")
   const identity = exactIdentity(provider, modelId, exact); if (!identity.ok) return identity
   if (value.variant !== undefined && value.variant !== identity.variant) return failure("MODEL_VARIANT_MISMATCH", "variant must match exact_model_ref", "$.variant")
-  if (!KNOWN_RUNTIME_IDS.has(exact)) return failure("MODEL_ID_UNKNOWN", "provider/model/variant is not an exact known runtime identity", "$.exact_model_ref")
   const state = value.availability_state ?? (value.availability_status === "VERIFIED" ? "AVAILABLE" : value.availability_status)
   if (!MODEL_STATES.has(state)) return failure("MODEL_AVAILABILITY_INVALID", "availability_state must be AVAILABLE, UNAVAILABLE, UNKNOWN or REJECTED", "$.availability_state")
   const source = value.runtime_source ?? value.source
@@ -121,7 +123,15 @@ export function validateModelCatalogRecord(input: unknown, store?: ControlPlaneS
   if (value.updated_at !== undefined && !validUtc(value.updated_at)) return failure("MODEL_PROBE_TIME_INVALID", "updated_at must be a UTC ISO-8601 timestamp", "$.updated_at")
   if (state === "AVAILABLE" && (source !== "runtime_probe" || !["AVAILABLE", "PASS", "VERIFIED"].includes(probeStatus))) return failure("MODEL_RUNTIME_PROBE_REQUIRED", "AVAILABLE requires a successful runtime probe", "$.availability_state")
   if (state === "AVAILABLE" && !isString(value.probe_id)) return failure("MODEL_RUNTIME_PROBE_REQUIRED", "AVAILABLE requires probe_id evidence", "$.probe_id")
-  if (state === "AVAILABLE" && store && !store.db.prepare("SELECT probe_id FROM runtime_model_probes WHERE probe_id = ? AND availability_state = 'AVAILABLE'").get(value.probe_id)) return failure("MODEL_RUNTIME_PROBE_REQUIRED", "probe_id does not reference a successful runtime probe", "$.probe_id")
+  if (state === "AVAILABLE" && !store) return failure("MODEL_RUNTIME_PROBE_REQUIRED", "AVAILABLE validation requires a control-plane probe record", "$.probe_id")
+  if (state === "AVAILABLE" && store) {
+    const probe = store.db.prepare("SELECT * FROM runtime_model_probes WHERE probe_id = ? AND availability_state = 'AVAILABLE'").get(value.probe_id) as any
+    if (!probe) return failure("MODEL_RUNTIME_PROBE_REQUIRED", "probe_id does not reference a successful runtime probe", "$.probe_id")
+    if (probe.provider !== provider || probe.model_id !== modelId || probe.exact_model_ref !== exact || probe.config_revision !== value.config_revision || !isString(value.runtime_version) || probe.runtime_version !== value.runtime_version) return failure("MODEL_RUNTIME_PROBE_IDENTITY_MISMATCH", "catalog identity, runtime_version and config_revision must match the successful runtime probe", "$.probe_id")
+    const probeTools = parseJson(probe.tools_json, {})
+    const availableTools = Array.isArray(probeTools) ? new Set(probeTools) : new Set(Object.keys(probeTools ?? {}).filter((tool) => probeTools[tool]))
+    if (probe.workflow_plugin_loaded !== 1 || REQUIRED_RUNTIME_TOOLS.some((tool) => !availableTools.has(tool))) return failure("MODEL_RUNTIME_PROBE_REQUIRED", "successful probe must include workflow-engine and all required tools", "$.probe_id")
+  }
   if (exact === "bailian-token-plan/qwen3.8-max" && state === "AVAILABLE" && source !== "runtime_probe") return failure("MODEL_AVAILABILITY_UNVERIFIED", "qwen3.8-max configuration presence cannot prove availability", "$.availability_state")
   if (value.display_name !== undefined && !isString(value.display_name)) return failure("MODEL_DISPLAY_NAME_INVALID", "display_name must be a non-empty string", "$.display_name")
   const normalized = {
@@ -178,7 +188,6 @@ export function validateRouteBindingRecord(input: unknown, store?: ControlPlaneS
     const identity = exactIdentity(provider, modelId, exact); if (!identity.ok) return identity
     if (value.variant !== undefined && value.variant !== identity.variant) return failure("MODEL_VARIANT_MISMATCH", "variant must match exact_model_ref", "$.variant")
     variant = identity.variant
-    if (!KNOWN_RUNTIME_IDS.has(exact)) return failure("MODEL_ID_UNKNOWN", "provider/model/variant is not an exact known runtime identity", "$.exact_model_ref")
   }
   if (value.project_scope === "xxl-job" || value.project_id === "xxl-job") {
     if (state !== "MODEL_UNASSIGNED") return failure("PROJECT_MODEL_UNASSIGNED", "xxl-job must remain MODEL_UNASSIGNED", "$.binding_state")
@@ -306,15 +315,19 @@ export function recordRuntimeProbe(store: ControlPlaneStore, input: AnyRecord): 
   if (!validUtc(value.observed_at)) return failure("MODEL_PROBE_TIME_INVALID", "observed_at must be a UTC ISO-8601 timestamp", "$.observed_at")
   const rawProbeStatus = value.probe_status ?? "UNKNOWN"
   if (!new Set(["AVAILABLE", "UNAVAILABLE", "UNKNOWN", "REJECTED", "BLOCKED", "PASS", "VERIFIED"]).has(rawProbeStatus)) return failure("MODEL_PROBE_STATUS_INVALID", "probe_status is not a supported runtime probe state", "$.probe_status")
-  const status = value.availability_state ?? (rawProbeStatus === "PASS" ? "AVAILABLE" : rawProbeStatus === "BLOCKED" ? "UNKNOWN" : rawProbeStatus)
-  const persistedProbeStatus = ["PASS", "VERIFIED"].includes(rawProbeStatus) ? "AVAILABLE" : rawProbeStatus
-  if ((status === "AVAILABLE") !== (persistedProbeStatus === "AVAILABLE")) return failure("MODEL_PROBE_STATE_MISMATCH", "availability_state and probe_status must agree on AVAILABLE", "$.availability_state")
+  const normalizedProbeStatus = ["PASS", "VERIFIED"].includes(rawProbeStatus) ? "AVAILABLE" : rawProbeStatus === "BLOCKED" ? "UNKNOWN" : rawProbeStatus
+  const status = value.availability_state ?? normalizedProbeStatus
+  if (status !== normalizedProbeStatus) return failure("MODEL_PROBE_STATE_MISMATCH", "availability_state and probe_status must agree", "$.availability_state")
   if (!MODEL_STATES.has(status)) return failure("MODEL_PROBE_STATE_INVALID", "probe availability_state is invalid", "$.availability_state")
+  if (status === "AVAILABLE") {
+    if (!isString(value.config_revision)) return failure("MODEL_CONFIG_REVISION_REQUIRED", "AVAILABLE probe requires config_revision", "$.config_revision")
+    if (!isString(value.runtime_version)) return failure("MODEL_RUNTIME_VERSION_REQUIRED", "AVAILABLE probe requires runtime_version", "$.runtime_version")
+    if (!isString(value.provider ?? value.provider_id) || !isString(value.model_id) || !isString(value.exact_model_ref ?? value.runtime_id)) return failure("MODEL_RUNTIME_ID_REQUIRED", "AVAILABLE probe requires provider, model_id and exact_model_ref", "$.exact_model_ref")
+  }
   const tools = value.tools ?? value.tools_json ?? {}
   if (typeof value.workflow_plugin_loaded !== "boolean") return failure("MODEL_RUNTIME_PLUGIN_REQUIRED", "workflow_plugin_loaded must be explicitly true or false", "$.workflow_plugin_loaded")
-  const requiredTools = ["workflow_plan", "workflow_run", "workflow_execute", "workflow_get", "workflow_list"]
   const availableTools = Array.isArray(tools) ? new Set(tools) : new Set(Object.keys(tools ?? {}).filter((key) => tools[key]))
-  if (status === "AVAILABLE" && (!value.workflow_plugin_loaded || requiredTools.some((tool) => !availableTools.has(tool)))) return failure("MODEL_RUNTIME_PROBE_BLOCKED", "AVAILABLE requires the workflow-engine plugin and all required tools", "$.tools")
+  if (status === "AVAILABLE" && (!value.workflow_plugin_loaded || REQUIRED_RUNTIME_TOOLS.some((tool) => !availableTools.has(tool)))) return failure("MODEL_RUNTIME_PROBE_BLOCKED", "AVAILABLE requires the workflow-engine plugin and all required tools", "$.tools")
   const prior = checkIdempotency(store, value.idempotency_key, envelope.digest); if (prior) return prior
   if (value.config_revision) { const revisionError = revisionAllowed(store, value.config_revision); if (revisionError) return revisionError }
   if (value.provider !== undefined && value.provider_id !== undefined && value.provider !== value.provider_id) return failure("MODEL_PROVIDER_MISMATCH", "provider and provider_id must match exactly", "$.provider_id")
@@ -324,7 +337,6 @@ export function recordRuntimeProbe(store: ControlPlaneStore, input: AnyRecord): 
   if (provider !== null || modelId !== null || exact !== null) {
     const identity = exactIdentity(provider, modelId, exact); if (!identity.ok) return identity
     if (value.variant !== undefined && value.variant !== identity.variant) return failure("MODEL_VARIANT_MISMATCH", "variant must match exact_model_ref", "$.variant")
-    if (!KNOWN_RUNTIME_IDS.has(exact)) return failure("MODEL_ID_UNKNOWN", "provider/model/variant is not an exact known runtime identity", "$.exact_model_ref")
   }
   try {
     store.db.exec("BEGIN IMMEDIATE")
@@ -333,7 +345,7 @@ export function recordRuntimeProbe(store: ControlPlaneStore, input: AnyRecord): 
       (probe_id,endpoint,runtime_version,workflow_plugin_loaded,tools_json,provider,provider_id,model_id,exact_model_ref,probe_status,availability_state,probe_error,observed_at,config_revision,metadata_json,idempotency_key,payload_sha256)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       value.probe_id, value.endpoint, value.runtime_version ?? null, value.workflow_plugin_loaded ? 1 : 0, JSON.stringify(canonicalizePlan12Json(tools)),
-      provider, provider, modelId, exact, persistedProbeStatus, status, value.probe_error ?? null, value.observed_at, value.config_revision ?? null,
+      provider, provider, modelId, exact, normalizedProbeStatus, status, value.probe_error ?? null, value.observed_at, value.config_revision ?? null,
       JSON.stringify(canonicalizePlan12Json(value.metadata ?? {})), value.idempotency_key, envelope.digest)
     insertAuditNoTx(store, {
       event_id: id("audit"), event_type: "MODEL_PROBE", probe_id: value.probe_id, config_revision: value.config_revision ?? null,
@@ -388,7 +400,14 @@ export function validateRouteBinding(store: ControlPlaneStore, routeBindingId: s
   const catalog = store.db.prepare("SELECT * FROM model_catalog WHERE exact_model_ref = ? AND config_revision = ? ORDER BY updated_at DESC, rowid DESC LIMIT 1").get(row.exact_model_ref, configRevision) as any
   if (!catalog) return admissionFailure(store, row, configRevision, failure("MODEL_CATALOG_NOT_FOUND", "BOUND route has no catalog entry"))
   if (catalog.availability_state !== "AVAILABLE") return admissionFailure(store, row, configRevision, failure("MODEL_UNAVAILABLE", `catalog model is ${catalog.availability_state}`))
-  if ((!options.allowUnprobed && !["AVAILABLE", "PASS", "VERIFIED"].includes(catalog.probe_status)) || catalog.runtime_source !== "runtime_probe") return admissionFailure(store, row, configRevision, failure("MODEL_RUNTIME_PROBE_REQUIRED", "BOUND route requires a successful runtime probe"))
+  if (![
+    "AVAILABLE", "PASS", "VERIFIED",
+  ].includes(catalog.probe_status) || catalog.runtime_source !== "runtime_probe" || !isString(catalog.probe_id)) return admissionFailure(store, row, configRevision, failure("MODEL_RUNTIME_PROBE_REQUIRED", "BOUND route requires a successful runtime probe"))
+  const probe = store.db.prepare("SELECT * FROM runtime_model_probes WHERE probe_id = ? AND availability_state = 'AVAILABLE'").get(catalog.probe_id) as any
+  if (!probe || probe.provider !== row.provider || probe.model_id !== row.model_id || probe.exact_model_ref !== row.exact_model_ref || probe.config_revision !== configRevision || probe.runtime_version !== catalog.runtime_version) return admissionFailure(store, row, configRevision, failure("MODEL_RUNTIME_PROBE_IDENTITY_MISMATCH", "BOUND route requires matching successful runtime probe evidence"))
+  const probeTools = parseJson(probe.tools_json, {})
+  const availableTools = Array.isArray(probeTools) ? new Set(probeTools) : new Set(Object.keys(probeTools ?? {}).filter((tool) => probeTools[tool]))
+  if (probe.workflow_plugin_loaded !== 1 || REQUIRED_RUNTIME_TOOLS.some((tool) => !availableTools.has(tool))) return admissionFailure(store, row, configRevision, failure("MODEL_RUNTIME_PROBE_REQUIRED", "BOUND route requires workflow-engine and all required tools"))
   if (options.runtime_version && catalog.runtime_version !== options.runtime_version) return admissionFailure(store, row, configRevision, failure("MODEL_RUNTIME_PROBE_REQUIRED", "runtime probe version does not match admission requirement"))
   return { ok: true, status: "ADMITTED", value: { route: row, catalog }, inserted: false }
 }

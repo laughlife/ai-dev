@@ -242,7 +242,8 @@ const unassigned = { ...route, model_ref: null, provider_id: null, model_id: nul
 assert.equal(validateRouteBinding(unassigned).ok, true)
 assert.notEqual(validateRouteBinding({ ...unassigned, status: "BOUND" }).ok, true, "MODEL_UNASSIGNED cannot become BOUND")
 
-assert.notEqual(validateModelCatalogEntry({ ...model, runtime_id: "unknown/provider-model#high" }).ok, true)
+assert.equal(validateModelCatalogEntry({ ...model, runtime_id: "openai/gpt-6.1-sol", provider_id: "openai", model_id: "gpt-6.1-sol", variant: null, availability_status: "UNKNOWN" }).ok, true)
+assert.notEqual(validateModelCatalogEntry({ ...model, runtime_id: "openai/gpt-6.1-sol/extra", provider_id: "openai", model_id: "gpt-6.1-sol", variant: null, availability_status: "UNKNOWN" }).ok, true)
 assert.notEqual(validateExecutionEvent({ ...execution, occurred_at: "2026-10-02T00:00:00+08:00" }).ok, true)
 assert.notEqual(validateExecutionEvent({ ...execution, sequence: 0 }).ok, true)
 assert.notEqual(validateWorkflowWaveNodeFact({ ...waveNode, attempt: 0 }).ok, true)

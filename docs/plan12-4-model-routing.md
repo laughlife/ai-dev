@@ -7,9 +7,12 @@ Plan 12.4 将模型身份、运行时探测事实和路由绑定保存到指定�
 ## 精确身份
 
 `provider_id`、`model_id` 和 `variant` 分列保存，`exact_model_ref` 由三者按
-`provider/model[#variant]` 组成。`display_name` 只用于显示，不能参与路由或门禁。
+`provider/model[#variant]` 组成。每个 segment 只能使用运行时标识符字符，exact
+identity 必须只有一个 `/`；额外 slash、空 variant、空段、控制字符和路径片段都会被
+拒绝。`display_name` 只用于显示，不能参与路由或门禁。
 目录条目还保存运行时来源、版本、探测时间、探测状态、错误、元数据摘要以及
-`config_revision`。静态配置不能产生 `AVAILABLE`：该状态必须引用成功的
+`config_revision`。Runtime identity 校验只负责语法和 provider/model/variant 一致性，
+不再使用静态 `KNOWN_RUNTIME_IDS` 拒绝新模型。静态配置不能产生 `AVAILABLE`：该状态必须引用成功的
 `runtime_model_probes` 记录；Qwen 的配置候选因此不会自动被当作可用模型。
 
 ## 运行时探测
@@ -20,6 +23,11 @@ Plan 12.4 将模型身份、运行时探测事实和路由绑定保存到指定�
 `AVAILABLE`。探测事实和模型目录写入同一份全局 evidence idempotency 索引，重复
 摘要幂等接受，复用 key 写入不同摘要返回
 `EVIDENCE_IDEMPOTENCY_CONFLICT`。
+
+因此 `openai/gpt-6.1-sol`、`openai/gpt-6-sol`、
+`bailian-token-plan/qwen3.8-flash` 和 `bailian-token-plan/glm-5.3` 等语法合法的新
+Runtime identity 可以先记录为 `UNKNOWN` 或 `UNAVAILABLE`；它们只有在匹配的成功
+probe 事实存在时才能进入 `AVAILABLE`。
 
 ## 路由与门禁
 

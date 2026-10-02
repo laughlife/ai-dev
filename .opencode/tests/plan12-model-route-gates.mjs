@@ -74,12 +74,33 @@ try {
   assert.equal(validateModelCatalogRecord({ provider: "openai", model_id: "gpt-5.6-sol", config_revision: first }).code, "MODEL_EXACT_REF_REQUIRED")
   assert.equal(validateModelCatalogRecord({ ...makeModel(first, "mismatch"), provider_id: "deepseek" }).code, "MODEL_PROVIDER_MISMATCH")
   assert.equal(validateModelCatalogRecord({ ...makeModel(first, "variant-mismatch"), variant: "low" }).code, "MODEL_VARIANT_MISMATCH")
-  assert.equal(validateModelCatalogRecord({ provider: "unknown", model_id: "gpt-5.6-sol", exact_model_ref: "unknown/gpt-5.6-sol#high", config_revision: first }).code, "MODEL_ID_UNKNOWN")
+  assert.equal(validateModelCatalogRecord({ provider: "openai", model_id: "gpt 6.1 sol", exact_model_ref: "openai/gpt 6.1 sol", config_revision: first }).code, "MODEL_ID_INVALID")
+  assert.equal(validateModelCatalogRecord({ provider: "openai", model_id: "gpt-6.1-sol", exact_model_ref: "openai/gpt-6.1-sol#v#2", config_revision: first }).code, "MODEL_ID_INVALID")
+  assert.equal(validateModelCatalogRecord({ provider: "openai", model_id: "gpt-6.1-sol", exact_model_ref: "openai/gpt-6.1-sol#", config_revision: first }).code, "MODEL_ID_INVALID")
 
   assert.equal(recordRuntimeProbe(store, makeProbe(first, "probe-a")).ok, true)
+  const incompleteAvailableProbe = makeProbe(first, "probe-incomplete")
+  incompleteAvailableProbe.config_revision = null
+  incompleteAvailableProbe.runtime_version = null
+  incompleteAvailableProbe.provider = null
+  incompleteAvailableProbe.provider_id = null
+  incompleteAvailableProbe.model_id = null
+  incompleteAvailableProbe.exact_model_ref = null
+  Object.assign(incompleteAvailableProbe, digest(incompleteAvailableProbe))
+  assert.equal(recordRuntimeProbe(store, incompleteAvailableProbe).code, "MODEL_CONFIG_REVISION_REQUIRED")
   assert.equal(recordRuntimeProbe(store, { ...makeProbe(first, "probe-inconsistent", "UNAVAILABLE", "AVAILABLE") }).code, "MODEL_PROBE_STATE_MISMATCH")
   const available = makeModel(first, "model-a")
   assert.equal(appendModelCatalogEntry(store, available).ok, true)
+  const dynamicUnknown = digest({ ...makeModel(first, "dynamic-unknown", "UNKNOWN", "openai/gpt-6.1-sol"), runtime_source: "runtime_catalog" })
+  assert.equal(appendModelCatalogEntry(store, dynamicUnknown).ok, true)
+  const dynamicUnavailable = digest({ ...makeModel(first, "dynamic-unavailable", "UNAVAILABLE", "bailian-token-plan/qwen3.8-flash"), runtime_source: "unavailable_probe" })
+  assert.equal(appendModelCatalogEntry(store, dynamicUnavailable).ok, true)
+  const dynamicProbe = digest({ ...makeProbe(first, "probe-dynamic"), model_id: "model-x", exact_model_ref: "acme/model-x#v1", provider: "acme" })
+  assert.equal(recordRuntimeProbe(store, dynamicProbe).ok, true)
+  const dynamicAvailable = makeModel(first, "dynamic-available", "AVAILABLE", "acme/model-x#v1", "probe-dynamic")
+  assert.equal(appendModelCatalogEntry(store, dynamicAvailable).ok, true)
+  assert.equal(appendRouteBinding(store, makeRoute(first, "dynamic-route", "BOUND", "acme/model-x#v1")).ok, true)
+  assert.equal(validateRouteBinding(store, "route-dynamic-route", first).status, "ADMITTED")
   assert.equal(appendModelCatalogEntry(store, available).status, "IDEMPOTENT")
   assert.equal(appendModelCatalogEntry(store, digest({ ...available, display_name: "conflict", idempotency_key: "model-a" })).code, "EVIDENCE_IDEMPOTENCY_CONFLICT")
   assert.equal(appendModelCatalogEntry(store, makeModel(first, "model-unavailable", "UNAVAILABLE", "deepseek/deepseek-flash")).ok, true)
@@ -135,6 +156,8 @@ try {
   assert.ok(audit.some((row) => row.status === "MODEL_UNAVAILABLE"))
   assert.ok(listRouteBindings(store).length >= 5)
   console.log("PLAN12_MODEL_ROUTE_GATES_PASS")
+  console.log("PLAN12_DYNAMIC_RUNTIME_ID_PASS")
+  console.log("PLAN12_MODEL_IDENTITY_REGRESSION_PASS")
 } finally {
   store.close()
   fs.rmSync(dir, { recursive: true, force: true })

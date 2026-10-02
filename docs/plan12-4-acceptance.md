@@ -14,6 +14,10 @@ append-only trigger，并共用 `evidence_idempotency`。`provider_id`、`model_
 `variant` 和 `exact_model_ref` 分列保存；display name 仅供展示。只有带成功
 `runtime_model_probes` 外键的 `runtime_probe` 条目才可声明 `AVAILABLE`。
 
+Runtime identity 不再依赖静态 `KNOWN_RUNTIME_IDS` 白名单。合法的新目录项（例如
+`openai/gpt-6.1-sol`、`bailian-token-plan/qwen3.8-flash`）可以记录为 `UNKNOWN`
+或 `UNAVAILABLE`；只有匹配的成功 probe 才能被提升为 `AVAILABLE`。
+
 Route admission 要求同一 `config_revision` 下存在 AVAILABLE 目录条目；
 `MODEL_UNASSIGNED`、`UNAVAILABLE`、`REJECTED`、缺少精确身份、缺失目录、版本不一致、
 `SUPERSEDED` 或 `ROLLED_BACK` 都返回结构化拒绝并追加审计。没有默认模型、跨项目
@@ -52,6 +56,8 @@ PLAN12_MODEL_CATALOG_PASS
 PLAN12_ROUTE_BINDING_PASS
 PLAN12_MODEL_UNASSIGNED_GATE_PASS
 PLAN12_MODEL_ROUTE_GATES_PASS
+PLAN12_DYNAMIC_RUNTIME_ID_PASS
+PLAN12_MODEL_IDENTITY_REGRESSION_PASS
 ```
 
 只读真实探测脚本为：

@@ -82,7 +82,7 @@ try {
   assert.equal(validateModelCatalogRecord({ ...modelInput(), provider: null }).code, "MODEL_PROVIDER_REQUIRED")
   assert.equal(validateModelCatalogRecord({ ...modelInput(), model_id: null }).code, "MODEL_ID_MISSING")
   assert.equal(validateModelCatalogRecord({ ...modelInput(), exact_model_ref: null }).code, "MODEL_EXACT_REF_REQUIRED")
-  assert.equal(validateModelCatalogRecord({ ...modelInput(), model_id: "not-known", exact_model_ref: "openai/not-known#high" }).code, "MODEL_ID_UNKNOWN")
+  assert.equal(validateModelCatalogRecord({ ...modelInput(), model_id: "not-known", exact_model_ref: "openai/not-known/extra" }).code, "MODEL_ID_INVALID")
   assert.equal(validateRouteBindingRecord({ ...routeInput(), role: "not-an-architecture-role" }).ok, false)
 
   const probe = recordRuntimeProbe(store, {
