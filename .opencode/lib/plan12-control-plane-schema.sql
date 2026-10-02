@@ -352,3 +352,131 @@ BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_UPDATE_FORBIDDEN'); END;
 CREATE TRIGGER IF NOT EXISTS trg_cp_execution_no_delete
 BEFORE DELETE ON execution_events
 BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_DELETE_FORBIDDEN'); END;
+
+-- Plan 12.4 model catalog, route bindings, runtime probes and admission audit.
+-- Model identity is always the exact provider/model[/variant] value; display_name is presentation only.
+CREATE TABLE IF NOT EXISTS model_catalog (
+    catalog_entry_id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    provider_id TEXT NOT NULL,
+    model_id TEXT NOT NULL,
+    variant TEXT,
+    exact_model_ref TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    capability_json TEXT NOT NULL,
+    availability_state TEXT NOT NULL CHECK (availability_state IN ('AVAILABLE','UNAVAILABLE','UNKNOWN','REJECTED')),
+    runtime_source TEXT NOT NULL,
+    runtime_version TEXT,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    probe_status TEXT NOT NULL,
+    probe_error TEXT,
+    probe_id TEXT,
+    metadata_sha256 TEXT NOT NULL,
+    config_revision TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    payload_sha256 TEXT NOT NULL,
+    FOREIGN KEY (config_revision) REFERENCES workflow_config_snapshots(config_revision),
+    FOREIGN KEY (probe_id) REFERENCES runtime_model_probes(probe_id)
+);
+
+CREATE TABLE IF NOT EXISTS route_bindings (
+    route_binding_id TEXT PRIMARY KEY,
+    role TEXT NOT NULL,
+    workflow_scope TEXT NOT NULL,
+    project_scope TEXT,
+    lane TEXT NOT NULL,
+    provider TEXT,
+    provider_id TEXT,
+    model_id TEXT,
+    variant TEXT,
+    exact_model_ref TEXT,
+    binding_state TEXT NOT NULL CHECK (binding_state IN ('BOUND','MODEL_UNASSIGNED','UNAVAILABLE','REJECTED')),
+    config_revision TEXT NOT NULL,
+    source TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    payload_sha256 TEXT NOT NULL,
+    FOREIGN KEY (config_revision) REFERENCES workflow_config_snapshots(config_revision)
+);
+
+CREATE TABLE IF NOT EXISTS runtime_model_probes (
+    probe_id TEXT PRIMARY KEY,
+    endpoint TEXT NOT NULL,
+    runtime_version TEXT,
+    workflow_plugin_loaded INTEGER NOT NULL CHECK (workflow_plugin_loaded IN (0,1)),
+    tools_json TEXT NOT NULL,
+    provider TEXT,
+    provider_id TEXT,
+    model_id TEXT,
+    exact_model_ref TEXT,
+    probe_status TEXT NOT NULL CHECK (probe_status IN ('AVAILABLE','UNAVAILABLE','UNKNOWN','REJECTED','BLOCKED')),
+    availability_state TEXT NOT NULL CHECK (availability_state IN ('AVAILABLE','UNAVAILABLE','UNKNOWN','REJECTED')),
+    probe_error TEXT,
+    observed_at TEXT NOT NULL,
+    config_revision TEXT,
+    metadata_json TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    payload_sha256 TEXT NOT NULL,
+    FOREIGN KEY (config_revision) REFERENCES workflow_config_snapshots(config_revision)
+);
+
+CREATE TABLE IF NOT EXISTS model_route_audit_events (
+    event_id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    catalog_entry_id TEXT,
+    route_binding_id TEXT,
+    probe_id TEXT,
+    config_revision TEXT,
+    provider TEXT,
+    model_id TEXT,
+    exact_model_ref TEXT,
+    status TEXT NOT NULL,
+    endpoint TEXT,
+    runtime_version TEXT,
+    reason TEXT NOT NULL,
+    detail_json TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    payload_sha256 TEXT NOT NULL,
+    FOREIGN KEY (config_revision) REFERENCES workflow_config_snapshots(config_revision),
+    FOREIGN KEY (catalog_entry_id) REFERENCES model_catalog(catalog_entry_id),
+    FOREIGN KEY (route_binding_id) REFERENCES route_bindings(route_binding_id),
+    FOREIGN KEY (probe_id) REFERENCES runtime_model_probes(probe_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cp_model_catalog_ref ON model_catalog(exact_model_ref, config_revision, updated_at);
+CREATE INDEX IF NOT EXISTS idx_cp_model_catalog_state ON model_catalog(availability_state, config_revision);
+CREATE INDEX IF NOT EXISTS idx_cp_route_role_scope ON route_bindings(role, workflow_scope, project_scope, config_revision);
+CREATE INDEX IF NOT EXISTS idx_cp_probe_ref ON runtime_model_probes(exact_model_ref, observed_at);
+CREATE INDEX IF NOT EXISTS idx_cp_model_audit_revision ON model_route_audit_events(config_revision, observed_at);
+CREATE INDEX IF NOT EXISTS idx_cp_model_audit_route ON model_route_audit_events(route_binding_id, observed_at);
+
+CREATE TRIGGER IF NOT EXISTS trg_cp_model_catalog_no_update
+BEFORE UPDATE ON model_catalog
+BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_UPDATE_FORBIDDEN'); END;
+CREATE TRIGGER IF NOT EXISTS trg_cp_model_catalog_no_delete
+BEFORE DELETE ON model_catalog
+BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_DELETE_FORBIDDEN'); END;
+CREATE TRIGGER IF NOT EXISTS trg_cp_route_bindings_no_update
+BEFORE UPDATE ON route_bindings
+BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_UPDATE_FORBIDDEN'); END;
+CREATE TRIGGER IF NOT EXISTS trg_cp_route_bindings_no_delete
+BEFORE DELETE ON route_bindings
+BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_DELETE_FORBIDDEN'); END;
+CREATE TRIGGER IF NOT EXISTS trg_cp_runtime_probe_no_update
+BEFORE UPDATE ON runtime_model_probes
+BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_UPDATE_FORBIDDEN'); END;
+CREATE TRIGGER IF NOT EXISTS trg_cp_runtime_probe_no_delete
+BEFORE DELETE ON runtime_model_probes
+BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_DELETE_FORBIDDEN'); END;
+CREATE TRIGGER IF NOT EXISTS trg_cp_model_audit_no_update
+BEFORE UPDATE ON model_route_audit_events
+BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_UPDATE_FORBIDDEN'); END;
+CREATE TRIGGER IF NOT EXISTS trg_cp_model_audit_no_delete
+BEFORE DELETE ON model_route_audit_events
+BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_DELETE_FORBIDDEN'); END;
