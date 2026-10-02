@@ -113,23 +113,23 @@ Plan 4: completed
 Plan 5: completed
 Plan 6: completed
 Plan 7: completed
-Plan 8: final acceptance blocked (manual Desktop UI / live runtime evidence required)
+Plan 8: PASS (live Desktop UI and isolated runtime rotation/restore/reconcile evidence recorded)
 Plan 9 U3: PASS
 Plan 9 U4: PASS (Completion Guard implementation, Desktop V2 runtime acceptance, and independent review)
 Plan 9 U5: PASS (Architecture Compiler Final Hardening)
 Plan 9 U6: PASS (Plan 9 Final Acceptance; Execution Kernel v1 Frozen)
 Plan 10: PASS (AI-Dev Control Plane / UI, local read-only and guarded facade)
-Plan 11: BLOCKED (production gate implemented; live UI, rotation, and business Feature E2E evidence required)
+Plan 11: PASS (production acceptance passed; framework_v1: RELEASE_READY)
 
-Next planned stage:
-Plan 11 Production Acceptance + Framework v1 (gate currently blocked)
+Current route:
+FROZEN (the current route is closed; future stages require an explicit new request and Plan 12 is not inferred)
 ```
 
-Not implemented yet:
+Not implemented yet or intentionally policy-disabled:
 
 - unattended drawio synchronization (explicit compiler check/diff/apply is implemented)
-- automatic lifecycle admission (pending Plan 8 Final Gate)
-- checkpoint / restore runtime (implemented; final acceptance evidence pending)
+- automatic lifecycle admission (implemented with a controlled path; remains disabled by policy; isolated fixture evidence does not enable unattended rotation)
+- checkpoint / restore runtime (implemented and covered by the accepted isolated runtime evidence)
 
 ## Usage Guide
 

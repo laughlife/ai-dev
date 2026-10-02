@@ -26,8 +26,9 @@ second source of truth.
   `CONTROL_RUNTIME_REQUIRED`; they must be dispatched through the Workflow
   Engine. The workflow control projection reports the run/resume/retry boundary
   for each status. Checkpoint and reconcile controls are similarly routed to the
-  Lifecycle Agent, while automatic lifecycle rotation returns `LIFECYCLE_LOCKED`
-  until the Plan 8 final evidence gate is closed.
+  Lifecycle Agent, while automatic lifecycle rotation remains `LIFECYCLE_LOCKED`
+  by policy; accepted isolated fixture evidence does not enable unattended
+  automatic rotation.
 - Evidence is available as JSON at `/api/evidence` and Markdown at
   `/api/evidence?format=markdown` (or `/api/evidence.md`). The export includes
   wave timing records when the runtime result contains them, reviewer/completion

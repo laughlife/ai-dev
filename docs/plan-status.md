@@ -203,7 +203,7 @@ Status: PASS
 Scope:
 - verified context telemetry
 - checkpoint and restore
-- 60/70/80 session lifecycle (automatic admission implementation complete; final live evidence gated)
+- 60/70/80 session lifecycle (automatic admission implementation complete; automatic rotation remains policy-gated)
 - session generation rotation and reload recovery
 
 Acceptance evidence:
@@ -286,7 +286,7 @@ Evidence:
   projection, explicit architecture confirmation, workflow mutation boundary,
   lifecycle lock, and UI/API syntax)
 
-Deferred to Plan 11:
+Completed through Plan 11:
 - production authentication and authorization
 - browser-level production evidence
 - crash/recovery and rollback drills
@@ -325,6 +325,6 @@ evidence records and the existing three Desktop UI samples.
 ## Route numbering note
 
 The frozen roadmap and architecture sources define Plan 9, Plan 10, and Plan
-11; no Plan 12 is defined in the drawio, framework-config, or repository
-documentation. The external objective references “Plan12”, so that label is an
-unresolved scope conflict. No new architecture stage is inferred from it.
+11. No Plan 12 is defined or scheduled in the drawio, framework-config, or
+repository documentation. The current route is frozen; future stages require
+a new explicit request and are not inferred from an external label.

@@ -113,22 +113,22 @@ Plan 4: completed
 Plan 5: completed
 Plan 6: completed
 Plan 7: completed
-Plan 8: final acceptance blocked（等待人工 Desktop UI / 真实 runtime 证据）
+Plan 8: PASS（真实 Desktop UI 与隔离 runtime rotation/restore/reconcile 证据已收录）
 Plan 9 U3: PASS
 Plan 9 U4: PASS（Completion Guard 实现、Desktop V2 运行时验收、独立 Reviewer 均通过）
 Plan 9 U5: PASS（Architecture Compiler Final Hardening）
 Plan 9 U6: PASS（Plan 9 Final Acceptance，Execution Kernel v1 Frozen）
 Plan 10: PASS（AI-Dev Control Plane / UI，本地只读与受控门面）
-Plan 11: BLOCKED（生产证据门禁已实现，等待真实 UI / 轮换 / 业务 Feature E2E 证据）
+Plan 11: PASS（生产验收通过；framework_v1: RELEASE_READY）
 
-Next planned stage:
-Plan 11 Production Acceptance + Framework v1（当前门禁阻断）
+Current route:
+FROZEN（当前路线已收口；未来阶段需要新的明确需求，不从现有状态推导 Plan 12）
 ```
 
-当前尚未实现：
+当前尚未实现或按策略保持关闭：
 
 - unattended drawio synchronization（编译器 check/diff/apply 已实现，但 apply 必须显式执行）
-- automatic lifecycle rotation（最终验收期间保持关闭；通过 Plan 8 Final Gate 后才启用）
+- automatic lifecycle rotation admission（已具备受控实现；当前按策略保持关闭，隔离 fixture 的成功证据不启用无人值守轮换）
 - Desktop UI 透明切换（当前仅支持 checkpoint + successor + manual handoff）
 
 ## 使用指南

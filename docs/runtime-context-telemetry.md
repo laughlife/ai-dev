@@ -128,8 +128,9 @@ not approximated**; the ≤2pp tolerance is expected to resolve to 0pp.
 Scope note: T1 was strictly read-only. The formal live side-by-side check
 against the Desktop UI rendering for three sessions is recorded in
 `docs/plan8-live-ui-evidence.json`; API/DB agreement was not substituted for
-the Desktop observation. The dedicated runtime rotation check remains
-`MANUAL_UI_EVIDENCE_REQUIRED`. See `docs/plan8-acceptance-matrix.md`.
+the Desktop observation. Dedicated isolated runtime rotation/restore/reconcile
+evidence is recorded in `docs/plan8-rotation-evidence.json`; Global Orchestrator
+primary handoff remains `MANUAL_UI_EVIDENCE_REQUIRED` per the acceptance matrix.
 
 ## 5. Compaction behavior
 
@@ -218,5 +219,5 @@ tables: session_v2, session_message   (context = last assistant row by seq with 
   verdict of the same day for 2.0.19.
 - Consumers: Runtime Registry `context_pct` (drawio),
   `framework-config/lifecycle.yaml` 60/70/80 thresholds. Automatic lifecycle
-  rotation remains disabled (`framework.yaml` flags) until the Plan 8 smoke
-  phase completes.
+  rotation remains disabled by policy (`framework.yaml` flags) even though the
+  Plan 8 smoke and isolated rotation evidence are complete.

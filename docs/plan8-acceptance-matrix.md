@@ -1,6 +1,6 @@
 # Plan 8 Final Acceptance Matrix
 
-This is the deterministic evidence index for the reopened Plan 8 gate. It
+This is the deterministic evidence index for the completed Plan 8 gate. It
 does not replace the required live Desktop UI observation.
 
 | ID | Evidence | State |
@@ -8,7 +8,7 @@ does not replace the required live Desktop UI observation.
 | A | Schema migration and legacy lifecycle-table repair in `lifecycle-smoke.mjs` | PASS |
 | B | Three live Desktop UI side-by-side samples | PASS (`docs/plan8-live-ui-evidence.json`) |
 | C | Below-60 reuse policy | PASS (state-machine/runtime coverage) |
-| D | 60–70 checkpoint preparation and retry path | PASS (preflight implementation; isolated runtime proof pending) |
+| D | 60–70 checkpoint preparation and retry path | PASS (preflight/retry implementation; isolated checkpoint/rotation evidence supplied) |
 | E | >=70 automatic rotation admission | PASS (fail-closed implementation; automatic flag remains gated) |
 | F | >=80 hard-stop admission | PASS (fail-closed implementation; automatic flag remains gated) |
 | G | Restore marker and live-active `force` protection | PASS |
@@ -24,12 +24,17 @@ does not replace the required live Desktop UI observation.
 
 ## Current gate
 
-The dedicated runtime rotation evidence is now supplied by
+The dedicated runtime rotation evidence is supplied by
 `docs/plan8-rotation-evidence.json`. It records verified telemetry,
 checkpoint, a committed isolated rotation with a successor generation,
 restore, two idempotent reconcile calls, and a fresh Reviewer PASS. Automatic
 rotation remains disabled by policy; the evidence is for the explicit isolated
 fixture path.
+
+P remains `MANUAL_UI_EVIDENCE_REQUIRED`: the supplied UI samples do not directly
+prove Global Orchestrator primary handoff. This is a non-blocking manual
+observation item for the current Plan 11 release gate; it is not a reason to
+change P to PASS or to mark `framework_v1` blocked.
 
 The recorded manual UI evidence contains:
 

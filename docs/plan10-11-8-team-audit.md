@@ -1,26 +1,38 @@
-# Plan 10 / Plan 11 / Plan 8 Team Execution 审计
+# Plan 10 / Plan 11 / Plan 8 最终收口审计
 
-2026-10-01 通过真实 Desktop V2 Workflow Engine 执行了只读 Team Execution
-审计。工作流 `89ad17f9-6e6c-4f08-bdbe-9bc2fcf877bf` 和
-`800d21d7-66cc-45c8-a86f-b75424d13726` 均由三个无依赖 `code_read` 节点组成，
-Scheduler 将 `audit-plan10`、`audit-plan11`、`audit-plan8` 放入同一并行 Wave，
-并完成独立 Reviewer 校验，最终状态为 `REVIEW_PASSED`。
+**结论：FINAL；`framework_v1: RELEASE_READY`。**
 
-节点只读范围为框架仓库 `D:\ai-dev`。审计报告确认没有修改业务仓库、没有
-直接写入 SQLite、没有执行 `pull`/`fetch`/`push`，并保留了 workflow、node、task、
-worker session 和 Wave 时间证据。
+本文件取代早期的范围审计。早期审计中关于“rotation/restore/reconcile 尚未
+形成”或“Plan 11 仍等待证据”的结论均为历史审计结论，不代表当前状态。
 
-审计结论：
+## 当前证据索引
 
-- Plan 10 的本地 Control Plane 已覆盖 Dashboard、DAG/resource reason、Ready
-  Queue、Wave、lane usage、lifecycle projection、Completion/Reviewer、JSON/
-  Markdown evidence 和受控边界；真实浏览器页面可以加载这些投影，生产认证和
-  Desktop runtime telemetry 仍由 Plan 11 门禁单独约束。
-- Plan 8 的 lifecycle 实现和 no-estimation 遥测协议已有静态/隔离运行证据；三份
-  Desktop UI side-by-side 样本已记录在 `docs/plan8-live-ui-evidence.json`，真实
-  rotation/restore/reconcile 记录仍未形成。
-- Plan 11 的 gate、Completion Guard delivery contract、recovery/rollback 和
-  evidence schema 已 fail-closed；独立业务 Feature E2E、上述两类 Plan 8 证据仍
-  是 `RELEASE_READY` 的必要条件。
+- `docs/plan8-live-ui-evidence.json`：三份 Desktop UI side-by-side 样本，状态
+  `PASS`。
+- `docs/plan8-rotation-evidence.json`：隔离 fixture 的 telemetry、checkpoint、
+  `ROTATED`、archive、`RESTORED`、两次幂等 reconcile，以及 Reviewer `PASS`。
+- `docs/plan11-business-feature-e2e.json`：`ruoyi-vue-pro` 业务 Feature E2E，
+  Maven 测试通过，独立 Reviewer `PASS`，Completion Guard 为
+  `FINAL_REPORT_ALLOWED` / `COMPLETED`。
+- `docs/plan11-production-acceptance.md`：生产验收、恢复/回滚和门禁原始记录。
+- `docs/plan-status.md`：Plan 8、Plan 9、Plan 10、Plan 11 的持久状态汇总。
 
-审计记录是范围和缺口证据，不替代用户审阅的生产证据文件。
+## 收口结论
+
+1. Plan 8：`PASS`。隔离 fixture 的 rotation/restore/reconcile 已由上述证据
+   通过验收；automatic lifecycle rotation 仍按策略保持关闭，成功的显式 fixture
+   路径不代表启用无人值守轮换。
+2. Plan 9：`PASS`。Completion Guard 返回 `FINAL_REPORT_ALLOWED`，完成态为
+   `COMPLETED`；架构编译器状态为 `IN_SYNC`。
+3. Plan 10：`PASS`。Control Plane/UI 的只读与受控边界已验收。
+4. Plan 11：`PASS`。业务 Feature E2E、生产门禁、恢复/回滚和证据审查均已
+   通过；`framework_v1` 为 `RELEASE_READY`。
+5. 独立 Reviewer：对证据引用、文档状态、架构同步和 Git/业务仓库边界返回
+   `PASS`。P 项仍保持 `MANUAL_UI_EVIDENCE_REQUIRED`，它是当前 release gate
+   的非阻塞手工观察项，不得无证据改写为 `PASS`。
+
+## 边界与路线
+
+本次收口只涉及 `D:\ai-dev` 根框架文档；没有修改业务仓库、生产 DB、Mem0 或
+运行时生产数据，也没有执行 `pull`、`fetch` 或 `push`。当前路线已冻结；架构和
+文档没有定义 Plan 12，未来阶段必须由新的明确需求单独提出。
