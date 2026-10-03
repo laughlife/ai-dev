@@ -79,9 +79,17 @@ Workflow 状态保持原状态或进入显式 `EVIDENCE_INCOMPLETE`；不能返�
 仍可保留在其原仓库/任务结果中，但交付结论必须阻断，等待人工/重试补齐同一 run
 的可验证事件；不得新造 wave 或覆盖旧事件。
 
-这扩展了现有 Completion Guard 的范围。当前 guard 只检查 `workflows`、
-`workflow_nodes`、`tasks` 和 review/delivery history；在 Plan 12 实现前，它不能
-声称已验证 wave、lock 或 control-plane evidence。
+这扩展了现有 Completion Guard 的范围。Plan 12.6 已将只读 L3 checker 接入
+`completion_final_report_permission` 与 `completion_finalize`：声明需要 Runtime
+evidence 的 Workflow 必须提供显式隔离 Control Plane DB、明确 `run_id`（多 run
+时不能猜测）、ACTIVE/历史快照、完整 lifecycle、wave/node/execution、锁 owner
+序列和精确模型身份；任何失败仍返回 `COMPLETION_GUARD_BLOCKED`。Legacy
+Workflow 保留原有兼容读路径，不能把未声明 evidence 的旧 Workflow 自动升级为
+L4。L3 checker 通过后，`completion_final_report_permission` 只返回
+`FINAL_REPORT_PREAUTHORIZED` 与 L3 预授权；仍需 Reviewer、delivery 和原有
+Completion Guard 事务成功，`completion_finalize` 才能返回 `COMPLETED`、
+`final_report_permission=true` 与 L4。Legacy 的 `FINAL_REPORT_ALLOWED` 仅是
+历史兼容读状态，并不代表 L4。
 
 ## 4. 模型精确 ID 与 `MODEL_UNASSIGNED`
 

@@ -32,9 +32,10 @@ export default {
       editor.add({
         name: "completion_final_report_permission",
         description:
-          "Deterministic final-report permission gate. Returns FINAL_REPORT_ALLOWED only when execution, " +
-          "required reviewer PASS evidence, required delivery routes and child-task completion all pass.",
-        input: { type: "object", properties: { workflow_id: { type: "string" } }, required: ["workflow_id"], additionalProperties: false },
+          "Deterministic final-report pre-authorization gate. Evidence-required workflows return " +
+          "FINAL_REPORT_PREAUTHORIZED with L3 evidence; legacy workflows retain FINAL_REPORT_ALLOWED. " +
+          "Only a successful completion_finalize transaction emits the L4 final-report result.",
+        input: { type: "object", properties: { workflow_id: { type: "string" }, run_id: { type: "string" }, control_plane_db: { type: "string" } }, required: ["workflow_id"], additionalProperties: false },
         options: { namespace: "completion" },
         execute: async (input: any) => ({ content: JSON.stringify(completion.finalReportPermission(input)) }),
       })
@@ -42,8 +43,8 @@ export default {
         name: "completion_finalize",
         description:
           "Hard Completion Guard transition. Atomically changes a workflow to COMPLETED only after " +
-          "completion_final_report_permission passes; otherwise the workflow state is left unchanged.",
-        input: { type: "object", properties: { workflow_id: { type: "string" } }, required: ["workflow_id"], additionalProperties: false },
+          "completion_final_report_permission passes, including Plan 12 L3 evidence when required; otherwise the workflow state is left unchanged.",
+        input: { type: "object", properties: { workflow_id: { type: "string" }, run_id: { type: "string" }, control_plane_db: { type: "string" } }, required: ["workflow_id"], additionalProperties: false },
         options: { namespace: "completion" },
         execute: async (input: any) => ({ content: JSON.stringify(completion.finalize(input)) }),
       })

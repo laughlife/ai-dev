@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "stage": "Plan 12.6",
+  "baseline": "1dfa099190d440689cc28eec030e7dd35b1f1f1e",
+  "observed_at": "2026-10-03T07:49:51.313Z",
+  "mode": "read_only_existing_plan12_5_runtime_facts",
+  "runtime_reexecuted": false,
+  "source_artifact": "C:/Users/Administrator/AppData/Local/Temp/plan12-5-r2-adapter-live-20261003063715/plan12-5-r2-live-evidence.json",
+  "source_sha256": "fd1f6b6eabbdb3a93bb5a8c038844f376f26bf13f12828ef17b8d785b1051345",
+  "workflow_id": "f1b88887-f674-4a19-ac2d-ab7621ec3c21",
+  "run_id": "7971ac41-ca5e-445d-98f7-c5eecd76c0f3",
+  "guard": {
+    "ok": false,
+    "status": "FINAL_REPORT_BLOCKED",
+    "code": "COMPLETION_GUARD_BLOCKED",
+    "detail": "delivery completion guard has not passed",
+    "workflow_id": "f1b88887-f674-4a19-ac2d-ab7621ec3c21",
+    "permission": false,
+    "delivery": {
+      "ok": false,
+      "status": "DELIVERY_PENDING",
+      "phase": "DELIVERY",
+      "workflow_id": "f1b88887-f674-4a19-ac2d-ab7621ec3c21",
+      "execution": {
+        "ok": true,
+        "status": "EXECUTION_COMPLETE",
+        "workflow_id": "f1b88887-f674-4a19-ac2d-ab7621ec3c21",
+        "checked": [
+          {
+            "node_id": "readme-evidence-1",
+            "status": "COMPLETED"
+          },
+          {
+            "node_id": "readme-evidence-2",
+            "status": "COMPLETED"
+          }
+        ],
+        "missing": [],
+        "workflow_status": "REVIEW_PASSED"
+      },
+      "missing": [
+        {
+          "node_id": "<workflow-review-pass>",
+          "reason": "REVIEW_PASS_REQUIRED"
+        },
+        {
+          "route": "documentation_update",
+          "reason": "REQUIRED_DELIVERY_ROUTE"
+        },
+        {
+          "route": "long_term_memory_write",
+          "reason": "REQUIRED_DELIVERY_ROUTE"
+        },
+        {
+          "reason": "DELIVERY_EVIDENCE_CONTRACT_MISSING"
+        }
+      ],
+      "reviewer_pass": false
+    },
+    "evidence": {
+      "ok": true,
+      "status": "COMPLETE",
+      "verification": "PASS",
+      "evidence_level": "L3",
+      "workflow_id": "f1b88887-f674-4a19-ac2d-ab7621ec3c21",
+      "run_id": "7971ac41-ca5e-445d-98f7-c5eecd76c0f3",
+      "config_revision": "r2-live-adapter-20261003b",
+      "evidence_ref": "control-plane:7971ac41-ca5e-445d-98f7-c5eecd76c0f3",
+      "missing": [],
+      "run": {
+        "run_id": "7971ac41-ca5e-445d-98f7-c5eecd76c0f3",
+        "schema_version": 1,
+        "config_revision": "r2-live-adapter-20261003b",
+        "source": "workflow-engine-live-r2",
+        "observed_at": "2026-10-03T07:09:14.936Z",
+        "payload_sha256": "026b16ed49fb5c23070d41dfd1cade467680062b15cf66f18b72af600443cffd",
+        "idempotency_key": "7971ac41-ca5e-445d-98f7-c5eecd76c0f3:run",
+        "evidence_level": "L3",
+        "fact_type": "workflow_run",
+        "workflow_id": "f1b88887-f674-4a19-ac2d-ab7621ec3c21",
+        "parent_run_id": null,
+        "plan_digest": "1163637101dcaea2d78cb0bab259f62e5bfd2816af0409728e16287005954e87",
+        "attempt": 1,
+        "trigger": "workflow_execute",
+        "project_id": "plan12-5-runtime-fixture",
+        "status": "COMPLETED",
+        "started_at": "2026-10-03T07:09:11.968Z",
+        "ended_at": "2026-10-03T07:09:14.935Z",
+        "outcome_digest": "b58db3b8667ed1cdbe777bcfdb5c5aec31ae498d6d04f451dca1ae0f585e995f",
+        "evidence_write_status": "COMPLETE",
+        "error_code": null,
+        "error_detail": null,
+        "engine_version": "workflow-engine-r2"
+      },
+      "wave_count": 1,
+      "node_count": 2,
+      "execution_event_count": 2
+    }
+  },
+  "limitations": [
+    "L3 checker proves row canonical digests and cross-record payload digest consistency; original payload bytes remain in the Plan 12.5 source artifacts",
+    "delivery=none keeps FINAL_REPORT_BLOCKED; L3 PASS does not bypass the architecture delivery gate"
+  ]
+}

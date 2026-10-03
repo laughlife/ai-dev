@@ -18,6 +18,8 @@ assert.deepEqual(REGRESSION_CHECKS.map((item) => item.id), [
   "plan11-production-acceptance",
   "plan11-recovery-rollback",
   "plan12-5-runtime-evidence-adapter",
+  "plan12-5-r2-runtime-evidence-contract",
+  "plan12-6-completion-guard-evidence",
   "production-acceptance-gate",
 ])
 for (const item of REGRESSION_CHECKS) {

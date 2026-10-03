@@ -311,13 +311,14 @@ function completionSnapshot(snapshot) {
   return withDb((db) => {
     if (!db) return snapshot.workflows.map((workflow) => ({ workflow_id: workflow.workflow_id, status: "REVIEW_PENDING", reviewer_pass: false, finalized: false, execution_gate: "PENDING", delivery_gate: "PENDING", final_report_permission: "DENIED", missing_reasons: ["SQLITE_RUNTIME_UNAVAILABLE"] }))
     const adapter = { query(sql) { const statement = db.prepare(sql); return { get: (...args) => statement.get(...args), all: (...args) => statement.all(...args) } } }
-    const guard = createCompletionCore({ db: adapter })
+    const guard = createCompletionCore({ db: adapter, root })
     return snapshot.workflows.map((workflow) => {
       const permission = guard.finalReportPermission({ workflow_id: workflow.workflow_id })
       const delivery = permission?.delivery ?? {}
       const execution = delivery?.execution ?? {}
-      const finalized = permission?.ok === true && permission?.permission === true
+      const finalized = permission?.ok === true && permission?.permission === true && (permission?.already_finalized === true || permission?.status === "FINAL_REPORT_ALLOWED")
       const missing = Array.isArray(delivery?.missing) ? delivery.missing : (permission?.detail ? [{ reason: permission.detail }] : [])
+      const evidenceMissing = Array.isArray(permission?.evidence?.missing) ? permission.evidence.missing : []
       return {
         workflow_id: workflow.workflow_id,
         status: finalized ? "FINAL_REPORT_ALLOWED" : (delivery?.reviewer_pass ? "DELIVERY_PENDING" : "REVIEW_PENDING"),
@@ -326,8 +327,12 @@ function completionSnapshot(snapshot) {
         execution_gate: execution?.ok === true ? "PASS" : "PENDING",
         delivery_gate: delivery?.ok === true ? "PASS" : "PENDING",
         final_report_permission: finalized ? "ALLOWED" : "DENIED",
-        missing_reasons: missing.map((item) => typeof item === "string" ? item : [item.reason, item.route, item.node_id, item.evidence].filter(Boolean).join(":")),
+        missing_reasons: [...missing, ...evidenceMissing].map((item) => typeof item === "string" ? item : [item.reason, item.code, item.route, item.node_id, item.evidence].filter(Boolean).join(":")),
         guard_code: permission?.code ?? null,
+        evidence_level: permission?.evidence_level ?? permission?.evidence?.evidence_level ?? null,
+        evidence_verification: permission?.verification ?? permission?.evidence?.verification ?? null,
+        evidence_code: permission?.evidence?.code ?? null,
+        evidence_ref: permission?.evidence?.evidence_ref ?? null,
       }
     })
   })

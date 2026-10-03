@@ -2,6 +2,10 @@
 // It never invokes an Agent. Read-only checks return evidence; the explicit
 // finalize operation is the sole guarded workflow-closing mutation.
 
+import { evaluateRuntimeEvidence } from "./plan12-completion-evidence.ts"
+import fs from "node:fs"
+import path from "node:path"
+
 const NODE_SUCCESS = new Set(["COMPLETED", "REVIEW_PASSED"])
 const ACTIVE_TASK = new Set(["READY", "RUNNING", "BLOCKED"])
 const EXECUTION_ALLOWED_WORKFLOW_STATES = new Set(["REVIEW_PASSED", "DELIVERY_PENDING", "DELIVERY_COMPLETE", "COMPLETED"])
@@ -31,8 +35,35 @@ function requiredPlanNodes(plan: any): any[] {
   return Array.isArray(plan?.nodes) ? plan.nodes.filter((n: any) => n?.metadata?.required !== false) : []
 }
 
-export function createCompletionCore(runtimeCore: any) {
+export function createCompletionCore(runtimeCore: any, options: any = {}) {
   const db = runtimeCore?.db
+  const evidenceResolver = options?.evidenceResolver
+  const defaultEvidenceResolver = options?.runtimeEvidenceEvaluator ?? evaluateRuntimeEvidence
+  function runtimeEvidence(input: any, wf: any, plan: any) {
+    const policy = plan?.metadata?.execution_policy ?? {}
+    const required = policy?.mode === "isolated_fixture" || plan?.metadata?.runtime_evidence_required === true
+    if (!required) return { ok: true, status: "NOT_REQUIRED", verification: "UNVERIFIED", evidence_level: "UNVERIFIED", missing: [] }
+    const resolver = evidenceResolver ?? defaultEvidenceResolver
+    if (typeof resolver === "function") {
+      try {
+        return resolver({
+          workflowId: wf.workflow_id,
+          runId: typeof input?.run_id === "string" ? input.run_id : undefined,
+          dbPath: typeof input?.control_plane_db === "string" ? input.control_plane_db : policy.control_plane_db,
+          root: runtimeCore?.root ?? process.cwd(),
+          productionRoot: process.env.AI_DEV_ROOT ?? (runtimeCore?.root && fs.existsSync(path.join(runtimeCore.root, ".git")) ? runtimeCore.root : null),
+          configRevision: policy.config_revision,
+          allowed_roots: policy.allowed_roots,
+          runtimeNodes: db.query("SELECT * FROM workflow_nodes WHERE workflow_id = ?").all(wf.workflow_id),
+          plan,
+        })
+      } catch (error: any) {
+        return { ok: false, status: "BLOCKED", verification: "BLOCKED", evidence_level: "L3", code: "EVIDENCE_CHECK_FAILED", detail: error?.message ?? String(error), missing: [{ code: "EVIDENCE_CHECK_FAILED" }] }
+      }
+    }
+    return { ok: false, status: "BLOCKED", verification: "BLOCKED", evidence_level: "L3", code: "EVIDENCE_STORE_UNAVAILABLE", detail: "Plan 12.6 evidence resolver is unavailable", missing: [{ code: "EVIDENCE_STORE_UNAVAILABLE" }] }
+  }
+
   function guard() {
     if (!db) return failure("SQLITE_RUNTIME_UNAVAILABLE", runtimeCore?.dbError ?? "runtime database unavailable")
     return null
@@ -181,6 +212,23 @@ export function createCompletionCore(runtimeCore: any) {
     if (!id) return failure("INVALID_INPUT", "workflow_id is required")
     const wf: any = db.query("SELECT * FROM workflows WHERE workflow_id = ?").get(id)
     if (!wf) return failure("WORKFLOW_NOT_FOUND", `workflow '${id}' does not exist`)
+    const plan = parse(wf.plan_json) ?? {}
+    const evidenceRequired = plan?.metadata?.execution_policy?.mode === "isolated_fixture" || plan?.metadata?.runtime_evidence_required === true
+    const evidence: any = runtimeEvidence(input, wf, plan)
+    const evidenceBlocked = evidenceRequired
+      ? evidence?.ok !== true || evidence?.status === "NOT_REQUIRED"
+      : evidence?.ok !== true && evidence?.status !== "NOT_REQUIRED"
+    if (evidenceBlocked) {
+      return {
+        ok: false,
+        status: "FINAL_REPORT_BLOCKED",
+        code: "COMPLETION_GUARD_BLOCKED",
+        detail: "runtime L3 evidence has not passed the Completion Guard",
+        workflow_id: id,
+        permission: false,
+        evidence,
+      }
+    }
     const delivery: any = deliveryCheck({ workflow_id: id })
     if (wf.status === "COMPLETED" && (!wf.completion_guard_finalized_at || !wf.finished_at || wf.completion_guard_finalized_at !== wf.finished_at)) {
       return {
@@ -191,6 +239,7 @@ export function createCompletionCore(runtimeCore: any) {
         workflow_id: id,
         permission: false,
         delivery,
+        evidence,
       }
     }
     if (delivery.ok !== true) {
@@ -202,15 +251,23 @@ export function createCompletionCore(runtimeCore: any) {
         workflow_id: id,
         permission: false,
         delivery,
+        evidence,
       }
     }
     return {
       ok: true,
-      status: "FINAL_REPORT_ALLOWED",
+      // Plan 12 evidence is only a pre-authorization read.  L4 and the
+      // FINAL_REPORT_ALLOWED claim are reserved for the successful finalize
+      // transaction below.  Legacy workflows retain their historical status
+      // for compatibility because they have no L3 evidence contract.
+      status: evidenceRequired ? "FINAL_REPORT_PREAUTHORIZED" : "FINAL_REPORT_ALLOWED",
       workflow_id: id,
       permission: true,
       already_finalized: wf.status === "COMPLETED",
       delivery,
+      evidence,
+      evidence_level: evidenceRequired ? "L3" : "UNVERIFIED",
+      verification: evidenceRequired ? "PASS" : "UNVERIFIED",
     }
   }
 
@@ -222,14 +279,20 @@ export function createCompletionCore(runtimeCore: any) {
     let result: any
     try {
       db.transaction(() => {
-        const permission: any = finalReportPermission({ workflow_id: id })
+        const permission: any = finalReportPermission({ ...input, workflow_id: id })
         if (permission.ok !== true) {
           result = permission
           return
         }
         const wf: any = db.query("SELECT * FROM workflows WHERE workflow_id = ?").get(id)
         if (wf.status === "COMPLETED") {
-          result = { ...permission, status: "COMPLETED", final_report_permission: true }
+          result = {
+            ...permission,
+            status: "COMPLETED",
+            final_report_permission: true,
+            evidence_level: permission.evidence?.status === "NOT_REQUIRED" ? "UNVERIFIED" : "L4",
+            verification: permission.evidence?.status === "NOT_REQUIRED" ? "UNVERIFIED" : "PASS",
+          }
           return
         }
         if (!DELIVERY_FINALIZABLE_WORKFLOW_STATES.has(String(wf.status))) {
@@ -266,6 +329,9 @@ export function createCompletionCore(runtimeCore: any) {
           final_report_permission: true,
           delivery_status: "DELIVERY_COMPLETE",
           finalized_at: now,
+          evidence: permission.evidence,
+          evidence_level: permission.evidence?.status === "NOT_REQUIRED" ? "UNVERIFIED" : "L4",
+          verification: permission.evidence?.status === "NOT_REQUIRED" ? "UNVERIFIED" : "PASS",
         }
       })()
     } catch (error: any) {

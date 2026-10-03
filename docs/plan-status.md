@@ -268,6 +268,35 @@ Commit messages were rewritten to Chinese on 2026-09-29. Hashes after e0bc30c di
 - Plan 10: Control Plane/UI: delivered
 - Plan 11: production acceptance and Framework v1 release gate: delivered
 
+## Plan 12 — Control Plane Evidence
+
+### Plan 12.5-R2 — Workflow Runtime Evidence Adapter
+
+Status: PASS
+
+- Real Desktop Runtime path/version, two Worker sessions, lifecycle sequence and
+  isolated Control Plane round-trip are recorded in
+  `docs/plan12-5-workflow-runtime-evidence-adapter.md`.
+- Planner/dispatch permission gates, append-only events, failure recovery and
+  Mem0=0 are covered by `.opencode/tests/plan12-5-r2-contract.mjs`.
+- The historical HTTP 401 and conditional `LIVE_BLOCKED` records remain negative
+  evidence only; they do not describe the current Plan 12.5 status.
+
+### Plan 12.6 — Completion Guard Evidence Integration
+
+Status: PASS
+
+- L3 Control Plane facts are checked before final-report permission for explicitly
+  evidence-required Workflows.
+- Legacy Workflows keep the existing Plan 9 gate; no L3 evidence is inferred from
+  result summaries.
+- Acceptance is tracked by `.opencode/tests/plan12-6-completion-guard-evidence.mjs`
+  → `PLAN12_COMPLETION_GUARD_EVIDENCE_PASS`; the independent GPT-5.6 Sol high
+  Reviewer returned PASS after checking L4 transaction provenance, common L3
+  envelopes and UTC times, model digest/idempotency, lock scope, attempt closure,
+  allowed_roots propagation, and legacy compatibility. Plan 12.6 does not
+  include Drawio/UI work.
+
 ## Plan 10 — AI-Dev Control Plane / UI
 
 Status: PASS (local v1 read-only and guarded control surface)
@@ -324,7 +353,8 @@ evidence records and the existing three Desktop UI samples.
 
 ## Route numbering note
 
-The frozen roadmap and architecture sources define Plan 9, Plan 10, and Plan
-11. No Plan 12 is defined or scheduled in the drawio, framework-config, or
-repository documentation. The current route is frozen; future stages require
-a new explicit request and are not inferred from an external label.
+Plan 12.0 through Plan 12.6 are explicitly requested Control Plane evidence
+stages and are now complete through Completion Guard integration. No Plan 12.7
+or Plan 12.8 work was entered in this task. The current route is frozen;
+future stages require a new explicit request and are not inferred from an
+external label.

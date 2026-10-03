@@ -28,6 +28,14 @@
 
 Workflow 不更新 Control Plane 的 RUNNING 行为 COMPLETED。同一 run 的开始/结束由有序 lifecycle events 表达，终态以一次不可变 `workflow_runs` 事实写入；wave/node 完成后一次性写入对应不可变事实。批量写入任一事实失败时事务回滚，返回 `PLAN12_RUNTIME_EVIDENCE_BLOCKED`/`EVIDENCE_WRITE_FAILED`；失败库不可写回时只保留外部错误回执，不声称证据完整。
 
+## 当前收口状态
+
+Plan 12.5-R2：**PASS**。五个实时 marker、真实 Desktop Runtime session/time、
+隔离 Control Plane DB 回读、digest round-trip 和 Mem0=0 均已记录在
+`docs/plan12-5-workflow-runtime-evidence-adapter.md` 的 Live artifact 中。
+本节后面的 `LIVE_BLOCKED` 文字是本轮之前的条件性 fail-closed 规则或历史尝试，
+不是当前状态；12.6 现在只消费已提交的 L3 事实，不重新执行 Desktop Runtime。
+
 ## 验收边界
 
-R2 的 fixture 契约测试覆盖 Planner/dispatch 双门禁、run 级事件无伪造 FK、append-only、digest 重启回读和 ACTIVE revision 校验。真实 Desktop Runtime Smoke 只有在新的隔离产物同时包含认证路径、两 Worker 节点、真实 session/time、隔离 DB 回读和 Mem0=0 时，才可输出 `PLAN12_RUNTIME_WORKFLOW_SMOKE_PASS`；否则保持 `LIVE_BLOCKED`，不进入 Plan 12.6。
+R2 的 fixture 契约测试覆盖 Planner/dispatch 双门禁、run 级事件无伪造 FK、append-only、digest 重启回读和 ACTIVE revision 校验。历史条件规则是：真实 Desktop Runtime Smoke 只有在新的隔离产物同时包含认证路径、两 Worker 节点、真实 session/time、隔离 DB 回读和 Mem0=0 时，才可输出 `PLAN12_RUNTIME_WORKFLOW_SMOKE_PASS`；否则当时保持 `LIVE_BLOCKED`。该条件已由当前 Live artifact 满足，不构成当前 12.6 阻塞。
