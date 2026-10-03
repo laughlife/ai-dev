@@ -969,7 +969,7 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     if (typeof role !== "string" || !role) return failure("INVALID_INPUT", "role is required")
     // serialize per session_key against concurrent ensure/send/archive
     return withLock(key, () =>
-      ensureScopedLocked(key, projectId, role, input?.runtime_id, input?.scope_context, input?.title),
+      ensureScopedLocked(key, projectId, role, input?.runtime_id, input?.scope_context, input?.title, input?.permissions),
     )
   }
 
@@ -980,6 +980,7 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     runtimeId: any,
     scopeContext: any,
     title: any,
+    permissions: any = null,
   ) {
     // reuse the latest ACTIVE generation when its OpenCode session still exists
     const latest: any = q.latest.get(key)
@@ -991,6 +992,11 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
         alive = false
       }
       if (alive) {
+        if (Array.isArray(permissions) && typeof ctx.session.update === "function") {
+          try { await ctx.session.update({ sessionID: latest.opencode_session_id, permissions }) } catch (error: any) {
+            return failure("SESSION_PERMISSION_UPDATE_FAILED", errMsg(error), { session_key: key, session_id: latest.opencode_session_id })
+          }
+        }
         q.touch.run(nowIso(), key, latest.generation)
         return rowToResult({ ...latest, last_used_at: nowIso() }, true)
       }
@@ -1041,7 +1047,9 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     try {
       // session location stays at the framework root; scope arrives via the
       // synthetic scope_context message below (same pattern as ensure())
-      const info: any = await ctx.session.create({ title: sessionTitle })
+      const createInput: any = { title: sessionTitle }
+      if (Array.isArray(permissions)) createInput.permissions = permissions
+      const info: any = await ctx.session.create(createInput)
       sessionID = info?.id ?? info?.sessionID
       if (!sessionID) throw new Error("session create returned no id")
     } catch (e: any) {

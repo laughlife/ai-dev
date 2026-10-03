@@ -1,7 +1,10 @@
+import path from "node:path"
 import { normalizeLanePolicies } from "../../lib/lane-scheduler.ts"
 import { resolveResourceContract } from "../../lib/lane-resource-contract.ts"
 import { dispatchTeamWaves, normalizeTeamExecutionPolicy, isTeamExecutionRequired, shouldMustParallelize } from "../../lib/team-execution-coordinator.ts"
 import { validateDeliveryResult, withReviewerPassEvidence } from "../../lib/delivery-chain.ts"
+import { createRuntimeEvidenceCollector, normalizeWorkflowExecutionPolicy, validateNodeExecutionPolicy } from "../../lib/plan12-runtime-execution.ts"
+import { initializeControlPlaneDatabase } from "../../lib/plan12-control-plane.ts"
 
 // Workflow Engine — automatic DAG scheduler (Plan 7 Phase 4+, T7b; §39-§44,
 // §60-§62, §68)
@@ -421,11 +424,18 @@ export interface SchedulerDeps {
   // scoped worker sends only — never for bus.dispatchTask routes and
   // never for reviewer ephemeral sessions.
   lifecyclePreflight?: ((sessionKey: string, info?: any) => Promise<any>) | null
+  evidenceStore?: any | null
+  evidenceStoreError?: string | null
+  evidenceRoot?: string | null
 }
 
 export function createScheduler(deps: SchedulerDeps) {
   const { core, bus, hooks, reviewer, loadWorkflowConfig } = deps
   const lifecyclePreflight = typeof deps?.lifecyclePreflight === "function" ? deps.lifecyclePreflight : null
+  const defaultEvidenceStore = deps?.evidenceStore ?? null
+  const evidenceStoreError = deps?.evidenceStoreError ?? null
+  const evidenceRoot = deps?.evidenceRoot ?? null
+  const runContexts = new Map<string, { evidenceStore: any | null; evidenceCollector: any | null; executionPolicy: any; activeWaveIndex: number }>()
   const db = core?.db
   const q = db
     ? {
@@ -468,6 +478,8 @@ export function createScheduler(deps: SchedulerDeps) {
   // Node execution (one node, inside its wave + lock). Never throws.
   // -------------------------------------------------------------------
   async function executeNode(wfId: string, nodeRow: any, planNode: any, base: any, teamMode: boolean): Promise<any> {
+    const runContext = runContexts.get(wfId)
+    const executionPolicy = runContext?.executionPolicy ?? normalizeWorkflowExecutionPolicy()
     const taskId = nodeRow.current_task_id
     const startedAt = nowIso()
     try {
@@ -477,6 +489,18 @@ export function createScheduler(deps: SchedulerDeps) {
       }
       const envelope = safeParse(taskRow.input_json)
       const route = typeof envelope?.route === "string" && envelope.route ? envelope.route : String(planNode?.route ?? "")
+      // Plan 12.5-R2: structured policy gate is before RUNNING, session
+      // creation and Task Bus dispatch.  It is evaluated from the persisted
+      // envelope/metadata, never from natural-language prompt text.
+      const permission = validateNodeExecutionPolicy({
+        ...(envelope ?? {}),
+        route,
+        project_id: taskRow.project_id ?? planNode?.project_id,
+        metadata: { ...(envelope?.metadata ?? {}), ...(planNode?.metadata ?? {}) },
+      }, executionPolicy)
+      if (!permission.ok) {
+        return { ...base, task_id: taskId, started_at: startedAt, ended_at: nowIso(), kind: "blocked", code: permission.code, detail: permission.detail, permission_gate: "DISPATCH" }
+      }
       q!.nodeSetStatus.run("RUNNING", nowIso(), wfId, nodeRow.node_id)
 
       // §84/§85 test hook: forced failure quota → persist FAILED directly
@@ -642,6 +666,12 @@ export function createScheduler(deps: SchedulerDeps) {
         "(Synthetic scope context written by the workflow-engine plugin, Plan 7.)",
       ].join("\n"),
       title: `[workflow] ${workerRole} ${wfId.slice(0, 8)} ${pid} ${nodeRow.node_id}`,
+      permissions: (runContexts.get(wfId)?.executionPolicy ?? normalizeWorkflowExecutionPolicy()).mode === "isolated_fixture" ? [
+        { action: "mem0_*", resource: "*", effect: "deny" },
+        { action: "mem0_handoff_*", resource: "*", effect: "deny" },
+        { action: "mysql-local_*", resource: "*", effect: "deny" },
+        { action: "mysql-server_*", resource: "*", effect: "deny" },
+      ] : undefined,
     })
     if (!ensured?.ok) {
       const code = String(ensured?.code ?? ensured?.status ?? "SESSION_ENSURE_FAILED")
@@ -947,6 +977,46 @@ export function createScheduler(deps: SchedulerDeps) {
       q!.wfFinish.run("FAILED", ts, ts, wfId)
       return buildResponse(wfId, baseRunState, "PLAN_MISSING", "workflows.plan_json is missing or has no nodes (materialization never succeeded)")
     }
+    const executionPolicy = normalizeWorkflowExecutionPolicy(plan.metadata?.execution_policy)
+    let runEvidenceStore = defaultEvidenceStore
+    let runEvidenceCollector: any = null
+    const runContext = { evidenceStore: runEvidenceStore, evidenceCollector: null as any, executionPolicy, activeWaveIndex: 0 }
+    runContexts.set(wfId, runContext)
+    if (executionPolicy.mode === "isolated_fixture") {
+      if (evidenceStoreError) {
+        q!.wfSetStatus.run("BLOCKED", nowIso(), wfId)
+        runContexts.delete(wfId)
+        return buildResponse(wfId, baseRunState, "PLAN12_RUNTIME_ADAPTER_LIVE_BLOCKED", `isolated Control Plane unavailable: ${evidenceStoreError}`)
+      }
+      if (!runEvidenceStore && executionPolicy.control_plane_db && evidenceRoot) {
+        try { runEvidenceStore = initializeControlPlaneDatabase({ dbPath: path.resolve(evidenceRoot, executionPolicy.control_plane_db) }); runContext.evidenceStore = runEvidenceStore } catch (error: any) {
+          q!.wfSetStatus.run("BLOCKED", nowIso(), wfId)
+          runContexts.delete(wfId)
+          return buildResponse(wfId, baseRunState, "PLAN12_RUNTIME_ADAPTER_LIVE_BLOCKED", `isolated Control Plane unavailable: ${error?.message ?? String(error)}`)
+        }
+      }
+      if (!runEvidenceStore || !executionPolicy.config_revision) {
+        q!.wfSetStatus.run("BLOCKED", nowIso(), wfId)
+        runContexts.delete(wfId)
+        return buildResponse(wfId, baseRunState, "PLAN12_RUNTIME_ADAPTER_LIVE_BLOCKED", "isolated execution requires an explicit Control Plane store and config_revision")
+      }
+      runEvidenceCollector = createRuntimeEvidenceCollector({
+        store: runEvidenceStore,
+        workflowId: wfId,
+        configRevision: executionPolicy.config_revision,
+        projectId: row0.primary_project_id,
+        plan,
+        source: "workflow-engine-live-r2",
+      })
+      runContext.evidenceCollector = runEvidenceCollector
+      const admission = runEvidenceCollector.start()
+      if (!admission.ok) {
+        runContexts.delete(wfId)
+        q!.wfSetStatus.run("BLOCKED", nowIso(), wfId)
+        return buildResponse(wfId, baseRunState, "PLAN12_RUNTIME_ADAPTER_LIVE_BLOCKED", admission.detail)
+      }
+      baseRunState.runtime_evidence = { run_id: runEvidenceCollector.runId, config_revision: executionPolicy.config_revision, status: "COLLECTING" }
+    }
     // The plan must be read and validated before Team Execution policy is
     // evaluated; otherwise a malformed/missing plan could trigger a TDZ
     // access and mask the deterministic PLAN_MISSING result.
@@ -1131,16 +1201,52 @@ export function createScheduler(deps: SchedulerDeps) {
 
       let stop = false
       for (const wave of waves) {
+        runContext.activeWaveIndex = waveIndex
         const waveStarted = nowIso()
+        if (runContext.evidenceCollector) {
+          const evidenceWave = runContext.evidenceCollector.recordWaveStart(waveIndex, wave)
+          if (!evidenceWave.ok) {
+            stopCode = evidenceWave.code
+            stopDetail = evidenceWave.detail
+            q!.wfSetStatus.run("BLOCKED", nowIso(), wfId)
+            stop = true
+            break
+          }
+        }
         const settled = await Promise.allSettled(
           wave.map((item) => {
             const body = async () => {
               const nodeRow: any = q!.nodeGet.get(wfId, item.node_id)
-              const base = { node_id: item.node_id, route: item.route, project_id: item.project_id, route_class: item.route_class, lock_key: item.lock_key }
+              const taskForEvidence: any = nodeRow?.current_task_id ? q!.taskGet.get(nodeRow.current_task_id) : null
+              const base = { node_id: item.node_id, route: item.route, project_id: item.project_id, route_class: item.route_class, lock_key: item.lock_key, session_key: taskForEvidence?.target_session_key ?? null }
               if (!nodeRow || nodeRow.status !== "READY") {
                 return { ...base, task_id: nodeRow?.current_task_id ?? null, started_at: nowIso(), ended_at: nowIso(), kind: "skipped", code: "NODE_NOT_READY", detail: `node state changed before dispatch (${nodeRow?.status ?? "missing"})` }
               }
-              return executeNode(wfId, nodeRow, planById.get(item.node_id), base, teamMode)
+              const planNode = planById.get(item.node_id)
+              const evidenceStart = runContext.evidenceCollector?.recordNodeStart(runContext.activeWaveIndex, {
+                node_id: item.node_id,
+                task_id: nodeRow.current_task_id,
+                route: item.route,
+                session_id: taskForEvidence?.opencode_session_id ?? taskForEvidence?.session_id ?? null,
+                session_key: taskForEvidence?.target_session_key ?? null,
+                attempt: nodeRow.attempt,
+              })
+              if (evidenceStart && !evidenceStart.ok) return { ...base, task_id: nodeRow.current_task_id, started_at: nowIso(), ended_at: nowIso(), kind: "infra", code: evidenceStart.code, detail: evidenceStart.detail }
+              const outcome = await executeNode(wfId, nodeRow, planNode, { ...base, wave_index: runContext.activeWaveIndex }, teamMode)
+              if (runContext.evidenceCollector) {
+                const evidenceFinish = runContext.evidenceCollector.recordNodeFinish(runContext.activeWaveIndex, {
+                  ...outcome,
+                  node_id: item.node_id,
+                  task_id: outcome?.task_id ?? nodeRow.current_task_id,
+                  route: item.route,
+                  session_id: outcome?.session_id ?? taskForEvidence?.opencode_session_id ?? taskForEvidence?.session_id ?? null,
+                  session_key: outcome?.session_key ?? taskForEvidence?.target_session_key ?? null,
+                  status: outcome?.kind === "completed" ? "COMPLETED" : outcome?.kind === "blocked" ? "BLOCKED" : "FAILED",
+                  output: outcome?.result ?? { kind: outcome?.kind, code: outcome?.code ?? null, detail: outcome?.detail ?? null },
+                })
+                if (!evidenceFinish.ok && outcome?.kind === "completed") return { ...outcome, kind: "infra", code: evidenceFinish.code, detail: evidenceFinish.detail }
+              }
+              return outcome
             }
             // §42/§43: serial-route executors run inside their lock; safe
             // routes run without any extra lock (true concurrency).
@@ -1148,6 +1254,10 @@ export function createScheduler(deps: SchedulerDeps) {
           }),
         )
         const waveEnded = nowIso()
+        if (runContext.evidenceCollector) {
+          const evidenceWave = runContext.evidenceCollector.recordWaveFinish(runContext.activeWaveIndex, wave)
+          if (!evidenceWave.ok && !stopCode) { stopCode = evidenceWave.code; stopDetail = evidenceWave.detail; stop = true }
+        }
         const results: any[] = []
         for (let i = 0; i < wave.length; i++) {
           const s = settled[i]
@@ -1251,6 +1361,22 @@ export function createScheduler(deps: SchedulerDeps) {
         runState.archived_sessions.push({ project_id: row.project_id, session_key: key, archived: !!res?.ok, code: res?.code ?? null })
       }
     }
+    if (runContext.evidenceCollector) {
+      const evidenceStatus = q!.wfGet.get(wfId)?.status ?? finalStatus
+      const evidenceResult = runContext.evidenceCollector.finish(evidenceStatus === "REVIEW_PASSED" ? "COMPLETED" : evidenceStatus)
+      runState.runtime_evidence = {
+        ...(runState.runtime_evidence ?? {}),
+        run_id: runContext.evidenceCollector.runId,
+        config_revision: executionPolicy.config_revision,
+        status: evidenceResult.ok ? "COMPLETE" : "EVIDENCE_BLOCKED",
+        ...(evidenceResult.ok ? { facts: evidenceResult.value?.facts ?? null } : { code: evidenceResult.code, detail: evidenceResult.detail }),
+      }
+      if (!evidenceResult.ok && !stopCode) {
+        stopCode = "PLAN12_RUNTIME_EVIDENCE_BLOCKED"
+        stopDetail = evidenceResult.detail
+      }
+    }
+    runContexts.delete(wfId)
     return buildResponse(wfId, runState, stopCode, stopDetail)
   }
 
@@ -1287,6 +1413,7 @@ export function createScheduler(deps: SchedulerDeps) {
       retries: runState.retries,
       reworks: runState.reworks,
       archived_sessions: runState.archived_sessions,
+      ...(runState.runtime_evidence ? { runtime_evidence: runState.runtime_evidence } : {}),
       notes: runState.notes,
     }
   }

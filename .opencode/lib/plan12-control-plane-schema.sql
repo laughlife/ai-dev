@@ -226,6 +226,46 @@ CREATE INDEX IF NOT EXISTS idx_cp_nodes_run_node ON workflow_wave_nodes(run_id, 
 CREATE INDEX IF NOT EXISTS idx_cp_locks_run_key_seq ON workflow_lock_events(run_id, lock_key, sequence);
 CREATE INDEX IF NOT EXISTS idx_cp_events_run_seq ON execution_events(run_id, sequence);
 
+-- Plan 12.5-R2 lifecycle facts.  Run-level events are intentionally kept in
+-- a separate append-only table because RUN_STARTED is observed before any
+-- wave/node exists.  Nullable wave/node/task references are therefore data,
+-- not fabricated foreign keys; the existing execution_events table remains
+-- strict for node-scoped payloads.
+CREATE TABLE IF NOT EXISTS workflow_run_events (
+    event_id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    workflow_id TEXT NOT NULL,
+    wave_id TEXT,
+    node_id TEXT,
+    task_id TEXT,
+    attempt INTEGER,
+    event_type TEXT NOT NULL CHECK (event_type IN ('ACQUIRE','WAIT','RELEASE','CONFLICT','EXPIRE','RUN_STARTED','WAVE_STARTED','NODE_STARTED','NODE_FINISHED','WAVE_FINISHED','RUN_FINISHED','EVIDENCE_WRITE_FAILED')),
+    status TEXT NOT NULL,
+    sequence INTEGER NOT NULL CHECK (sequence >= 1),
+    schema_version INTEGER NOT NULL,
+    config_revision TEXT NOT NULL,
+    source TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    payload_sha256 TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    evidence_level TEXT NOT NULL CHECK (evidence_level = 'L3'),
+    fact_type TEXT NOT NULL CHECK (fact_type = 'workflow_run_event'),
+    payload_digest TEXT NOT NULL,
+    payload_ref TEXT NOT NULL,
+    occurred_at TEXT NOT NULL,
+    error_code TEXT,
+    UNIQUE (run_id, sequence),
+    FOREIGN KEY (config_revision) REFERENCES workflow_config_snapshots(config_revision)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cp_run_events_run_seq ON workflow_run_events(run_id, sequence);
+CREATE TRIGGER IF NOT EXISTS trg_cp_run_event_no_update
+BEFORE UPDATE ON workflow_run_events
+BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_UPDATE_FORBIDDEN'); END;
+CREATE TRIGGER IF NOT EXISTS trg_cp_run_event_no_delete
+BEFORE DELETE ON workflow_run_events
+BEGIN SELECT RAISE(ABORT, 'APPEND_ONLY_DELETE_FORBIDDEN'); END;
+
 -- Plan 12.3 configuration lifecycle journal.  Revision payloads remain
 -- immutable in workflow_config_snapshots; lifecycle state is reconstructed
 -- from successful append-only journal entries.

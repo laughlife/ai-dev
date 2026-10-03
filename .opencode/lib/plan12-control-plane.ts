@@ -12,12 +12,14 @@ import {
   validateWorkflowWaveFact,
   validateWorkflowWaveNodeFact,
   type Plan12ValidationContext,
+  sha256Canonical,
 } from "./plan12-contract.ts"
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const SCHEMA_FILE = path.join(MODULE_DIR, "plan12-control-plane-schema.sql")
 const DEFAULT_DB_PATH = path.resolve(process.env.AI_DEV_ROOT ?? process.cwd(), "runtime", "control-plane.db")
 const SCHEMA_VERSION = 1
+const WORKFLOW_RUN_EVENT_TYPES = new Set(["ACQUIRE", "WAIT", "RELEASE", "CONFLICT", "EXPIRE", "RUN_STARTED", "WAVE_STARTED", "NODE_STARTED", "NODE_FINISHED", "WAVE_FINISHED", "RUN_FINISHED", "EVIDENCE_WRITE_FAILED"])
 
 type Fact = Record<string, any>
 type Result = { ok: true; status: "INSERTED" | "IDEMPOTENT"; value: any; inserted: boolean } | { ok: false; status: "REJECTED"; code: string; detail: string; path?: string }
@@ -39,6 +41,16 @@ function failure(code: string, detail: string, path?: string): Result {
 function nowUtc(): string {
   return new Date().toISOString()
 }
+
+function validUtc(value: any): boolean {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value)) return false
+  try {
+    const normalized = value.replace(/\.(\d{1,2})Z$/, (_match, fraction) => `.${fraction.padEnd(3, "0")}Z`).replace(/T(\d{2}:\d{2}:\d{2})Z$/, "T$1.000Z")
+    return new Date(value).toISOString() === normalized
+  } catch { return false }
+}
+
+function validHash(value: any): boolean { return typeof value === "string" && /^[a-f0-9]{64}$/.test(value) }
 
 function tableForFact(factType: string): string | null {
   return {
@@ -322,6 +334,44 @@ export class ControlPlaneStore {
   appendExecutionEvent(fact: Fact): Result { return this.appendEvidence(fact) }
   appendWorkflowConfigSnapshot(fact: Fact): Result { return this.appendEvidence(fact) }
 
+  /** Append-only run/wave/node lifecycle events.  This table deliberately
+   * has no wave/node foreign keys so RUN_STARTED can be recorded before the
+   * first wave exists; node-scoped execution_events remain strict. */
+  appendWorkflowRunEvent(fact: Fact): Result {
+    const required = ["event_id", "run_id", "workflow_id", "event_type", "status", "sequence", "config_revision", "source", "observed_at", "payload_sha256", "idempotency_key", "evidence_level", "fact_type", "payload_digest", "payload_ref", "occurred_at"]
+    for (const field of required) if (fact?.[field] === undefined || fact?.[field] === null || fact?.[field] === "") return failure("FIELD_REQUIRED", `${field} is required`, `$.${field}`)
+    if (fact.fact_type !== "workflow_run_event" || fact.evidence_level !== "L3") return failure("FACT_TYPE_INVALID", "workflow run events must be L3 workflow_run_event facts", "$.fact_type")
+    if (!WORKFLOW_RUN_EVENT_TYPES.has(fact.event_type)) return failure("EVENT_TYPE_INVALID", "workflow run event_type is not supported", "$.event_type")
+    if (!Number.isInteger(fact.sequence) || fact.sequence < 1) return failure("SEQUENCE_INVALID", "sequence must be >= 1", "$.sequence")
+    if (!validUtc(fact.observed_at) || !validUtc(fact.occurred_at)) return failure("EVIDENCE_TIME_INVALID", "observed_at and occurred_at must be UTC ISO-8601 timestamps", "$.occurred_at")
+    if (!validHash(fact.payload_sha256) || !validHash(fact.payload_digest)) return failure("EVIDENCE_HASH_INVALID", "payload_sha256 and payload_digest must be lowercase SHA-256 digests", "$.payload_sha256")
+    try {
+      const { payload_sha256: _ignored, ...body } = fact
+      if (sha256Canonical(body) !== fact.payload_sha256) return failure("PAYLOAD_HASH_MISMATCH", "payload_sha256 does not match the canonical lifecycle event", "$.payload_sha256")
+    } catch (error: any) {
+      return failure(error?.code ?? "INVALID_JSON_VALUE", error?.detail ?? String(error), error?.path ?? "$")
+    }
+    const prior = this.db.prepare("SELECT * FROM workflow_run_events WHERE idempotency_key = ?").get(fact.idempotency_key) as any
+    if (prior) return prior.payload_sha256 === fact.payload_sha256
+      ? { ok: true, status: "IDEMPOTENT", value: prior, inserted: false }
+      : failure("EVIDENCE_IDEMPOTENCY_CONFLICT", "idempotency key was used with a different digest", "$.idempotency_key")
+    const identities = this.db.prepare("SELECT DISTINCT workflow_id FROM workflow_run_events WHERE run_id = ?").all(fact.run_id) as any[]
+    if (identities.some((row) => row.workflow_id !== fact.workflow_id)) return failure("WORKFLOW_ID_MISMATCH", "run_id is already bound to a different workflow_id", "$.workflow_id")
+    const existing = this.db.prepare("SELECT MAX(sequence) AS sequence FROM workflow_run_events WHERE run_id = ?").get(fact.run_id) as any
+    if (existing?.sequence !== null && existing?.sequence !== undefined && Number(fact.sequence) !== Number(existing.sequence) + 1) return failure("SEQUENCE_NONCONTIGUOUS", "lifecycle event sequence must advance by exactly one", "$.sequence")
+    try {
+      this.db.exec("BEGIN IMMEDIATE")
+      const columns = Object.keys(fact)
+      this.db.prepare(`INSERT INTO workflow_run_events (${columns.join(",")}) VALUES (${columns.map(() => "?").join(",")})`).run(...columns.map((column) => fact[column]))
+      const row = this.db.prepare("SELECT * FROM workflow_run_events WHERE event_id = ?").get(fact.event_id) as any
+      this.db.exec("COMMIT")
+      return { ok: true, status: "INSERTED", value: row, inserted: true }
+    } catch (error: any) {
+      try { this.db.exec("ROLLBACK") } catch {}
+      return failure(/UNIQUE constraint/i.test(error?.message ?? "") ? "NATURAL_KEY_CONFLICT" : "DATABASE_WRITE_FAILED", error?.message ?? String(error))
+    }
+  }
+
   getWorkflowRun(runId: string): any | null { return this.db.prepare("SELECT * FROM workflow_runs WHERE run_id = ?").get(runId) as any ?? null }
   listWorkflowWaves(filter: { run_id?: string; workflow_id?: string } = {}): any[] {
     const clauses: string[] = []; const params: any[] = []
@@ -339,6 +389,11 @@ export class ControlPlaneStore {
     for (const field of ["run_id", "workflow_id", "wave_id", "node_id"] as const) if (filter[field]) { clauses.push(`${field} = ?`); params.push(filter[field]) }
     return this.db.prepare(`SELECT * FROM execution_events${clauses.length ? ` WHERE ${clauses.join(" AND ")}` : ""} ORDER BY run_id, sequence`).all(...params) as any[]
   }
+  listWorkflowRunEvents(filter: { run_id?: string; workflow_id?: string; event_type?: string } = {}): any[] {
+    const clauses: string[] = []; const params: any[] = []
+    for (const field of ["run_id", "workflow_id", "event_type"] as const) if (filter[field]) { clauses.push(`${field} = ?`); params.push(filter[field]) }
+    return this.db.prepare(`SELECT * FROM workflow_run_events${clauses.length ? ` WHERE ${clauses.join(" AND ")}` : ""} ORDER BY run_id, sequence`).all(...params) as any[]
+  }
   getEvidenceByIdempotencyKey(key: string): any | null { return existingByIdempotency(this.db, key) }
 }
 
@@ -349,8 +404,10 @@ export function appendWorkflowWaveNode(store: ControlPlaneStore, fact: Fact): Re
 export function appendWorkflowLockEvent(store: ControlPlaneStore, fact: Fact): Result { return store.appendWorkflowLockEvent(fact) }
 export function appendExecutionEvent(store: ControlPlaneStore, fact: Fact): Result { return store.appendExecutionEvent(fact) }
 export function appendWorkflowConfigSnapshot(store: ControlPlaneStore, fact: Fact): Result { return store.appendWorkflowConfigSnapshot(fact) }
+export function appendWorkflowRunEvent(store: ControlPlaneStore, fact: Fact): Result { return store.appendWorkflowRunEvent(fact) }
 export function getWorkflowRun(store: ControlPlaneStore, runId: string): any | null { return store.getWorkflowRun(runId) }
 export function listWorkflowWaves(store: ControlPlaneStore, filter: { run_id?: string; workflow_id?: string } = {}): any[] { return store.listWorkflowWaves(filter) }
 export function listWorkflowWaveNodes(store: ControlPlaneStore, filter: { run_id?: string; wave_id?: string; node_id?: string } = {}): any[] { return store.listWorkflowWaveNodes(filter) }
 export function listExecutionEvents(store: ControlPlaneStore, filter: { run_id?: string; workflow_id?: string; wave_id?: string; node_id?: string } = {}): any[] { return store.listExecutionEvents(filter) }
 export function getEvidenceByIdempotencyKey(store: ControlPlaneStore, key: string): any | null { return store.getEvidenceByIdempotencyKey(key) }
+export function listWorkflowRunEvents(store: ControlPlaneStore, filter: { run_id?: string; workflow_id?: string; event_type?: string } = {}): any[] { return store.listWorkflowRunEvents(filter) }

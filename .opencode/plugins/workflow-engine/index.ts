@@ -80,6 +80,8 @@ import { createScheduler, notableLifecycleReports } from "./scheduler.ts"
 import { createReviewer } from "./review.ts"
 import { createWorkflowTestHooks, testHooksEnabled, HOOK_VERDICTS } from "./hooks.ts"
 import { normalizeDeliveryPlan } from "../../lib/delivery-chain.ts"
+import { initializeControlPlaneDatabase } from "../../lib/plan12-control-plane.ts"
+import { normalizeWorkflowExecutionPolicy, validatePlannerExecutionPolicy } from "../../lib/plan12-runtime-execution.ts"
 
 const LIST_DEFAULT_LIMIT = 20 // §71: default 20
 const LIST_MAX_LIMIT = 100 // §71: max 100 — never unbounded
@@ -116,6 +118,15 @@ export default {
       lifecycleSchemaFile: path.join(import.meta.dir, "..", "lifecycle-engine", "schema.sql"),
     })
     const bus = createTaskBusCore(ctx, core)
+    // Plan 12.5-R2 evidence is opt-in and must point at an explicitly
+    // isolated Control Plane database. Never create/open the production
+    // runtime/control-plane.db implicitly from the Workflow Engine.
+    let evidenceStore: any = null
+    let evidenceStoreError: string | null = null
+    const evidenceDbPath = typeof process?.env?.PLAN12_CONTROL_PLANE_DB === "string" ? process.env.PLAN12_CONTROL_PLANE_DB.trim() : ""
+    if (evidenceDbPath) {
+      try { evidenceStore = initializeControlPlaneDatabase({ dbPath: evidenceDbPath }) } catch (error: any) { evidenceStoreError = errMsg(error) }
+    }
     // --- §31: workflow schema on the shared runtime/tasks.db (idempotent) ---
     let schemaError: string | null = null
     if (core.db) {
@@ -351,7 +362,7 @@ export default {
     const hooksEnabled = testHooksEnabled(core.root)
     const hooks = hooksEnabled ? createWorkflowTestHooks() : null
     const reviewer = createReviewer({ core, bus, hooks, loadWorkflowConfig })
-    const scheduler = createScheduler({ core, bus, hooks, reviewer, loadWorkflowConfig, lifecyclePreflight })
+    const scheduler = createScheduler({ core, bus, hooks, reviewer, loadWorkflowConfig, lifecyclePreflight, evidenceStore, evidenceStoreError, evidenceRoot: core.root })
 
     function rowToWorkflow(row: any) {
       return {
@@ -390,6 +401,10 @@ export default {
         if (v !== undefined && v !== null && (!Array.isArray(v) || v.some((x: any) => typeof x !== "string"))) {
           return failure("INVALID_INPUT", `${f} must be an array of strings`)
         }
+      }
+      const executionPolicy = normalizeWorkflowExecutionPolicy(input.execution_policy)
+      if (executionPolicy.mode === "isolated_fixture" && !executionPolicy.config_revision) {
+        return failure("CONFIG_REVISION_REQUIRED", "isolated Workflow execution requires an explicit immutable config_revision")
       }
 
       // --- configs (all fresh reads) ---
@@ -517,6 +532,12 @@ export default {
           "(Synthetic scope context written by the workflow-engine plugin, Plan 7.)",
         ].join("\n"),
         title: `[workflow] planner ${workflowId.slice(0, 8)}`,
+        permissions: executionPolicy.mode === "isolated_fixture" ? [
+          { action: "mem0_*", resource: "*", effect: "deny" },
+          { action: "mem0_handoff_*", resource: "*", effect: "deny" },
+          { action: "mysql-local_*", resource: "*", effect: "deny" },
+          { action: "mysql-server_*", resource: "*", effect: "deny" },
+        ] : undefined,
       })
       if (!ensured?.ok) {
         return markFailed(
@@ -553,6 +574,7 @@ export default {
         project_scope: projectScope,
         available_routes: availableRoutes,
         registered_projects: registeredProjects,
+        execution_policy: executionPolicy,
       })
       // Plan 8 T7: lifecycle preflight before EVERY scoped planner send.
       // A mandatory rotation failure is resumably BLOCKED; it must never send
@@ -587,17 +609,20 @@ export default {
       for (let attempt = 0; ; attempt++) {
         const extracted = extractJsonObject(rawText)
         if (extracted.ok) {
-          const normalized = normalizeDeliveryPlan(extracted.value, { workflowId, primaryProjectId: input.primary_project_id })
+          const normalized = executionPolicy.delivery === "none"
+            ? { ok: true, plan: extracted.value, added: [] }
+            : normalizeDeliveryPlan(extracted.value, { workflowId, primaryProjectId: input.primary_project_id })
           const validation: any = normalized.ok
             ? validateWorkflowPlan(normalized.plan, ctxInfo)
             : { ok: false, errors: [{ code: "DELIVERY_CHAIN_INVALID", message: normalized.reason }] }
-          if (validation.ok) {
-            plan = normalized.plan
+          const permission: any = validation.ok ? validatePlannerExecutionPolicy(normalized.plan, executionPolicy) : { ok: false }
+          if (validation.ok && permission.ok) {
+            plan = { ...normalized.plan, metadata: { ...(normalized.plan.metadata ?? {}), execution_policy: executionPolicy } }
             order = validation.order
             errors = []
             break
           }
-          errors = validation.errors
+          errors = validation.ok && !permission.ok ? [{ code: permission.code, message: permission.detail, path: permission.path }] : validation.errors
         } else {
           errors = [{ code: "JSON_PARSE_FAILED", message: extracted.error }]
         }
@@ -701,6 +726,7 @@ export default {
                 workflow_id: workflowId,
                 workflow_node_id: nodeId,
                 attempt: 1,
+                execution_policy: executionPolicy,
                 ...(node.review && typeof node.review === "object" ? { review: node.review } : {}),
               },
             })
@@ -868,6 +894,7 @@ export default {
         retries: run?.retries ?? [],
         reworks: run?.reworks ?? [],
         archived_sessions: run?.archived_sessions ?? [],
+        ...(run?.runtime_evidence ? { runtime_evidence: run.runtime_evidence } : {}),
         notes: run?.notes ?? [],
         plan: {
           workflow_id: workflowId,
@@ -1002,6 +1029,22 @@ export default {
           type: "array",
           items: { type: "string" },
           description: "Business projects involved in this workflow (must be registered project ids)",
+        },
+        execution_policy: {
+          type: "object",
+          description: "Structured execution boundary. isolated_fixture is required for Plan 12.5 evidence smoke; policy is persisted with the plan.",
+          properties: {
+            mode: { type: "string", enum: ["legacy", "isolated_fixture"] },
+            delivery: { type: "string", enum: ["architecture", "none"] },
+            allow_mem0_write: { type: "boolean" },
+            allow_production_db_write: { type: "boolean" },
+            allow_business_repo_write: { type: "boolean" },
+            allowed_project_ids: { type: "array", items: { type: "string" } },
+            allowed_roots: { type: "array", items: { type: "string" } },
+            config_revision: { type: "string" },
+            control_plane_db: { type: "string", description: "Explicit isolated Control Plane DB path relative to the fixture root" },
+          },
+          additionalProperties: false,
         },
       }
 
@@ -1186,6 +1229,7 @@ export default {
     )
 
     return () => {
+      try { evidenceStore?.close?.() } catch {}
       core.close()
     }
   },

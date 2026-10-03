@@ -17,6 +17,7 @@ export interface PlannerWorkflowInput {
   available_routes?: string[]
   /** project ids currently registered in framework-config/projects.yaml */
   registered_projects?: string[]
+  execution_policy?: { mode?: string; delivery?: string; config_revision?: string | null }
 }
 
 function bulletList(items: string[] | undefined, emptyText: string): string[] {
@@ -43,7 +44,9 @@ export function buildPlannerPrompt(input: PlannerWorkflowInput): string {
     "- constraints: 逐字回显下方 CONSTRAINTS（无则省略或空数组）",
     "- acceptance_criteria: 逐字回显下方 ACCEPTANCE CRITERIA（无则省略或空数组；Reviewer 将据此验收）",
     "- project_scope: 逐字回显下方 PROJECT SCOPE（无则省略或空数组）",
-    "- metadata.delivery.required_routes 必须包含 documentation_update 与 long_term_memory_write；metadata.delivery.required_evidence 必须包含文档 artifact 与 memory 引用。Workflow Engine 会在 Reviewer PASS 后自动补齐并执行该链。",
+    ...(input.execution_policy?.delivery === "none"
+      ? ["- execution_policy.delivery=none：这是隔离证据 Smoke。只规划真实只读 Worker 节点，禁止 documentation_update、long_term_memory_write、数据库写入和业务仓库写入；不要输出 metadata.delivery.required_routes。"]
+      : ["- metadata.delivery.required_routes 必须包含 documentation_update 与 long_term_memory_write；metadata.delivery.required_evidence 必须包含文档 artifact 与 memory 引用。Workflow Engine 会在 Reviewer PASS 后自动补齐并执行该链。"]),
     "- nodes: 必填，非空数组（Task DAG 节点）",
     "",
     "node 必填字段：",
@@ -72,7 +75,9 @@ export function buildPlannerPrompt(input: PlannerWorkflowInput): string {
     "5. 代码变更后必须安排 build/test 或适当验证节点（例如 code_change 之后接 build_and_test / api_regression 等验证 route）。",
     "6. 需要最终验收的执行链：在验证节点设置 review.required=true，review.target_node_id 指向验收不通过时应返工的实现节点；不要把 Reviewer 安排在代码变更节点与其测试节点之间。",
     "7. review.required=true 时 target_node_id 必须存在、不等于 gate 节点自身、且必须是该 gate 节点沿 depends_on 可达的祖先节点。",
-    "8. Reviewer PASS 后必须按 documentation_update → long_term_memory_write 顺序交付；这两个 route 不得依赖 Reviewer 之前的节点。",
+    ...(input.execution_policy?.delivery === "none"
+      ? ["8. 隔离证据 Smoke 不生成交付链，不生成 long_term_memory_write 节点；必须保持两个或以上独立、只读、可观测 Worker 节点。"]
+      : ["8. Reviewer PASS 后必须按 documentation_update → long_term_memory_write 顺序交付；这两个 route 不得依赖 Reviewer 之前的节点。"]),
     "9. 校验由 Workflow Engine 确定性执行（schema / 唯一 node_id / 已注册 project+route / 无环 / review gate 祖先规则）；任何违规都会带着 validator errors 退回给你修正。",
     "",
     "WORKFLOW OBJECTIVE:",
@@ -86,6 +91,7 @@ export function buildPlannerPrompt(input: PlannerWorkflowInput): string {
     "",
     "PROJECT SCOPE:",
     ...bulletList(input.project_scope, "（无）"),
+    ...(input.execution_policy ? ["", "EXECUTION POLICY (STRUCTURED, ENFORCED OUTSIDE THIS PROMPT):", JSON.stringify(input.execution_policy)] : []),
   ].join("\n")
 }
 

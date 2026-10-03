@@ -96,14 +96,14 @@ PLAN12_EXECUTION_EVENT_ADAPTER_PASS
 PLAN12_EVIDENCE_WRITE_FAILURE_GATE_PASS
 ```
 
-Live read-only probe:
+Historical unauthenticated HTTP probe (kept as a fail-closed record):
 
 ```text
 node --experimental-strip-types .opencode/tests/plan12-5-runtime-live.mjs
 PLAN12_RUNTIME_ADAPTER_LIVE_BLOCKED
 ```
 
-The current Desktop Runtime at `http://127.0.0.1:49374` returns HTTP 401 for
+The earlier direct HTTP probe at `http://127.0.0.1:49374` returned HTTP 401 for
 `/api/info`, plugin discovery, and all workflow RPCs. No workflow/run/wave/
 node/session IDs are fabricated, no live L3 row is written, and no
 `PLAN12_RUNTIME_ADAPTER_LIVE_PASS` is claimed.
@@ -111,3 +111,41 @@ node/session IDs are fabricated, no live L3 row is written, and no
 The adapter uses only an explicitly supplied control-plane database path in
 tests. It does not create or modify `runtime/tasks.db`, its WAL/SHM files,
 business repositories, Drawio, Mem0, or the user patch.
+
+## Plan 12.5-R2 live execution
+
+The R2 path uses the Desktop-managed CLI `opencode v2.0.22` and its internal
+authenticated session transport, rather than the stale PATH shim or the
+unauthenticated HTTP RPC probe. An isolated fixture supplied
+`execution_policy.mode=isolated_fixture`, `delivery=none`, a verified ACTIVE
+`config_revision`, and an explicit fixture-relative Control Plane DB.
+
+The fresh live run produced two independent `code_read` Worker sessions in one
+parallel wave. `run_id`, `wave_id`, `node_id`, `task_id`, `attempt`, session IDs
+and keys, UTC times, lifecycle event order, and canonical payload digests were
+written during execution. The terminal batch was passed through
+`appendRuntimeEvidenceBatch`, which admitted the verified `code_read` route and
+persisted the immutable run/wave/node/execution facts. Reopening the isolated
+DB returned the same run, eight lifecycle events, two strict node execution
+events, and unchanged digest/ref pairs. No memory route or Mem0 tool call
+occurred; the session-level `mem0_*`/database MCP deny rules were also applied.
+
+The persisted live artifact is the fixture-side
+`plan12-5-r2-live-evidence.json`; the raw Desktop stream is
+`r2-live-output.jsonl` in the same fixture directory. These artifacts carry:
+
+```text
+PLAN12_RUNTIME_AUTH_PATH_CONFIRMED
+PLAN12_RUNTIME_WORKFLOW_SMOKE_PASS
+PLAN12_RUNTIME_ADAPTER_LIVE_PASS
+PLAN12_RUNTIME_EVIDENCE_ROUNDTRIP_PASS
+PLAN12_SMOKE_PERMISSION_GATE_PASS
+```
+
+The safe `code_read` wave had no real lock-provider acquisition, so no
+`ACQUIRE`/`RELEASE` lock facts were fabricated. The current lock capability
+gap remains explicit; the node facts record `lock_key_json: null`.
+
+The Workflow Engine response remains `REVIEW_PASSED`/`DELIVERY_PENDING` because
+this smoke explicitly uses `delivery=none`; the separate R2 runtime evidence
+status is `COMPLETE` only after the Adapter batch and DB round-trip succeed.

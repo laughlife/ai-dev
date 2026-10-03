@@ -42,6 +42,28 @@
         "type": "string"
       }
     },
+    "metadata": {
+      "description": "Persisted structured execution policy and delivery metadata. Natural-language fields never authorize a capability.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "execution_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": { "type": "string", "enum": ["legacy", "isolated_fixture"] },
+            "delivery": { "type": "string", "enum": ["architecture", "none"] },
+            "allow_mem0_write": { "type": "boolean" },
+            "allow_production_db_write": { "type": "boolean" },
+            "allow_business_repo_write": { "type": "boolean" },
+            "allowed_project_ids": { "type": "array", "items": { "type": "string" } },
+            "allowed_roots": { "type": "array", "items": { "type": "string" } },
+            "config_revision": { "type": ["string", "null"] },
+            "control_plane_db": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
     "nodes": {
       "description": "DAG nodes of the workflow. Each node is materialized into one Runtime Task Bus Task Envelope; the node route determines the target Agent role via framework-config/routing.yaml. The plan must not specify Agents directly, must not invent dependencies between parallelizable nodes, and must schedule a build/test or equivalent validation node after every code change node.",
       "type": "array",
