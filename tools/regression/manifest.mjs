@@ -17,6 +17,7 @@ export const REGRESSION_CHECKS = [
   test("plan10-control-plane", ".opencode/tests/plan10-control-plane.mjs"),
   test("plan11-production-acceptance", ".opencode/tests/plan11-production-acceptance.mjs"),
   test("plan11-recovery-rollback", ".opencode/tests/plan11-recovery-rollback.mjs"),
+  test("plan12-5-runtime-evidence-adapter", ".opencode/tests/plan12-5-runtime-evidence-adapter.mjs"),
   {
     id: "production-acceptance-gate",
     command: node,
