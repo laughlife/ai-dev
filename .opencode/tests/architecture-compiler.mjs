@@ -1,4 +1,5 @@
 import * as fs from "node:fs"
+import * as os from "node:os"
 import * as path from "node:path"
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
@@ -30,12 +31,14 @@ const visual = parseDrawio(source)
 visual.source.raw_sha256 = "different"
 assert.equal(semanticHash(ir), semanticHash(visual), "raw/provenance changes do not affect semantic hash")
 const geometryOnly = xml.replace('x="20" y="10000"', 'x="920" y="19000"')
-const visualFile = path.join("C:/Users/Administrator/AppData/Local/Temp/opencode", `arch-visual-${Date.now()}.drawio`)
+const visualRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-arch-visual-"))
+const visualFile = path.join(visualRoot, "fixture.drawio")
 fs.writeFileSync(visualFile, geometryOnly)
 assert.equal(semanticHash(ir), semanticHash(parseDrawio(visualFile)))
 
 const modelChanged = xml.replace('data-model-key="gpt-6-sol-fast"', 'data-model-key="unknown-model"')
-const modelFile = path.join("C:/Users/Administrator/AppData/Local/Temp/opencode", `arch-model-${Date.now()}.drawio`)
+const modelRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-arch-model-"))
+const modelFile = path.join(modelRoot, "fixture.drawio")
 fs.writeFileSync(modelFile, modelChanged)
 const changedIr = parseDrawio(modelFile)
 assert.notEqual(semanticHash(ir), semanticHash(changedIr))
@@ -45,7 +48,7 @@ pathChanged.projects[0].path = "D:\\ai-dev\\path-changed"
 const generatedConfig = generateFrameworkConfig(root, pathChanged, "semantic-test", "raw-test")
 assert.equal(parseYaml(generatedConfig["framework-config/projects.yaml"]).projects[0].path, "D:\\ai-dev\\path-changed")
 
-const fixtureRoot = path.join("C:/Users/Administrator/AppData/Local/Temp/opencode", `arch-profile-${Date.now()}`)
+const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-arch-profile-"))
 fs.mkdirSync(path.join(fixtureRoot, ".opencode", "agents"), { recursive: true })
 fs.writeFileSync(path.join(fixtureRoot, ".opencode", "agents", "global-orchestrator.md"), "---\ndescription: manual\nmode: subagent\n---\n\nMANUAL-BEHAVIOR-MARKER\n")
 const contracts = generateAgentContracts(fixtureRoot, { agents: [ir.agents.find((x) => x.id === "global-orchestrator")] })
@@ -64,5 +67,5 @@ try {
 } finally {
   fs.writeFileSync(profilePath, profileOriginal)
 }
-fs.rmSync(visualFile, { force: true }); fs.rmSync(modelFile, { force: true }); fs.rmSync(fixtureRoot, { recursive: true, force: true })
+fs.rmSync(visualRoot, { recursive: true, force: true }); fs.rmSync(modelRoot, { recursive: true, force: true }); fs.rmSync(fixtureRoot, { recursive: true, force: true })
 console.log("ARCHITECTURE_COMPILER_PASS", JSON.stringify({ agents: ir.agents.length, projects: ir.projects.length, visual_hash_stable: true, manual_body_preserved: true }))

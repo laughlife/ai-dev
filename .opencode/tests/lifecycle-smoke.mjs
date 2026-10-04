@@ -1,4 +1,5 @@
 import * as fs from "node:fs"
+import * as os from "node:os"
 import * as path from "node:path"
 import { DatabaseSync } from "node:sqlite"
 import { parseYaml } from "./yaml-lite.mjs"
@@ -17,7 +18,7 @@ globalThis.Bun = {
 }
 
 const repo = path.resolve(".")
-const tempRoot = path.join("C:/Users/Administrator/AppData/Local/Temp/opencode", `lifecycle-smoke-${Date.now().toString(36)}`)
+const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-lifecycle-smoke-"))
 const configDir = path.join(tempRoot, "framework-config")
 fs.mkdirSync(configDir, { recursive: true })
 fs.mkdirSync(path.join(tempRoot, "runtime"), { recursive: true })
@@ -131,7 +132,7 @@ assert(!failed.ok && failed.code === "SESSION_CREATE_FAILED" && failed.detail.in
 assert(core.db.query("SELECT status FROM sessions WHERE session_key=? AND generation=1").get(failedKey).status === "ACTIVE", "failed rotation preserves old generation")
 assert(core.db.query("SELECT COUNT(*) AS n FROM sessions WHERE session_key=?").get(failedKey).n === 1, "create failure leaves no successor registry row")
 
-const oldRoot = path.join("C:/Users/Administrator/AppData/Local/Temp/opencode", `lifecycle-legacy-${Date.now().toString(36)}`)
+const oldRoot = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-lifecycle-legacy-"))
 fs.mkdirSync(path.join(oldRoot, "framework-config"), { recursive: true })
 fs.mkdirSync(path.join(oldRoot, "runtime"), { recursive: true })
 for (const file of ["lifecycle.yaml", "projects.yaml", "agents.yaml"]) fs.copyFileSync(path.join(repo, "framework-config", file), path.join(oldRoot, "framework-config", file))

@@ -1,11 +1,12 @@
 import * as fs from "node:fs"
+import * as os from "node:os"
 import * as path from "node:path"
 import { parseYaml } from "./yaml-lite.mjs"
 
 globalThis.Bun = { YAML: { parse: parseYaml }, spawnSync: () => ({ exitCode: 0, stdout: "", stderr: "" }) }
 
 const REPO = "D:/ai-dev"
-const FIX = path.join("C:/Users/Administrator/AppData/Local/Temp/opencode", `probe-${Date.now().toString(36)}`)
+const FIX = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-probe-"))
 fs.mkdirSync(path.join(FIX, "framework-config"), { recursive: true })
 fs.mkdirSync(path.join(FIX, "runtime"), { recursive: true })
 for (const f of ["lifecycle.yaml", "projects.yaml", "agents.yaml"]) {
