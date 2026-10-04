@@ -7,6 +7,10 @@ function decode(value: string): string {
   return value.replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&quot;", '"').replaceAll("&apos;", "'").replaceAll("&amp;", "&")
 }
 
+function compareCodeUnits(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0
+}
+
 function attrs(text: string): Record<string, string> {
   const out: Record<string, string> = {}; let i = 0
   while (i < text.length) {
@@ -67,7 +71,7 @@ export function parseDrawio(file: string): any {
   const routes = byKind("route").map((c) => ({ id: c.attrs["data-route-id"], target: c.attrs["data-target"] }))
   const lifecycleCell = byKind("lifecycle")[0]
   const lifecycle = lifecycleCell ? { thresholds: { continue_reuse_below_percent: Number(lifecycleCell.attrs["data-continue-below"]), checkpoint_from_percent: Number(lifecycleCell.attrs["data-checkpoint-from"]), checkpoint_to_percent: Number(lifecycleCell.attrs["data-checkpoint-to"]), rotate_after_atomic_step_at_percent: Number(lifecycleCell.attrs["data-rotate-at"]), hard_stop_new_tasks_at_percent: Number(lifecycleCell.attrs["data-hard-stop-at"]) }, roles: Object.fromEntries(agents.map((a: any) => [a.id, { lifecycle: a.lifecycle }])) } : { thresholds: {}, roles: {} }
-  const relationships = cells.filter((c) => c.attrs.source && c.attrs.target).map((c) => ({ source: c.attrs.source, target: c.attrs.target, label: decode(c.attrs.value ?? "") })).sort((a, b) => `${a.source}|${a.target}|${a.label}`.localeCompare(`${b.source}|${b.target}|${b.label}`))
+  const relationships = cells.filter((c) => c.attrs.source && c.attrs.target).map((c) => ({ source: c.attrs.source, target: c.attrs.target, label: decode(c.attrs.value ?? "") })).sort((a, b) => compareCodeUnits(`${a.source}|${a.target}|${a.label}`, `${b.source}|${b.target}|${b.label}`))
   const ir = { ir_version: 1, source: { file, raw_sha256: crypto.createHash("sha256").update(xml).digest("hex") }, agents, projects, routes, lifecycle, runtime_components: byKind("runtime_component").map((c) => ({ id: c.attrs["data-arch-id"], kind: c.attrs["data-component-kind"] })), completion_guards: byKind("completion_guard").map((c) => ({ id: c.attrs["data-arch-id"], stage: c.attrs["data-stage"] })), execution_lanes: byKind("execution_lane").map((c) => ({ id: c.attrs["data-arch-id"], default_parallel: Number(c.attrs["data-default-parallel"]), max_parallel: Number(c.attrs["data-max-parallel"]) })), relationships }
   return ir
 }

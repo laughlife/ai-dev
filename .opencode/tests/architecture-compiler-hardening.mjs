@@ -14,6 +14,20 @@ const { safePath, preflightGeneratedFiles } = await import("../../tools/architec
 const ir = parseDrawio(source)
 const runtimeMap = { "gpt-6-sol-fast": {}, "gpt-5.6-sol-fast": {}, "gpt-5.6-sol": {}, "deepseek-v4.1-flash": {}, "qwen3.8-max": {} }
 
+const localeHashScript = `
+const locale = process.argv.at(-1)
+const collator = new Intl.Collator(locale)
+String.prototype.localeCompare = function (other) { return collator.compare(String(this), String(other)) }
+const { parseDrawio } = await import("./tools/architecture-sync/parser.ts")
+const { semanticHash } = await import("./tools/architecture-sync/semantic-hash.ts")
+const ir = parseDrawio("diagrams/multi_agent_framework_v4_completion_guard.drawio")
+process.stdout.write(semanticHash(ir))
+`
+const hashForLocale = (locale) => execFileSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", localeHashScript, locale], { cwd: root, encoding: "utf8" }).trim()
+const zhHash = hashForLocale("zh-CN")
+const enHash = hashForLocale("en-US")
+assert.equal(zhHash, enHash, "semantic hash must be independent of process locale")
+
 const duplicate = structuredClone(ir)
 duplicate.agents.push({ ...duplicate.agents[0] })
 assert.ok(validateIR(duplicate, runtimeMap).includes("ARCH_ENTITY_DUPLICATE:agents:global-orchestrator"))

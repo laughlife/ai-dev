@@ -1,8 +1,12 @@
 import * as crypto from "node:crypto"
 
+function compareCodeUnits(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0
+}
+
 function sorted(value: any): any {
-  if (Array.isArray(value)) return value.map(sorted).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
-  if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort().map((k) => [k, sorted(value[k])]))
+  if (Array.isArray(value)) return value.map(sorted).sort((a, b) => compareCodeUnits(JSON.stringify(a), JSON.stringify(b)))
+  if (value && typeof value === "object") return Object.fromEntries(Object.keys(value).sort(compareCodeUnits).map((k) => [k, sorted(value[k])]))
   return value
 }
 
