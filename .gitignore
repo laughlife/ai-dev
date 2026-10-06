@@ -18,6 +18,7 @@
 
 /runtime/
 /.backups/
+/.ruoyi-vue-pro-package/
 
 # ============================================================
 # Temporary files

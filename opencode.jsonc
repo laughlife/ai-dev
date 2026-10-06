@@ -1,5 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "global-orchestrator",
-  "model": "openai/gpt-6-sol-fast#xhigh"
+  "model": "openai/gpt-6-sol-fast#xhigh",
+  "watcher": {
+    "ignore": [".ruoyi-vue-pro-package/**"]
+  }
 }
