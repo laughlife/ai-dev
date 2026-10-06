@@ -149,3 +149,38 @@ gap remains explicit; the node facts record `lock_key_json: null`.
 The Workflow Engine response remains `REVIEW_PASSED`/`DELIVERY_PENDING` because
 this smoke explicitly uses `delivery=none`; the separate R2 runtime evidence
 status is `COMPLETE` only after the Adapter batch and DB round-trip succeed.
+
+## Final closeout (2026-10-06)
+
+The current verified live run is **live v2** and uses the Desktop-managed CLI
+`opencode v2.0.23`; the `v2.0.22` text above is the earlier R2-era probe and is kept
+as history, not the current state. The current live v2 smoke run is
+`aa97bf7f-b876-4823-952f-fc718b8b4219` (workflow
+`44940f00-6ea5-41e8-95b3-e6d3eb9e80e1`, `attempt=1`, `trigger=workflow_execute`,
+`status=COMPLETED`, `source=workflow-engine-live-r2`, `engine_version=workflow-engine-r2`,
+`evidence_write_status=COMPLETE`) in isolated Control Plane DB
+`C:/Users/Administrator/AppData/Local/Temp/opencode/plan12-final-v2-20261006-4c37812d/control-plane.db`
+(sha256 `0AFFD510D39270F6ED05D8D4682C9F8FBB11BF3A2D12CC402414F6D210081EF4`,
+`config_revision=plan12-final-v2-20261006-4c37812d`, `ACTIVE`). It persisted two
+independent dependency-free `code_read` workers in one parallel wave (`parallelism=2`)
+with distinct sessions and canonical `deepseek/deepseek-flash` (raw
+`deepseek/deepseek-flash#default`): `read-architecture-fingerprints`
+(`ses_eefc561bbffe1Pi7zo9NfMRVZx`) and `read-probe-summary`
+(`ses_eefc561bdffelYrLNBfHMkVRUs`), overlap `2026-10-06T08:00:39.487Z →
+08:00:53.575Z` ≈ 14.088s. No `ACQUIRE`/`RELEASE` lock facts were fabricated
+(`lock_events_count=0`, `lock_key_json=null`).
+
+The architecture hashes are independently recomputed and matched
+(`drawio_raw_sha256=bc90b6cc…ff89c`, `drawio_semantic_sha256=e07ad943…53996`,
+`ir_sha256=10b66910…a57c6`, `architecture-sync check` = `IN_SYNC`).
+
+The Plan 12.5/12.6 scope verdict is **PASS** and the L3 evidence verification is
+**PASS** for live v2. Because the run uses `delivery=none`, the overall result stays
+`FINAL_REPORT_BLOCKED` / `DELIVERY_PENDING` and is **not L4**.
+
+**History:** the previous v1 run `4bbda1c3-a807-4d58-9323-8046cd2817de` (workflow
+`2d304a17-5df5-4240-81f0-c9e848f11064`, revision `plan12-final-20261006-8abc6b7c`)
+is retained as historical evidence, no longer the current state.
+
+See [`plan12-5-6-final-closeout.md`](plan12-5-6-final-closeout.md) and
+[`plan12-5-6-final-readback.json`](plan12-5-6-final-readback.json).

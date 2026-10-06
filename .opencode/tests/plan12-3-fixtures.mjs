@@ -85,7 +85,7 @@ export function activeCount(store) {
 
 // Both processes open the fixture and signal READY before either receives GO.
 export async function concurrentOperations(dbPath, name, requests) {
-  const code = `import {initializeControlPlaneDatabase} from './.opencode/lib/plan12-control-plane.ts'; import * as lifecycle from './.opencode/lib/plan12-config-revision.ts'; const s=initializeControlPlaneDatabase({dbPath:process.argv[1]}); process.stdout.write('READY\\n'); process.stdin.once('data',()=>{try {console.log(JSON.stringify(lifecycle[process.argv[2]](s,JSON.parse(process.argv[3]))));s.close();process.exit(0)}catch(e){console.error(e);process.exit(1)}});`
+  const code = `import path from 'node:path'; import {initializeControlPlaneDatabase} from './.opencode/lib/plan12-control-plane.ts'; import * as lifecycle from './.opencode/lib/plan12-config-revision.ts'; const root=path.dirname(process.argv[1]); const s=initializeControlPlaneDatabase({dbPath:process.argv[1],runtimeRoot:root,allowedRoots:[root]}); process.stdout.write('READY\\n'); process.stdin.once('data',()=>{try {console.log(JSON.stringify(lifecycle[process.argv[2]](s,JSON.parse(process.argv[3]))));s.close();process.exit(0)}catch(e){console.error(e);process.exit(1)}});`
   const workers = requests.map((request) => {
     const child = spawn(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", code, dbPath, name, JSON.stringify(request)], { cwd: process.cwd(), stdio: ["pipe", "pipe", "pipe"] })
     let output = ""; let error = ""; let readyResolve; let doneResolve; let doneReject

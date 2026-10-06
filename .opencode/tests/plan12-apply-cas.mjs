@@ -8,7 +8,7 @@ import { makeSnapshot, operationFields, transition, concurrentOperations, active
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plan12-3-apply-"))
 const dbPath = path.join(dir, "control-plane.db")
-const store = initializeControlPlaneDatabase({ dbPath })
+const store = initializeControlPlaneDatabase({ dbPath, runtimeRoot: dir, allowedRoots: [dir] })
 const hashes = tasksDbHashes()
 const request = (expected, target, key) => ({ expected_active_revision: expected, target_revision: target, idempotency_key: key, ...operationFields(key) })
 try {
@@ -57,7 +57,7 @@ try {
   const results = await concurrentOperations(dbPath, "applyConfigRevision", [request(second.config_revision, third.config_revision, "concurrent-apply-a"), request(second.config_revision, third.config_revision, "concurrent-apply-b")])
   assert.equal(results.filter((result) => result.ok && result.status === "APPLIED").length, 1)
   assert.equal(results.filter((result) => !result.ok && result.code === "CAS_CONFLICT").length, 1)
-  const reopened = initializeControlPlaneDatabase({ dbPath })
+  const reopened = initializeControlPlaneDatabase({ dbPath, runtimeRoot: dir, allowedRoots: [dir] })
   try { assert.equal(activeCount(reopened), 1); assert.equal(getActiveConfigRevision(reopened).config_revision, third.config_revision) } finally { reopened.close() }
   assert.deepEqual(tasksDbHashes(), hashes)
   console.log("PLAN12_APPLY_CAS_PASS")

@@ -36,6 +36,25 @@ Plan 12.5-R2：**PASS**。五个实时 marker、真实 Desktop Runtime session/t
 本节后面的 `LIVE_BLOCKED` 文字是本轮之前的条件性 fail-closed 规则或历史尝试，
 不是当前状态；12.6 现在只消费已提交的 L3 事实，不重新执行 Desktop Runtime。
 
+### 最终收口（2026-10-06）
+
+当前已核实的最新真实运行是 **live v2**，使用 Desktop `opencode v2.0.23`，写入隔离 DB
+`C:/Users/Administrator/AppData/Local/Temp/opencode/plan12-final-v2-20261006-4c37812d/control-plane.db`
+（sha256 `0AFFD510D39270F6ED05D8D4682C9F8FBB11BF3A2D12CC402414F6D210081EF4`，
+`config_revision=plan12-final-v2-20261006-4c37812d`，`ACTIVE`）。smoke run
+`aa97bf7f-b876-4823-952f-fc718b8b4219`（workflow `44940f00-6ea5-41e8-95b3-e6d3eb9e80e1`）为
+`COMPLETED`，同 wave 两个无依赖 `code_read` worker 重叠 ≈14.088s，raw model
+`deepseek/deepseek-flash#default`、canonical `deepseek/deepseek-flash`，无伪造锁事件。
+
+Plan 12.5/12.6 scope = **PASS**、L3 verification = **PASS**；`delivery=none` 使整体保持
+`FINAL_REPORT_BLOCKED` / `DELIVERY_PENDING`，**非 L4**。结构化回读见
+[`plan12-5-6-final-readback.json`](plan12-5-6-final-readback.json)，正式收口说明见
+[`plan12-5-6-final-closeout.md`](plan12-5-6-final-closeout.md)。
+
+**历史：** 上一版 v1 run `4bbda1c3-a807-4d58-9323-8046cd2817de`（workflow
+`2d304a17-5df5-4240-81f0-c9e848f11064`，revision `plan12-final-20261006-8abc6b7c`）
+作为历史保留，不再是当前状态。
+
 ## 验收边界
 
 R2 的 fixture 契约测试覆盖 Planner/dispatch 双门禁、run 级事件无伪造 FK、append-only、digest 重启回读和 ACTIVE revision 校验。历史条件规则是：真实 Desktop Runtime Smoke 只有在新的隔离产物同时包含认证路径、两 Worker 节点、真实 session/time、隔离 DB 回读和 Mem0=0 时，才可输出 `PLAN12_RUNTIME_WORKFLOW_SMOKE_PASS`；否则当时保持 `LIVE_BLOCKED`。该条件已由当前 Live artifact 满足，不构成当前 12.6 阻塞。

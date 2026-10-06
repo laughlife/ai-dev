@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { mkdtempSync, rmSync } from "node:fs"
+import { mkdtempSync, realpathSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { test } from "node:test"
@@ -12,6 +12,7 @@ import {
 import { initializeControlPlaneDatabase } from "../lib/plan12-control-plane.ts"
 import { sha256Canonical } from "../lib/plan12-contract.ts"
 import { normalizeDeliveryPlan } from "../lib/delivery-chain.ts"
+import { buildPlannerPrompt } from "../plugins/workflow-engine/planning.ts"
 import { createConfigRevision, applyConfigRevision, transitionConfigRevision } from "../lib/plan12-config-revision.ts"
 import { appendModelCatalogEntry, appendRouteBinding, recordRuntimeProbe } from "../lib/plan12-model-routes.ts"
 import { makeSnapshot, operationFields, transition } from "./plan12-3-fixtures.mjs"
@@ -88,10 +89,22 @@ test("planner and dispatch permissions fail closed before any execution", () => 
   assert.equal(implicitMemory.code, "MEM0_WRITE_FORBIDDEN")
 })
 
+test("planner prompt distinguishes legacy delivery=none from isolated fixture read-only planning", () => {
+  const base = { primary_project_id: "fixture", objective: "plan", available_routes: ["code_read", "code_change"], registered_projects: ["fixture"] }
+  const legacy = buildPlannerPrompt({ ...base, execution_policy: { mode: "legacy", delivery: "none" } })
+  assert.match(legacy, /不等同于只读/)
+  assert.match(legacy, /可按目标规划 code_change/)
+  assert.doesNotMatch(legacy, /必须保持两个或以上独立、只读、可观测 Worker 节点/)
+  const isolated = buildPlannerPrompt({ ...base, execution_policy: { mode: "isolated_fixture", delivery: "none" } })
+  assert.match(isolated, /只规划真实只读 Worker 节点/)
+  assert.match(isolated, /必须保持两个或以上独立、只读、可观测 Worker 节点/)
+  assert.doesNotMatch(isolated, /可按目标规划 code_change/)
+})
+
 test("append-only lifecycle supports run events before wave/node facts", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "plan12-r2-contract-"))
   const dbPath = path.join(dir, "control-plane.db")
-  const store = initializeControlPlaneDatabase({ dbPath })
+  const store = initializeControlPlaneDatabase({ dbPath, runtimeRoot: dir, allowedRoots: [dir] })
   const snapshot = makeSnapshot("rev-r2")
   assert.equal(createConfigRevision(store, snapshot).ok, true)
   assert.equal(transition(store, transitionConfigRevision, snapshot.config_revision, "VALIDATED", "r2").ok, true)
@@ -106,18 +119,27 @@ test("append-only lifecycle supports run events before wave/node facts", () => {
     projectId: "fixture",
     plan: { nodes: [] },
     source: "plan12.5-r2-test",
+    runtimeRoot: dir,
+    controlPlaneDb: dbPath,
   })
   assert.equal(collector.start().ok, true)
   assert.equal(collector.recordWaveStart(0, []).ok, true)
-  assert.equal(collector.recordNodeStart(0, { node_id: "n1", task_id: "t1", route: "code_read", session_id: "ses-1", session_key: "key-1" }).ok, true)
-  assert.equal(collector.recordNodeFinish(0, { node_id: "n1", task_id: "t1", route: "code_read", session_id: "ses-1", session_key: "key-1", status: "COMPLETED", output: { ok: true } }).ok, true)
+  assert.equal(collector.recordNodeStart(0, { node_id: "n1", task_id: "t1", route: "code_read", session_id: "ses-1", model_runtime_id: "fixture-provider/fixture-model#r2", session_key: "key-1" }).ok, true)
+  assert.equal(collector.recordNodeFinish(0, { node_id: "n1", task_id: "t1", route: "code_read", session_id: "ses-1", model_runtime_id: "fixture-provider/fixture-model#r2", session_key: "key-1", status: "COMPLETED", output: { ok: true } }).ok, true)
   assert.equal(collector.recordWaveFinish(0, []).ok, true)
   const result = collector.finish("COMPLETED")
-  assert.equal(result.ok, true)
+  assert.equal(result.ok, true, JSON.stringify(result))
   const events = store.listWorkflowRunEvents({ run_id: collector.runId })
   assert.deepEqual(events.map((event) => event.event_type), ["RUN_STARTED", "WAVE_STARTED", "NODE_STARTED", "NODE_FINISHED", "WAVE_FINISHED", "RUN_FINISHED"])
   assert.equal(events[0].wave_id, null)
   assert.equal(events[0].node_id, null)
+  const startPayload = JSON.parse(events[0].payload_json)
+  assert.equal(startPayload.workflow_id, "wf-r2")
+  assert.equal(startPayload.run_id, collector.runId)
+  assert.equal(startPayload.plan_digest, sha256Canonical({ nodes: [] }))
+  assert.equal(startPayload.runtime_root, realpathSync(dir))
+  assert.equal(startPayload.control_plane_db, realpathSync(dbPath))
+  assert.equal(startPayload.path_envelope.policy, "explicit-runtime-root-v1")
   assert.equal(store.listWorkflowWaves({ run_id: collector.runId }).length, 1)
   assert.equal(store.listWorkflowWaveNodes({ run_id: collector.runId }).length, 1)
   assert.throws(() => store.db.prepare("UPDATE workflow_run_events SET status='FAILED' WHERE run_id=?").run(collector.runId), /APPEND_ONLY_UPDATE_FORBIDDEN/)
@@ -131,7 +153,7 @@ test("append-only lifecycle supports run events before wave/node facts", () => {
   assert.equal(conflict.ok, false)
   assert.equal(conflict.code, "EVIDENCE_IDEMPOTENCY_CONFLICT")
   store.close()
-  const reopened = initializeControlPlaneDatabase({ dbPath })
+  const reopened = initializeControlPlaneDatabase({ dbPath, runtimeRoot: dir, allowedRoots: [dir] })
   assert.equal(reopened.listWorkflowRunEvents({ run_id: collector.runId }).length, 6)
   assert.equal(reopened.listExecutionEvents({ run_id: collector.runId }).length, 1)
   reopened.close()
@@ -140,29 +162,31 @@ test("append-only lifecycle supports run events before wave/node facts", () => {
 
 test("append-only lifecycle refuses revision mismatch and exposes write failures", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "plan12-r2-failure-"))
-  const store = initializeControlPlaneDatabase({ dbPath: path.join(dir, "control-plane.db") })
+  const store = initializeControlPlaneDatabase({ dbPath: path.join(dir, "control-plane.db"), runtimeRoot: dir, allowedRoots: [dir] })
   const collector = createRuntimeEvidenceCollector({ store, workflowId: "wf", configRevision: "missing", projectId: "fixture", plan: { nodes: [] }, source: "test" })
   const failed = collector.start()
   assert.equal(failed.ok, false)
   assert.equal(failed.code, "CONFIG_REVISION_NOT_FOUND")
   assert.equal(failed.guard, "BLOCKED")
   const activeDir = mkdtempSync(path.join(tmpdir(), "plan12-r2-adapter-failure-"))
-  const activeStore = initializeControlPlaneDatabase({ dbPath: path.join(activeDir, "control-plane.db") })
+  const activeStore = initializeControlPlaneDatabase({ dbPath: path.join(activeDir, "control-plane.db"), runtimeRoot: activeDir, allowedRoots: [activeDir] })
   const activeSnapshot = makeSnapshot("rev-adapter-failure")
   assert.equal(createConfigRevision(activeStore, activeSnapshot).ok, true)
   assert.equal(transition(activeStore, transitionConfigRevision, activeSnapshot.config_revision, "VALIDATED", "adapter-failure").ok, true)
   assert.equal(transition(activeStore, transitionConfigRevision, activeSnapshot.config_revision, "STAGED", "adapter-failure").ok, true)
   assert.equal(transition(activeStore, transitionConfigRevision, activeSnapshot.config_revision, "APPLIED", "adapter-failure").ok, true)
   assert.equal(applyConfigRevision(activeStore, { target_revision: activeSnapshot.config_revision, expected_active_revision: null, idempotency_key: "adapter-failure-apply", ...operationFields("adapter-failure-apply") }).ok, true)
-  const adapterFailureCollector = createRuntimeEvidenceCollector({ store: activeStore, workflowId: "wf-adapter-failure", configRevision: activeSnapshot.config_revision, projectId: "fixture", plan: { nodes: [] }, source: "test" })
+  const adapterFailureCollector = createRuntimeEvidenceCollector({ store: activeStore, workflowId: "wf-adapter-failure", configRevision: activeSnapshot.config_revision, projectId: "fixture", plan: { nodes: [] }, source: "test", runtimeRoot: activeDir, controlPlaneDb: activeStore.dbPath })
   assert.equal(adapterFailureCollector.start().ok, true)
   assert.equal(adapterFailureCollector.recordWaveStart(0, [{ node_id: "n-failure" }]).ok, true)
-  assert.equal(adapterFailureCollector.recordNodeStart(0, { node_id: "n-failure", task_id: "t-failure", route: "code_read", session_id: "ses-failure", session_key: "key-failure" }).ok, true)
-  assert.equal(adapterFailureCollector.recordNodeFinish(0, { node_id: "n-failure", task_id: "t-failure", route: "code_read", session_id: "ses-failure", session_key: "key-failure", status: "COMPLETED", output: { ok: true } }).ok, true)
+  assert.equal(adapterFailureCollector.recordNodeStart(0, { node_id: "n-failure", task_id: "t-failure", route: "code_read", session_id: "ses-failure", model_runtime_id: "openai/gpt-6.1-sol#default", session_key: "key-failure" }).ok, true)
+  assert.equal(adapterFailureCollector.recordNodeFinish(0, { node_id: "n-failure", task_id: "t-failure", route: "code_read", session_id: "ses-failure", model_runtime_id: "openai/gpt-6.1-sol#default", session_key: "key-failure", status: "COMPLETED", output: { ok: true } }).ok, true)
   assert.equal(adapterFailureCollector.recordWaveFinish(0, [{ node_id: "n-failure" }]).ok, true)
   const adapterFailure = adapterFailureCollector.finish("COMPLETED")
   assert.equal(adapterFailure.ok, false)
-  assert.equal(activeStore.listWorkflowRunEvents({ run_id: adapterFailureCollector.runId }).some((event) => event.event_type === "EVIDENCE_WRITE_FAILED"), true)
+  const persistedFailure = activeStore.listWorkflowRunEvents({ run_id: adapterFailureCollector.runId }).find((event) => event.event_type === "EVIDENCE_WRITE_FAILED")
+  assert.equal(persistedFailure?.error_code, "MODEL_ROUTE_REJECTED", "bottom-level adapter cause code must remain queryable")
+  assert.equal(JSON.parse(persistedFailure.payload_json).cause_code, "MODEL_ROUTE_REJECTED")
   activeStore.close()
   rmSync(activeDir, { recursive: true, force: true })
   store.close()
@@ -171,7 +195,7 @@ test("append-only lifecycle refuses revision mismatch and exposes write failures
 
 test("event write failure is observable and recoverable without pretending success", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "plan12-r2-write-failure-"))
-  const store = initializeControlPlaneDatabase({ dbPath: path.join(dir, "control-plane.db") })
+  const store = initializeControlPlaneDatabase({ dbPath: path.join(dir, "control-plane.db"), runtimeRoot: dir, allowedRoots: [dir] })
   const snapshot = makeSnapshot("rev-failure")
   assert.equal(createConfigRevision(store, snapshot).ok, true)
   assert.equal(transition(store, transitionConfigRevision, snapshot.config_revision, "VALIDATED", "failure").ok, true)
@@ -179,7 +203,7 @@ test("event write failure is observable and recoverable without pretending succe
   assert.equal(transition(store, transitionConfigRevision, snapshot.config_revision, "APPLIED", "failure").ok, true)
   assert.equal(applyConfigRevision(store, { target_revision: snapshot.config_revision, expected_active_revision: null, idempotency_key: "failure-apply", ...operationFields("failure-apply") }).ok, true)
   store.db.exec("CREATE TRIGGER fixture_r2_event_failure BEFORE INSERT ON workflow_run_events BEGIN SELECT RAISE(ABORT, 'FIXTURE_EVIDENCE_WRITE_FAILED'); END")
-  const collector = createRuntimeEvidenceCollector({ store, workflowId: "wf-failure", configRevision: snapshot.config_revision, projectId: "fixture", plan: { nodes: [] }, source: "test" })
+  const collector = createRuntimeEvidenceCollector({ store, workflowId: "wf-failure", configRevision: snapshot.config_revision, projectId: "fixture", plan: { nodes: [] }, source: "test", runtimeRoot: dir, controlPlaneDb: store.dbPath })
   const blocked = collector.start()
   assert.equal(blocked.ok, false)
   assert.equal(blocked.code, "EVIDENCE_WRITE_FAILED")

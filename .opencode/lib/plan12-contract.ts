@@ -151,6 +151,13 @@ function stringField(value: any, field: string, path = "$"): ValidationFailure |
   return null
 }
 
+function runtimeIdField(value: any, field: string, path = "$"): ValidationFailure | null {
+  if (typeof value[field] !== "string" || !RUNTIME_ID_RE.test(value[field])) {
+    return failure("RUNTIME_ID_INVALID", `${field} must be provider/model[#variant]`, `${path}.${field}`)
+  }
+  return null
+}
+
 function hashField(value: any, field: string, path = "$"): ValidationFailure | null {
   if (typeof value[field] !== "string" || !HASH_RE.test(value[field])) {
     return failure("HASH_INVALID", `${field} must be a lowercase SHA-256 hex string`, `${path}.${field}`)
@@ -345,9 +352,10 @@ export function validateWorkflowWaveFact(value: unknown, context?: Plan12Validat
 export function validateWorkflowWaveNodeFact(value: unknown, context?: Plan12ValidationContext): ValidationResult {
   const envelope = factEnvelope(value, "workflow_wave_node", context); if (!envelope.ok) return envelope
   const node: any = envelope.value; const ctx = contextOf(context)
-  const missing = required(node, ["run_id", "wave_id", "node_id", "attempt", "task_id", "route", "resource_digest", "lock_key_json", "status", "event_seq", "session_id"]); if (missing) return missing
+  const missing = required(node, ["run_id", "wave_id", "node_id", "attempt", "task_id", "route", "resource_digest", "lock_key_json", "status", "event_seq", "session_id", "model_runtime_id"]); if (missing) return missing
   for (const field of ["ended_at", "result_digest", "error_code"]) { const result = presentField(node, field); if (result) return result }
   for (const field of ["run_id", "wave_id", "node_id", "task_id", "route", "session_id"]) { const result = stringField(node, field); if (result) return result }
+  { const result = runtimeIdField(node, "model_runtime_id"); if (result) return result }
   const ref = validateRunReference(node, ctx); if (ref) return ref
   const attempt = integerField(node, "attempt", 1); if (attempt) return attempt
   const sequence = integerField(node, "event_seq", 1); if (sequence) return sequence

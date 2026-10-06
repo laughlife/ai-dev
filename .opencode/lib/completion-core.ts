@@ -50,7 +50,7 @@ export function createCompletionCore(runtimeCore: any, options: any = {}) {
           workflowId: wf.workflow_id,
           runId: typeof input?.run_id === "string" ? input.run_id : undefined,
           dbPath: typeof input?.control_plane_db === "string" ? input.control_plane_db : policy.control_plane_db,
-          root: runtimeCore?.root ?? process.cwd(),
+          root: runtimeCore?.root ?? process.env.AI_DEV_ROOT ?? null,
           productionRoot: process.env.AI_DEV_ROOT ?? (runtimeCore?.root && fs.existsSync(path.join(runtimeCore.root, ".git")) ? runtimeCore.root : null),
           configRevision: policy.config_revision,
           allowed_roots: policy.allowed_roots,

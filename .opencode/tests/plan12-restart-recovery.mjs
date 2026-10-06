@@ -11,7 +11,7 @@ const dbPath = path.join(fixture, "runtime", "control-plane.db")
 
 try {
   const facts = makeFacts("restart")
-  const first = initializeControlPlaneDatabase({ dbPath })
+  const first = initializeControlPlaneDatabase({ dbPath, runtimeRoot: fixture, allowedRoots: [fixture] })
   assert.equal(appendWorkflowConfigSnapshot(first, facts.snapshot).ok, true)
   assert.equal(appendWorkflowRun(first, facts.run).ok, true)
   assert.equal(appendWorkflowWave(first, facts.wave).ok, true)
@@ -21,7 +21,7 @@ try {
     "--experimental-strip-types",
     "--input-type=module",
     "-e",
-    "import { initializeControlPlaneDatabase } from './.opencode/lib/plan12-control-plane.ts'; const store=initializeControlPlaneDatabase({dbPath:process.env.PLAN12_DB}); const run=store.getWorkflowRun(process.env.PLAN12_RUN); const waves=store.listWorkflowWaves({run_id:process.env.PLAN12_RUN}); console.log(JSON.stringify({run_id:run?.run_id,waves:waves.length})); store.close()",
+    "import path from 'node:path'; import { initializeControlPlaneDatabase } from './.opencode/lib/plan12-control-plane.ts'; const root=path.dirname(path.dirname(process.env.PLAN12_DB)); const store=initializeControlPlaneDatabase({dbPath:process.env.PLAN12_DB,runtimeRoot:root,allowedRoots:[root]}); const run=store.getWorkflowRun(process.env.PLAN12_RUN); const waves=store.listWorkflowWaves({run_id:process.env.PLAN12_RUN}); console.log(JSON.stringify({run_id:run?.run_id,waves:waves.length})); store.close()",
   ], {
     cwd: path.resolve("."),
     env: { ...process.env, PLAN12_DB: dbPath, PLAN12_RUN: facts.run.run_id },
@@ -30,7 +30,7 @@ try {
   assert.equal(child.status, 0, child.stderr)
   assert.deepEqual(JSON.parse(child.stdout.trim()), { run_id: facts.run.run_id, waves: 1 })
 
-  const second = initializeControlPlaneDatabase({ dbPath })
+  const second = initializeControlPlaneDatabase({ dbPath, runtimeRoot: fixture, allowedRoots: [fixture] })
   assert.equal(appendWorkflowWaveNode(second, facts.node).ok, true)
   assert.equal(second.listWorkflowWaveNodes({ run_id: facts.run.run_id }).length, 1)
   second.close()

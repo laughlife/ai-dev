@@ -313,6 +313,7 @@ export function createTaskBusCore(ctx: any, runtimeCore: any) {
     status: "COMPLETED" | "FAILED" | "BLOCKED" | "CANCELLED"
     sessionId: string | null
     sessionGeneration: number | null
+    modelRuntimeId?: string | null
     outputText: string
     error: string | null
     startedAt: string
@@ -327,6 +328,7 @@ export function createTaskBusCore(ctx: any, runtimeCore: any) {
       status: args.status,
       session_id: args.sessionId,
       session_generation: args.sessionGeneration,
+      model_runtime_id: args.modelRuntimeId ?? null,
       output_text: args.outputText,
       artifacts: [] as string[],
       risks: [] as string[],
@@ -597,11 +599,33 @@ export function createTaskBusCore(ctx: any, runtimeCore: any) {
       runtimeCore.send(projectId, role, prompt),
     )
     if (res?.ok) {
+      const rawModelRuntimeId =
+        typeof res.raw_model_runtime_id === "string" && res.raw_model_runtime_id.trim()
+          ? res.raw_model_runtime_id
+          : null
+      if (!rawModelRuntimeId) {
+        const code = "MODEL_RUNTIME_ID_MISSING"
+        const detail = "actual assistant response did not expose provider/model identity; configured runtime_id is not accepted as telemetry"
+        return {
+          kind: "failed" as const,
+          outputText: "",
+          sessionId: (res.session_id as string) ?? null,
+          sessionGeneration: typeof res.generation === "number" ? res.generation : null,
+          modelRuntimeId: null,
+          targetSessionKey: (res.session_key as string) ?? runtimeCore.sessionKey(projectId, role),
+          code,
+          detail: `${code}: ${detail}`,
+        }
+      }
       return {
         kind: "completed" as const,
         outputText: String(res.result ?? ""),
         sessionId: (res.session_id as string) ?? null,
         sessionGeneration: typeof res.generation === "number" ? res.generation : null,
+        // Preserve response telemetry verbatim. model_runtime_id is the
+        // canonical comparison identity; it must never erase `#default` or be
+        // used as a configured-model fallback when raw telemetry is missing.
+        modelRuntimeId: rawModelRuntimeId,
         targetSessionKey: (res.session_key as string) ?? runtimeCore.sessionKey(projectId, role),
         code: null as string | null,
         detail: null as string | null,
@@ -616,6 +640,7 @@ export function createTaskBusCore(ctx: any, runtimeCore: any) {
         outputText: "",
         sessionId: (res?.session_id as string) ?? null,
         sessionGeneration: null,
+        modelRuntimeId: null,
         targetSessionKey: (res?.session_key as string) ?? runtimeCore.sessionKey(projectId, role),
         code,
         detail,
@@ -626,6 +651,7 @@ export function createTaskBusCore(ctx: any, runtimeCore: any) {
       outputText: "",
       sessionId: (res?.session_id as string) ?? null,
       sessionGeneration: typeof res?.generation === "number" ? res.generation : null,
+      modelRuntimeId: typeof res?.model_runtime_id === "string" ? res.model_runtime_id : null,
       targetSessionKey: (res?.session_key as string) ?? runtimeCore.sessionKey(projectId, role),
       code,
       detail: `${code}: ${detail}`,
@@ -691,11 +717,15 @@ export function createTaskBusCore(ctx: any, runtimeCore: any) {
           .join("\n")
           .trim()
         if (text) {
+          const providerID = typeof m?.model?.providerID === "string" ? m.model.providerID.trim() : ""
+          const modelID = typeof m?.model?.id === "string" ? m.model.id.trim() : ""
+          const variant = typeof m?.model?.variant === "string" ? m.model.variant.trim() : ""
           return {
             kind: "completed" as const,
             outputText: text,
             sessionId: sessionID,
             sessionGeneration: null, // no registry generation for ephemeral sessions
+            modelRuntimeId: providerID && modelID ? `${providerID}/${modelID}${variant ? `#${variant}` : ""}` : null,
             targetSessionKey: sessionKey,
             code: null as string | null,
             detail: null as string | null,
@@ -1014,7 +1044,6 @@ export function createTaskBusCore(ctx: any, runtimeCore: any) {
         detail: `EXECUTION_EXCEPTION: ${errMsg(e)}`,
       }
     }
-
     // --- wrap into the Result Envelope (§36) and persist the final state ---
     const finishedAt = nowIso()
     const finalStatus: "COMPLETED" | "FAILED" | "BLOCKED" =
@@ -1028,6 +1057,7 @@ export function createTaskBusCore(ctx: any, runtimeCore: any) {
       status: finalStatus,
       sessionId: exec.sessionId ?? null,
       sessionGeneration: exec.sessionGeneration ?? null,
+      modelRuntimeId: exec.modelRuntimeId ?? null,
       outputText: typeof exec.outputText === "string" ? exec.outputText : "",
       error:
         finalStatus === "COMPLETED"

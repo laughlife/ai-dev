@@ -8,7 +8,7 @@ import { makeSnapshot, operationFields, transition, concurrentOperations, active
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plan12-3-rollback-"))
 const dbPath = path.join(dir, "control-plane.db")
-const store = initializeControlPlaneDatabase({ dbPath })
+const store = initializeControlPlaneDatabase({ dbPath, runtimeRoot: dir, allowedRoots: [dir] })
 const hashes = tasksDbHashes()
 const request = (expected, target, key) => ({ expected_active_revision: expected, target_revision: target, idempotency_key: key, ...operationFields(key) })
 try {
@@ -51,7 +51,7 @@ try {
   assert.equal(getActiveConfigRevision(store).config_revision, first.config_revision)
   assert.equal(activeCount(store), 1)
   store.close()
-  const concurrentTarget = initializeControlPlaneDatabase({ dbPath })
+  const concurrentTarget = initializeControlPlaneDatabase({ dbPath, runtimeRoot: dir, allowedRoots: [dir] })
   try {
     const third = makeSnapshot("cr-20261002-1204", first.config_revision)
     assert.equal(createConfigRevision(concurrentTarget, third).ok, true)
@@ -61,7 +61,7 @@ try {
   const results = await concurrentOperations(dbPath, "rollbackConfigRevision", [request("cr-20261002-1204", first.config_revision, "concurrent-rollback-a"), request("cr-20261002-1204", first.config_revision, "concurrent-rollback-b")])
   assert.equal(results.filter((result) => result.ok && result.status === "APPLIED").length, 1)
   assert.equal(results.filter((result) => !result.ok && result.code === "CAS_CONFLICT").length, 1)
-  const reopened = initializeControlPlaneDatabase({ dbPath })
+  const reopened = initializeControlPlaneDatabase({ dbPath, runtimeRoot: dir, allowedRoots: [dir] })
   try { assert.equal(activeCount(reopened), 1); assert.equal(getActiveConfigRevision(reopened).config_revision, first.config_revision) } finally { reopened.close() }
   assert.deepEqual(tasksDbHashes(), hashes)
   console.log("PLAN12_ROLLBACK_JOURNAL_PASS")

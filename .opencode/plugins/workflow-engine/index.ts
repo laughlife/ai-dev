@@ -80,7 +80,7 @@ import { createScheduler, notableLifecycleReports } from "./scheduler.ts"
 import { createReviewer } from "./review.ts"
 import { createWorkflowTestHooks, testHooksEnabled, HOOK_VERDICTS } from "./hooks.ts"
 import { normalizeDeliveryPlan } from "../../lib/delivery-chain.ts"
-import { initializeControlPlaneDatabase } from "../../lib/plan12-control-plane.ts"
+import { initializeControlPlaneDatabase, resolveControlPlaneDatabasePath } from "../../lib/plan12-control-plane.ts"
 import { normalizeWorkflowExecutionPolicy, validatePlannerExecutionPolicy } from "../../lib/plan12-runtime-execution.ts"
 
 const LIST_DEFAULT_LIMIT = 20 // §71: default 20
@@ -125,7 +125,10 @@ export default {
     let evidenceStoreError: string | null = null
     const evidenceDbPath = typeof process?.env?.PLAN12_CONTROL_PLANE_DB === "string" ? process.env.PLAN12_CONTROL_PLANE_DB.trim() : ""
     if (evidenceDbPath) {
-      try { evidenceStore = initializeControlPlaneDatabase({ dbPath: evidenceDbPath }) } catch (error: any) { evidenceStoreError = errMsg(error) }
+      try {
+        const resolvedEvidenceDbPath = resolveControlPlaneDatabasePath({ dbPath: evidenceDbPath, runtimeRoot: core.root })
+        evidenceStore = initializeControlPlaneDatabase({ dbPath: resolvedEvidenceDbPath, runtimeRoot: core.root })
+      } catch (error: any) { evidenceStoreError = errMsg(error) }
     }
     // --- §31: workflow schema on the shared runtime/tasks.db (idempotent) ---
     let schemaError: string | null = null
@@ -362,7 +365,7 @@ export default {
     const hooksEnabled = testHooksEnabled(core.root)
     const hooks = hooksEnabled ? createWorkflowTestHooks() : null
     const reviewer = createReviewer({ core, bus, hooks, loadWorkflowConfig })
-    const scheduler = createScheduler({ core, bus, hooks, reviewer, loadWorkflowConfig, lifecyclePreflight, evidenceStore, evidenceStoreError, evidenceRoot: core.root })
+    const scheduler = createScheduler({ core, bus, hooks, reviewer, loadWorkflowConfig, lifecyclePreflight, evidenceStore, evidenceStoreError, evidenceRoot: core.root, evidenceDbPath: evidenceDbPath || null })
 
     function rowToWorkflow(row: any) {
       return {

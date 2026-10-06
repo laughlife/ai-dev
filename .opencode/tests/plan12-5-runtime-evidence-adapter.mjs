@@ -21,7 +21,7 @@ import { makeFacts } from "./plan12-control-plane-fixtures.mjs"
 const observedAt = "2026-10-02T00:00:00.000Z"
 const revision = "cr-20261002-0001"
 const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "plan12-5-adapter-"))
-const store = initializeControlPlaneDatabase({ dbPath: path.join(fixture, "control-plane.db") })
+const store = initializeControlPlaneDatabase({ dbPath: path.join(fixture, "control-plane.db"), runtimeRoot: fixture, allowedRoots: [fixture] })
 const source = "runtime-adapter-fixture"
 const digest = (value) => sha256Canonical(value)
 const withDigest = (value) => {
@@ -44,7 +44,7 @@ const runtimeWave = (runId, waveId, index, nodes = []) => ({
 const runtimeNode = (runId, waveId, nodeId, taskId, sessionId, eventSeq, attempt = 1) => ({
   source, observed_at: observedAt, config_revision: revision, run_id: runId, wave_id: waveId, node_id: nodeId,
   attempt, task_id: taskId, route: "route-code-read", resource_digest: "5".repeat(64), lock_key_json: "[]",
-  session_key: `${sessionId}:key`, session_id: sessionId, status: "RUNNING", event_seq: eventSeq,
+  session_key: `${sessionId}:key`, session_id: sessionId, model_runtime_id: "openai/gpt-5.6-sol#high", status: "RUNNING", event_seq: eventSeq,
   started_at: observedAt, ended_at: null, result_digest: null, error_code: null,
 })
 const runtimeLock = (runId, waveId, nodeId, eventId, sequence, eventType = "ACQUIRE") => ({
@@ -59,7 +59,7 @@ const runtimeEvent = (runId, workflowId, waveId, nodeId, taskId, eventId, sequen
 })
 
 function runAdapterWorker(dbPath, input) {
-  const code = "import {initializeControlPlaneDatabase} from './.opencode/lib/plan12-control-plane.ts'; import {appendRuntimeEvidenceBatch} from './.opencode/lib/plan12-runtime-evidence-adapter.ts'; const store=initializeControlPlaneDatabase({dbPath:process.env.PLAN12_DB}); const result=appendRuntimeEvidenceBatch(store, JSON.parse(Buffer.from(process.env.PLAN12_INPUT,'base64').toString('utf8'))); console.log(JSON.stringify({ok:result.ok,status:result.status,code:result.code})); store.close();"
+  const code = "import path from 'node:path'; import {initializeControlPlaneDatabase} from './.opencode/lib/plan12-control-plane.ts'; import {appendRuntimeEvidenceBatch} from './.opencode/lib/plan12-runtime-evidence-adapter.ts'; const root=path.dirname(process.env.PLAN12_DB); const store=initializeControlPlaneDatabase({dbPath:process.env.PLAN12_DB,runtimeRoot:root,allowedRoots:[root]}); const result=appendRuntimeEvidenceBatch(store, JSON.parse(Buffer.from(process.env.PLAN12_INPUT,'base64').toString('utf8'))); console.log(JSON.stringify({ok:result.ok,status:result.status,code:result.code})); store.close();"
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", code], {
       cwd: path.resolve("."),
@@ -93,7 +93,7 @@ try {
   })
   assert.equal(appendModelCatalogEntry(store, model).ok, true)
   const route = withDigest({
-    route_binding_id: "route-code-read", role: "Feature Executor", workflow_scope: "global", project_scope: "fixture-project", lane: "default",
+    route_binding_id: "route-code-read", role: "Project Reader", workflow_scope: "global", project_scope: "fixture-project", lane: "default",
     provider: "openai", model_id: "gpt-5.6-sol", exact_model_ref: "openai/gpt-5.6-sol#high", binding_state: "BOUND", config_revision: revision,
     source: "fixture", reason: "fixture route", created_at: observedAt, updated_at: observedAt, idempotency_key: "route-plan12-5",
   })
@@ -169,6 +169,20 @@ try {
     config_snapshot: facts.snapshot,
   })
   assert.equal(batchResult.ok, true, JSON.stringify(batchResult))
+  const mismatchModel = appendRuntimeEvidenceBatch(store, {
+    run: runtimeRun("wf-model-mismatch", "run-model-mismatch"),
+    waves: [runtimeWave("run-model-mismatch", "model-wave", 0, [runtimeNode("run-model-mismatch", "model-wave", "model-node", "model-task", "model-session", 1)])],
+    nodes: [{ ...runtimeNode("run-model-mismatch", "model-wave", "model-node", "model-task", "model-session", 1), model_runtime_id: "deepseek/deepseek-flash" }], lock_events: [], execution_events: [], config_snapshot: facts.snapshot,
+  })
+  assert.equal(mismatchModel.ok, false)
+  assert.equal(mismatchModel.code, "EVIDENCE_WRITE_FAILED")
+  assert.equal(mismatchModel.cause_code, "MODEL_RUNTIME_ID_MISMATCH")
+  const matchingModel = appendRuntimeEvidenceBatch(store, {
+    run: runtimeRun("wf-model-match", "run-model-match"),
+    waves: [runtimeWave("run-model-match", "model-wave", 0, [runtimeNode("run-model-match", "model-wave", "model-node", "model-task", "model-session", 1)])],
+    nodes: [runtimeNode("run-model-match", "model-wave", "model-node", "model-task", "model-session", 1)], lock_events: [], execution_events: [], config_snapshot: facts.snapshot,
+  })
+  assert.equal(matchingModel.ok, true, JSON.stringify(matchingModel))
   assert.equal(store.getWorkflowRun("run-batch").workflow_id, "wf-batch")
   const replayBatch = appendRuntimeEvidenceBatch(store, {
     run: batchRun, waves: [batchWave], nodes: [batchNode], lock_events: [], execution_events: [], config_snapshot: facts.snapshot,
@@ -235,7 +249,7 @@ try {
   assert.equal(parallelResults.every((result) => result.ok), true, JSON.stringify(parallelResults))
   assert.equal(store.db.prepare("SELECT COUNT(*) AS count FROM workflow_runs WHERE run_id IN ('run-parallel-a','run-parallel-b')").get().count, 2)
 
-  const reopened = initializeControlPlaneDatabase({ dbPath: path.join(fixture, "control-plane.db") })
+  const reopened = initializeControlPlaneDatabase({ dbPath: path.join(fixture, "control-plane.db"), runtimeRoot: fixture, allowedRoots: [fixture] })
   assert.equal(reopened.getWorkflowRun("run-batch").workflow_id, "wf-batch")
   reopened.close()
   console.log("PLAN12_WORKFLOW_RUN_ADAPTER_PASS")

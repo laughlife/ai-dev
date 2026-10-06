@@ -40,6 +40,10 @@
         "null"
       ]
     },
+    "model_runtime_id": {
+      "description": "Exact provider/model#variant identity observed on the actual assistant response; null when no response identity was observed (including pre-dispatch blocking). Configured model values must never be copied into this telemetry field.",
+      "type": ["string", "null"]
+    },
     "status": {
       "description": "Terminal or blocking status of the task. COMPLETED = normal completion in Plan 6 runtime; FAILED = execution exception; BLOCKED = dependency not completed, model unassigned (MODEL_UNASSIGNED), or route prerequisite not satisfied; CANCELLED = protocol compatibility reservation only, no cancel tool is implemented in Plan 6.",
       "enum": [

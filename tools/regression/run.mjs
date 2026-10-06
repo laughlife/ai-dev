@@ -1,7 +1,22 @@
 import { spawnSync } from "node:child_process"
-import { REGRESSION_CHECKS } from "./manifest.mjs"
+import path from "node:path"
+import { pathToFileURL } from "node:url"
+import { summarizeRegressionStatus } from "./status.mjs"
 
 const root = new URL("../../", import.meta.url).pathname.replace(/^\/(\w):/, "$1:")
+const args = process.argv.slice(2)
+let manifestPath = path.join(root, "tools/regression/manifest.mjs")
+if (args.length > 0) {
+  if (args.length !== 2 || args[0] !== "--manifest" || !args[1]) {
+    console.error("Usage: node tools/regression/run.mjs [--manifest <path>]")
+    process.exit(1)
+  }
+  manifestPath = path.resolve(process.cwd(), args[1])
+}
+
+const { REGRESSION_CHECKS } = await import(pathToFileURL(manifestPath).href)
+if (!Array.isArray(REGRESSION_CHECKS)) throw new TypeError("regression manifest must export REGRESSION_CHECKS as an array")
+
 const results = []
 let failure = false
 let releaseBlocked = false
@@ -37,6 +52,6 @@ for (const check of REGRESSION_CHECKS) {
   if (failure) break
 }
 
-const status = failure ? "FAIL" : releaseBlocked ? "BLOCKED" : "PASS"
-console.log(JSON.stringify({ schema_version: 1, status, checks: results, release_gate: releaseBlocked ? "NOT_READY" : "RELEASE_READY" }))
+const summary = summarizeRegressionStatus({ failure, releaseBlocked })
+console.log(JSON.stringify({ schema_version: 1, ...summary, checks: results }))
 process.exitCode = failure ? 1 : releaseBlocked ? 2 : 0

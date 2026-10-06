@@ -254,7 +254,7 @@ export function adaptWorkflowWave(runtimeResult: AnyRecord, runContext: AnyRecor
 }
 
 export function adaptWorkflowWaveNode(runtimeNode: AnyRecord, waveContext: AnyRecord = {}): AdapterSuccess | AdapterFailure {
-  const missing = requiredFromRuntime(runtimeNode, ["run_id", "wave_id", "node_id", "attempt", "task_id", "route", "resource_digest", "lock_key_json", "status", "event_seq", "started_at", "session_id"])
+  const missing = requiredFromRuntime(runtimeNode, ["run_id", "wave_id", "node_id", "attempt", "task_id", "route", "resource_digest", "lock_key_json", "status", "event_seq", "started_at", "session_id", "model_runtime_id"])
   if (missing) return missing
   const nullable = presentFromRuntime(runtimeNode, ["ended_at", "result_digest", "error_code"]); if (nullable) return nullable
   if (!same(valueOf(runtimeNode, waveContext, "run_id"), waveContext.run_id) || !same(valueOf(runtimeNode, waveContext, "wave_id"), waveContext.wave_id)) return fail("NODE_WAVE_MISMATCH", "node does not belong to the requested run/wave", runtimeNode, waveContext, "$.wave_id")
@@ -287,6 +287,7 @@ export function adaptWorkflowWaveNode(runtimeNode: AnyRecord, waveContext: AnyRe
     lock_key_json: valueOf(runtimeNode, waveContext, "lock_key_json"),
     session_key: valueOf(runtimeNode, waveContext, "session_key") ?? null,
     session_id: sessionId,
+    model_runtime_id: valueOf(runtimeNode, waveContext, "model_runtime_id"),
     status: valueOf(runtimeNode, waveContext, "status"),
     event_seq: valueOf(runtimeNode, waveContext, "event_seq"),
     started_at: valueOf(runtimeNode, waveContext, "started_at"),
@@ -433,10 +434,15 @@ export function appendRuntimeEvidenceBatch(store: ControlPlaneStore, input: AnyR
     const priorAttempt = attempts[raw.node_id]
     const nodeKey = raw.idempotency_key || stableKey(sourceOf(raw, input.context ?? {}) ?? run.fact.source, "workflow_wave_node", [raw.run_id, raw.wave_id, raw.node_id, raw.attempt])
     const replay = Boolean(store.getEvidenceByIdempotencyKey(nodeKey))
-    if (!replay) {
-      const admission = admitRoute(store, raw.route, run.fact.config_revision)
-      if (!admission.ok) return failureFromResult(fail(admission.code, admission.detail, raw, input.context ?? {}, "$.route"))
-    }
+    const admission = admitRoute(store, raw.route, run.fact.config_revision)
+    if (!admission.ok) return failureFromResult(fail(admission.code, admission.detail, raw, input.context ?? {}, "$.route"))
+    if (raw.route === "code_read" && admission.value?.route?.role !== "Project Reader") return failureFromResult(fail("ROUTE_ROLE_MISMATCH", "code_read evidence requires the formal Project Reader route role", raw, input.context ?? {}, "$.route"))
+    const rawActual = raw.model_runtime_id
+    const rawAdmitted = admittedCatalogRef(store, raw.route, run.fact.config_revision)
+    const actual = normalizeRuntimeId(rawActual)
+    const admitted = normalizeRuntimeId(rawAdmitted)
+    if (!actual) return failureFromResult(fail("MODEL_RUNTIME_ID_MISMATCH", "Worker node model_runtime_id is missing or unparseable; refusing to write L3 evidence", raw, input.context ?? {}, "$.model_runtime_id"))
+    if (!admitted || actual !== admitted) return failureFromResult(fail("MODEL_RUNTIME_ID_MISMATCH", `Worker model_runtime_id '${rawActual}' does not match admitted catalog exact_model_ref '${rawAdmitted ?? "missing"}'`, raw, input.context ?? {}, "$.model_runtime_id"))
     const adapted = adaptWorkflowWaveNode(raw, { ...(input.context ?? {}), run_id: run.fact.run_id, wave_id: raw.wave_id, config_revision: run.fact.config_revision, prior_attempt: priorAttempt, prior_event_seq: priorNodeSeq, session_ids: sessions, replay })
     if (!adapted.ok) return failureFromResult(adapted)
     nodeFacts.push(adapted.fact)
@@ -488,7 +494,14 @@ export function appendRuntimeEvidenceBatch(store: ControlPlaneStore, input: AnyR
     }
     return failure
   }
-  return { ok: true, status: results.some((result: any) => result.status === "INSERTED") ? "INSERTED" : "IDEMPOTENT", fact: run.fact, facts, rolled_back: false }
+  return {
+    ok: true,
+    status: results.some((result: any) => result.status === "INSERTED") ? "INSERTED" : "IDEMPOTENT",
+    fact: run.fact,
+    facts,
+    rolled_back: false,
+    evidence_store: { control_plane_db: store.dbPath },
+  }
 }
 
 export function recordEvidenceWriteFailure(store: ControlPlaneStore, failure: AnyRecord): AdapterSuccess | AdapterFailure {
@@ -537,3 +550,18 @@ export function recordEvidenceWriteFailure(store: ControlPlaneStore, failure: An
 }
 
 export const appendRuntimeEvidence = appendRuntimeEvidenceBatch
+
+function normalizeRuntimeId(value: any): string | null {
+  if (typeof value !== "string" || !value.trim()) return null
+  const ref = value.trim()
+  const match = /^([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+)(?:#([A-Za-z0-9._-]+))?$/.exec(ref)
+  if (!match) return null
+  return `${match[1]}/${match[2]}${match[3] && match[3] !== "default" ? `#${match[3]}` : ""}`
+}
+
+function admittedCatalogRef(store: ControlPlaneStore, route: string, configRevision: string): string | null {
+  const row = store.db.prepare("SELECT exact_model_ref FROM route_bindings WHERE route_binding_id = ? AND config_revision = ? AND binding_state = 'BOUND' ORDER BY updated_at DESC, rowid DESC LIMIT 1").get(route, configRevision) as any
+  if (!row?.exact_model_ref) return null
+  const catalog = store.db.prepare("SELECT exact_model_ref FROM model_catalog WHERE exact_model_ref = ? AND config_revision = ? AND availability_state = 'AVAILABLE' ORDER BY updated_at DESC, rowid DESC LIMIT 1").get(row.exact_model_ref, configRevision) as any
+  return catalog?.exact_model_ref ?? null
+}

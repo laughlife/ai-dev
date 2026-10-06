@@ -1,7 +1,6 @@
-import fs from "node:fs"
-import path from "node:path"
 import { DatabaseSync } from "node:sqlite"
 import { sha256Canonical } from "./plan12-contract.ts"
+import { resolveControlPlanePathEnvelope, type Plan12PathEnvelope } from "./plan12-control-plane.ts"
 
 type AnyRecord = Record<string, any>
 
@@ -55,6 +54,10 @@ function rowDigest(row: AnyRecord, kind?: string): string | null {
   if (!row || !isDigest(row.payload_sha256)) return null
   const body: AnyRecord = { ...row }
   delete body.payload_sha256
+  // payload_json was added as a nullable v1-compatible envelope extension;
+  // omit it for legacy rows so their original digest remains valid.
+  if (body.payload_json === null || body.payload_json === undefined) delete body.payload_json
+  if (body.model_runtime_id === null || body.model_runtime_id === undefined) delete body.model_runtime_id
   if (kind === "workflow_wave" || kind === "workflow_wave_node") delete body.workflow_id
   try { return sha256Canonical(body) } catch { return null }
 }
@@ -169,30 +172,33 @@ function canonicalPlanDigest(plan: AnyRecord): string | null {
   try { return sha256Canonical(plan) } catch { return null }
 }
 
-function resolvePath(options: AnyRecord): { ok: true; path: string } | { ok: false; result: AnyRecord } {
-  const root = typeof options.root === "string" && options.root ? path.resolve(options.root) : process.cwd()
+function canonicalRuntimeIdentity(value: any): string | null {
+  if (typeof value !== "string" || !value.trim()) return null
+  const match = /^([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+)(?:#([A-Za-z0-9._-]+))?$/.exec(value.trim())
+  if (!match) return null
+  return `${match[1]}/${match[2]}${match[3] && match[3] !== "default" ? `#${match[3]}` : ""}`
+}
+
+function resolvePath(options: AnyRecord): { ok: true; path: string; root: string; envelope: Plan12PathEnvelope } | { ok: false; result: AnyRecord } {
+  const configuredRoot = typeof options.root === "string" && options.root.trim() ? options.root : null
+  if (!configuredRoot) return { ok: false, result: blocked("EVIDENCE_STORE_SCOPE_FORBIDDEN", "an explicit Runtime root is required; AI_DEV_ROOT/cwd fallback is forbidden") }
   const requested = typeof options.dbPath === "string" ? options.dbPath.trim() : ""
   if (!requested) return { ok: false, result: blocked("EVIDENCE_STORE_UNAVAILABLE", "an explicit isolated Control Plane DB path is required") }
-  let resolved = path.resolve(root, requested)
-  const productionDefault = typeof options.productionRoot === "string" && options.productionRoot
-    ? path.resolve(options.productionRoot, "runtime", "control-plane.db")
-    : null
-  if (productionDefault && resolved.toLowerCase() === productionDefault.toLowerCase()) {
-    return { ok: false, result: blocked("EVIDENCE_STORE_SCOPE_FORBIDDEN", "Completion Guard cannot read the default production control-plane.db") }
+  try {
+    const envelope = resolveControlPlanePathEnvelope({
+      dbPath: requested,
+      runtimeRoot: configuredRoot,
+      allowedRoots: Array.isArray(options.allowed_roots) ? options.allowed_roots.filter(nonEmpty) : undefined,
+      requireExisting: true,
+      productionRoot: typeof options.productionRoot === "string" ? options.productionRoot : null,
+      forbidProductionDefault: true,
+    })
+    return { ok: true, path: envelope.control_plane_db_real, root: envelope.runtime_root_real, envelope }
+  } catch (error: any) {
+    const code = String(error?.message ?? error)
+    const scope = /OUTSIDE|SYMLINK|PRODUCTION|RUNTIME_ROOT|ALLOWED_ROOT/.test(code)
+    return { ok: false, result: blocked(scope ? "EVIDENCE_STORE_SCOPE_FORBIDDEN" : "EVIDENCE_STORE_UNAVAILABLE", code) }
   }
-  const configuredRoots = Array.isArray(options.allowed_roots) ? options.allowed_roots.filter(nonEmpty).map((entry: string) => path.resolve(root, entry)) : []
-  const allowedRoots = configuredRoots.length > 0 ? configuredRoots : [root]
-  const within = (candidate: string, allowed: string) => {
-    const relative = path.relative(allowed, candidate)
-    return relative === "" || (!path.isAbsolute(relative) && relative !== ".." && !relative.startsWith(`..${path.sep}`))
-  }
-  if (!allowedRoots.some((allowed: string) => within(resolved, allowed))) {
-    return { ok: false, result: blocked("EVIDENCE_STORE_SCOPE_FORBIDDEN", "Control Plane DB is outside the isolated allowed_roots boundary") }
-  }
-  if (!fs.existsSync(resolved)) return { ok: false, result: blocked("EVIDENCE_STORE_UNAVAILABLE", `Control Plane DB does not exist: ${resolved}`) }
-  resolved = fs.realpathSync(resolved)
-  if (!allowedRoots.some((allowed: string) => fs.existsSync(allowed) && within(resolved, fs.realpathSync(allowed)))) return { ok: false, result: blocked("EVIDENCE_STORE_SCOPE_FORBIDDEN", "resolved Control Plane DB crosses the isolation boundary") }
-  return { ok: true, path: resolved }
 }
 
 function query(db: DatabaseSync, sql: string, params: any[] = []): AnyRecord[] {
@@ -207,7 +213,15 @@ function checkRowDigest(row: AnyRecord, kind: string, missing: AnyRecord[]) {
   if (!digestMatches(row, kind)) missing.push({ code: "L3_DIGEST_MISMATCH", kind, key: row.run_id ?? row.event_id ?? row.wave_id ?? row.node_id ?? row.config_revision ?? null, expected: row.payload_sha256, actual: rowDigest(row, kind) })
 }
 
-function checkLifecycle(db: DatabaseSync, run: AnyRecord, missing: AnyRecord[]) {
+function samePath(left: any, right: any): boolean {
+  return typeof left === "string" && typeof right === "string" && pathKey(left) === pathKey(right)
+}
+
+function pathKey(value: string): string {
+  return value.replace(/[\\/]+/g, "/").replace(/\/$/, "").toLowerCase()
+}
+
+function checkLifecycle(db: DatabaseSync, run: AnyRecord, missing: AnyRecord[], pathEnvelope: Plan12PathEnvelope) {
   const events = query(db, "SELECT * FROM workflow_run_events WHERE run_id = ? ORDER BY sequence", [run.run_id])
   if (events.length === 0) {
     missing.push({ code: "L3_EVENT_MISSING", detail: "workflow_run_events are required" })
@@ -223,6 +237,20 @@ function checkLifecycle(db: DatabaseSync, run: AnyRecord, missing: AnyRecord[]) 
     checkRowDigest(event, "workflow_run_event", missing)
   })
   if (events[0]?.event_type !== "RUN_STARTED") missing.push({ code: "RUN_STARTED_MISSING" })
+  const startedPayload = parseJson(events[0]?.payload_json)
+  if (events[0]?.payload_json === null || events[0]?.payload_json === undefined) {
+    missing.push({ code: "RUNTIME_PATH_ENVELOPE_MISSING", event_id: events[0]?.event_id ?? null })
+  } else if (
+    !startedPayload
+    || !samePath(startedPayload.runtime_root, pathEnvelope.runtime_root_real)
+    || !samePath(startedPayload.control_plane_db, pathEnvelope.control_plane_db_real)
+    || startedPayload.path_envelope?.policy !== "explicit-runtime-root-v1"
+    || startedPayload.path_envelope?.environment_root_used !== false
+    || !samePath(startedPayload.path_envelope?.runtime_root_real, pathEnvelope.runtime_root_real)
+    || !samePath(startedPayload.path_envelope?.control_plane_db_real, pathEnvelope.control_plane_db_real)
+  ) {
+    missing.push({ code: "RUNTIME_PATH_ENVELOPE_MISMATCH", event_id: events[0]?.event_id ?? null })
+  }
   if (events.at(-1)?.event_type !== "RUN_FINISHED") missing.push({ code: "RUN_FINISHED_MISSING" })
   if (Date.parse(events[0]?.occurred_at ?? "") < Date.parse(run.started_at ?? "")) missing.push({ code: "RUN_STARTED_TIME_MISMATCH" })
   if (Date.parse(events.at(-1)?.occurred_at ?? "") < Date.parse(run.ended_at ?? "")) missing.push({ code: "RUN_FINISHED_TIME_MISMATCH" })
@@ -329,6 +357,10 @@ function checkModelRoute(db: DatabaseSync, node: AnyRecord, revision: string, mi
   }
   checkEnvelope(binding, "route_bindings", revision, missing)
   checkModelEnvelopeDigest(db, "route_bindings", binding, missing)
+  if (node.route === "code_read" && binding.role !== "Project Reader") {
+    missing.push({ code: "ROUTE_ROLE_MISMATCH", route: node.route, node_id: node.node_id, actual_role: binding.role, expected_role: "Project Reader" })
+    return
+  }
   const bindingState = String(binding.binding_state ?? "")
   if (bindingState !== "BOUND") {
     missing.push({ code: MODEL_FAILURES.get(bindingState) ?? "MODEL_ROUTE_NOT_BOUND", route: node.route, state: bindingState, node_id: node.node_id })
@@ -336,6 +368,16 @@ function checkModelRoute(db: DatabaseSync, node: AnyRecord, revision: string, mi
   }
   if (!nonEmpty(binding.exact_model_ref) || !nonEmpty(binding.provider_id) || !nonEmpty(binding.model_id)) {
     missing.push({ code: "MODEL_UNASSIGNED", route: node.route, node_id: node.node_id })
+    return
+  }
+  if (!nonEmpty(node.model_runtime_id)) {
+    missing.push({ code: "MODEL_RUNTIME_ID_MISSING", route: node.route, node_id: node.node_id })
+    return
+  }
+  const actualWorkerIdentity = canonicalRuntimeIdentity(node.model_runtime_id)
+  const expectedWorkerIdentity = canonicalRuntimeIdentity(binding.exact_model_ref)
+  if (!actualWorkerIdentity || !expectedWorkerIdentity || actualWorkerIdentity !== expectedWorkerIdentity) {
+    missing.push({ code: "MODEL_RUNTIME_ID_MISMATCH", route: node.route, node_id: node.node_id, actual: node.model_runtime_id, expected: binding.exact_model_ref })
     return
   }
   const catalog = one(db, "SELECT * FROM model_catalog WHERE exact_model_ref = ? AND config_revision = ? ORDER BY updated_at DESC, rowid DESC LIMIT 1", [binding.exact_model_ref, revision])
@@ -432,7 +474,7 @@ export function evaluateRuntimeEvidence(options: AnyRecord = {}): AnyRecord {
       checkRowDigest(snapshot, "workflow_config_snapshot", missing)
     }
 
-    const lifecycleEvents = checkLifecycle(db, run, missing)
+    const lifecycleEvents = checkLifecycle(db, run, missing, resolved.envelope)
     const waves = query(db, "SELECT * FROM workflow_waves WHERE run_id = ? ORDER BY wave_index", [run.run_id])
     if (waves.length === 0) missing.push({ code: "L3_WAVE_MISSING" })
     const waveIds = new Set<string>()
@@ -497,7 +539,7 @@ export function evaluateRuntimeEvidence(options: AnyRecord = {}): AnyRecord {
     }
     checkLocks(db, run, nodes, missing)
     if (missing.length > 0) return blocked(missing[0].code, "Completion Guard L3 evidence is incomplete or inconsistent", missing, { run, config_revision: revision, evidence_ref: `control-plane:${run.run_id}` })
-    return success(run, { config_revision: revision, wave_count: waves.length, node_count: planNodes.length, execution_event_count: executionEvents.length })
+    return success(run, { config_revision: revision, wave_count: waves.length, node_count: planNodes.length, execution_event_count: executionEvents.length, evidence_store: resolved.envelope })
   } catch (error: any) {
     return blocked("EVIDENCE_STORE_UNAVAILABLE", error?.message ?? String(error))
   } finally {

@@ -4,7 +4,7 @@ import { resolveResourceContract } from "../../lib/lane-resource-contract.ts"
 import { dispatchTeamWaves, normalizeTeamExecutionPolicy, isTeamExecutionRequired, shouldMustParallelize } from "../../lib/team-execution-coordinator.ts"
 import { validateDeliveryResult, withReviewerPassEvidence } from "../../lib/delivery-chain.ts"
 import { createRuntimeEvidenceCollector, normalizeWorkflowExecutionPolicy, validateNodeExecutionPolicy } from "../../lib/plan12-runtime-execution.ts"
-import { initializeControlPlaneDatabase } from "../../lib/plan12-control-plane.ts"
+import { initializeControlPlaneDatabase, resolveControlPlaneDatabasePath } from "../../lib/plan12-control-plane.ts"
 
 // Workflow Engine — automatic DAG scheduler (Plan 7 Phase 4+, T7b; §39-§44,
 // §60-§62, §68)
@@ -427,6 +427,7 @@ export interface SchedulerDeps {
   evidenceStore?: any | null
   evidenceStoreError?: string | null
   evidenceRoot?: string | null
+  evidenceDbPath?: string | null
 }
 
 export function createScheduler(deps: SchedulerDeps) {
@@ -435,6 +436,7 @@ export function createScheduler(deps: SchedulerDeps) {
   const defaultEvidenceStore = deps?.evidenceStore ?? null
   const evidenceStoreError = deps?.evidenceStoreError ?? null
   const evidenceRoot = deps?.evidenceRoot ?? null
+  const configuredEvidenceDbPath = deps?.evidenceDbPath ?? null
   const runContexts = new Map<string, { evidenceStore: any | null; evidenceCollector: any | null; executionPolicy: any; activeWaveIndex: number }>()
   const db = core?.db
   const q = db
@@ -737,6 +739,26 @@ export function createScheduler(deps: SchedulerDeps) {
     })
     const endedAt = nowIso()
     if (sent?.ok) {
+      // Registry exposes two deliberately different identities: model_runtime_id
+      // is canonical and is used only for admission; raw_model_runtime_id is the
+      // exact assistant-response telemetry and must reach L3 evidence unchanged.
+      const actualModelRuntimeId = typeof sent.model_runtime_id === "string" && sent.model_runtime_id.trim() ? sent.model_runtime_id.trim() : null
+      const rawActualModelRuntimeId = typeof sent.raw_model_runtime_id === "string" && sent.raw_model_runtime_id.trim() ? sent.raw_model_runtime_id : null
+      // ensureScopedSession already parsed/validated runtimeId. Mirror only the
+      // registry's documented equality rule here: omitted variant and
+      // `#default` are equivalent; every other variant stays significant.
+      const configuredRuntimeId = runtimeId.trim()
+      const configuredModelRuntimeId = configuredRuntimeId.endsWith("#default") ? configuredRuntimeId.slice(0, -"#default".length) : configuredRuntimeId
+      const runtimeEvidenceRequired = runContexts.get(wfId)?.executionPolicy?.mode === "isolated_fixture" || runContexts.get(wfId)?.evidenceCollector != null
+      if (runtimeEvidenceRequired && (!actualModelRuntimeId || !rawActualModelRuntimeId || !configuredModelRuntimeId || actualModelRuntimeId !== configuredModelRuntimeId)) {
+        const code = actualModelRuntimeId && rawActualModelRuntimeId ? "MODEL_RUNTIME_ID_MISMATCH" : "MODEL_RUNTIME_ID_MISSING"
+        const detail = actualModelRuntimeId && rawActualModelRuntimeId
+          ? `actual assistant response model '${actualModelRuntimeId}' does not match configured target '${runtimeId}'`
+          : "actual assistant response did not expose provider/model identity; configured runtime_id is not accepted as telemetry"
+        const failedSession = { ...sent, model_runtime_id: rawActualModelRuntimeId }
+        persistTaskFailed(taskRow, envelope, route, code, detail, startedAt, endedAt, sessionKey, failedSession)
+        return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "failed", code, detail, session_id: sent.session_id ?? null, session_key: sessionKey, model_runtime_id: actualModelRuntimeId, raw_model_runtime_id: rawActualModelRuntimeId, ...lifecycleField }
+      }
       const result = bus.buildResult({
         taskId,
         projectId: pid,
@@ -745,13 +767,14 @@ export function createScheduler(deps: SchedulerDeps) {
         status: "COMPLETED",
         sessionId: sent.session_id ?? null,
         sessionGeneration: typeof sent.generation === "number" ? sent.generation : null,
+        modelRuntimeId: rawActualModelRuntimeId,
         outputText: String(sent.output_text ?? ""),
         error: null,
         startedAt,
         finishedAt: endedAt,
       })
       bus.persistResult(taskId, "COMPLETED", sessionKey, result)
-      return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "completed", session_id: sent.session_id ?? null, session_key: sessionKey, ...lifecycleField }
+      return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "completed", session_id: sent.session_id ?? null, session_key: sessionKey, model_runtime_id: actualModelRuntimeId, raw_model_runtime_id: rawActualModelRuntimeId, ...lifecycleField }
     }
     const code = String(sent?.code ?? sent?.status ?? "SEND_FAILED")
     const detail = String(sent?.detail ?? "scoped session send failed")
@@ -759,8 +782,9 @@ export function createScheduler(deps: SchedulerDeps) {
       persistScopedBlocked(taskRow, envelope, workerRole, code, detail, sessionKey, sent)
       return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "blocked", code, detail, ...lifecycleField }
     }
-    persistTaskFailed(taskRow, envelope, route, code, detail, startedAt, endedAt, sessionKey, sent)
-    return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "failed", code, detail, session_id: sent?.session_id ?? null, ...lifecycleField }
+    const failedSession = { ...(sent ?? {}), model_runtime_id: sent?.model_runtime_id ?? null }
+    persistTaskFailed(taskRow, envelope, route, code, detail, startedAt, endedAt, sessionKey, failedSession)
+    return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "failed", code, detail, session_id: sent?.session_id ?? null, model_runtime_id: sent?.model_runtime_id ?? null, ...lifecycleField }
   }
 
   function persistScopedBlocked(
@@ -781,6 +805,7 @@ export function createScheduler(deps: SchedulerDeps) {
       status: "BLOCKED",
       sessionId: session?.session_id ?? null,
       sessionGeneration: typeof session?.generation === "number" ? session.generation : null,
+      modelRuntimeId: session?.response_message_id ? (session?.model_runtime_id ?? null) : null,
       outputText: "",
       error: `${code}: ${detail}`,
       startedAt: ts,
@@ -808,6 +833,7 @@ export function createScheduler(deps: SchedulerDeps) {
       status: "FAILED",
       sessionId: session?.session_id ?? null,
       sessionGeneration: typeof session?.generation === "number" ? session.generation : null,
+      modelRuntimeId: session?.response_message_id ? (session?.model_runtime_id ?? null) : null,
       outputText: "",
       error: `${code}: ${detail}`,
       startedAt,
@@ -823,7 +849,7 @@ export function createScheduler(deps: SchedulerDeps) {
     const code = dispatched?.code ?? null
     const detail = dispatched?.detail ?? null
     if (status === "COMPLETED" || code === "TASK_ALREADY_COMPLETED") {
-      return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "completed", session_id: dispatched?.result?.session_id ?? null }
+      return { ...base, task_id: taskId, started_at: startedAt, ended_at: endedAt, kind: "completed", session_id: dispatched?.result?.session_id ?? null, model_runtime_id: dispatched?.result?.model_runtime_id ?? null }
     }
     if (status === "FAILED" || code === "TASK_ALREADY_FAILED" || code === "TASK_CANCELLED" || code === "TASK_ENVELOPE_INVALID") {
       const errorCode = code && code !== "TASK_ALREADY_FAILED" ? code : extractResultErrorCode(dispatched?.result) ?? code ?? "EXECUTION_FAILED"
@@ -988,8 +1014,16 @@ export function createScheduler(deps: SchedulerDeps) {
         runContexts.delete(wfId)
         return buildResponse(wfId, baseRunState, "PLAN12_RUNTIME_ADAPTER_LIVE_BLOCKED", `isolated Control Plane unavailable: ${evidenceStoreError}`)
       }
-      if (!runEvidenceStore && executionPolicy.control_plane_db && evidenceRoot) {
-        try { runEvidenceStore = initializeControlPlaneDatabase({ dbPath: path.resolve(evidenceRoot, executionPolicy.control_plane_db) }); runContext.evidenceStore = runEvidenceStore } catch (error: any) {
+      if (executionPolicy.control_plane_db && evidenceRoot) {
+        try {
+          const policyDbPath = resolveControlPlaneDatabasePath({ dbPath: executionPolicy.control_plane_db, runtimeRoot: evidenceRoot, allowedRoots: executionPolicy.allowed_roots })
+          if (configuredEvidenceDbPath) {
+            const envDbPath = resolveControlPlaneDatabasePath({ dbPath: configuredEvidenceDbPath, runtimeRoot: evidenceRoot, allowedRoots: executionPolicy.allowed_roots })
+            if (path.resolve(envDbPath).toLowerCase() !== path.resolve(policyDbPath).toLowerCase()) throw new Error("CONTROL_PLANE_DB_STORE_MISMATCH")
+          }
+          if (!runEvidenceStore) runEvidenceStore = initializeControlPlaneDatabase({ dbPath: policyDbPath, runtimeRoot: evidenceRoot, allowedRoots: executionPolicy.allowed_roots })
+          runContext.evidenceStore = runEvidenceStore
+        } catch (error: any) {
           q!.wfSetStatus.run("BLOCKED", nowIso(), wfId)
           runContexts.delete(wfId)
           return buildResponse(wfId, baseRunState, "PLAN12_RUNTIME_ADAPTER_LIVE_BLOCKED", `isolated Control Plane unavailable: ${error?.message ?? String(error)}`)
@@ -1007,6 +1041,8 @@ export function createScheduler(deps: SchedulerDeps) {
         projectId: row0.primary_project_id,
         plan,
         source: "workflow-engine-live-r2",
+        runtimeRoot: evidenceRoot,
+        controlPlaneDb: runEvidenceStore.dbPath,
       })
       runContext.evidenceCollector = runEvidenceCollector
       const admission = runEvidenceCollector.start()
@@ -1240,6 +1276,13 @@ export function createScheduler(deps: SchedulerDeps) {
                   task_id: outcome?.task_id ?? nodeRow.current_task_id,
                   route: item.route,
                   session_id: outcome?.session_id ?? taskForEvidence?.opencode_session_id ?? taskForEvidence?.session_id ?? null,
+                  // Scoped outcomes always carry raw_model_runtime_id (also
+                  // when null), so never fall back from a missing raw actual.
+                  // Non-scoped Task Bus outcomes expose their observed value
+                  // through model_runtime_id and remain backward compatible.
+                  model_runtime_id: Object.prototype.hasOwnProperty.call(outcome ?? {}, "raw_model_runtime_id")
+                    ? outcome.raw_model_runtime_id
+                    : (outcome?.model_runtime_id ?? null),
                   session_key: outcome?.session_key ?? taskForEvidence?.target_session_key ?? null,
                   status: outcome?.kind === "completed" ? "COMPLETED" : outcome?.kind === "blocked" ? "BLOCKED" : "FAILED",
                   output: outcome?.result ?? { kind: outcome?.kind, code: outcome?.code ?? null, detail: outcome?.detail ?? null },

@@ -5,6 +5,7 @@ const test = (id, file, extra = []) => ({ id, file, command: node, args: [stripT
 export const REGRESSION_CHECKS = [
   test("architecture-compiler", ".opencode/tests/architecture-compiler.mjs"),
   test("architecture-compiler-hardening", ".opencode/tests/architecture-compiler-hardening.mjs"),
+  test("regression-failure-semantics", ".opencode/tests/regression-failure-semantics.mjs"),
   test("lifecycle-smoke", ".opencode/tests/lifecycle-smoke.mjs", ["--import", "./.opencode/tests/register-hooks.mjs"]),
   test("lifecycle-restore-tool-contract", ".opencode/tests/lifecycle-restore-tool-contract.mjs"),
   test("session-context-envelope", ".opencode/tests/session-context-envelope.mjs"),
@@ -26,6 +27,8 @@ export const REGRESSION_CHECKS = [
   test("plan12-rollback-journal", ".opencode/tests/plan12-rollback-journal.mjs"),
   test("plan12-model-route-contract", ".opencode/tests/plan12-model-route-contract.mjs"),
   test("plan12-model-route-gates", ".opencode/tests/plan12-model-route-gates.mjs"),
+  test("plan12-runtime-fixture-contract", ".opencode/tests/plan12-runtime-fixture-contract.mjs"),
+  test("plan12-default-identity-chain", ".opencode/tests/plan12-default-identity-chain.mjs", ["--import", "./.opencode/tests/register-hooks.mjs"]),
   test("plan12-5-runtime-evidence-adapter", ".opencode/tests/plan12-5-runtime-evidence-adapter.mjs"),
   test("plan12-5-r2-runtime-evidence-contract", ".opencode/tests/plan12-5-r2-contract.mjs"),
   test("plan12-6-completion-guard-evidence", ".opencode/tests/plan12-6-completion-guard-evidence.mjs"),

@@ -5,6 +5,7 @@ assert.ok(Array.isArray(REGRESSION_CHECKS) && REGRESSION_CHECKS.length >= 10)
 assert.deepEqual(REGRESSION_CHECKS.map((item) => item.id), [
   "architecture-compiler",
   "architecture-compiler-hardening",
+  "regression-failure-semantics",
   "lifecycle-smoke",
   "lifecycle-restore-tool-contract",
   "session-context-envelope",
@@ -26,6 +27,8 @@ assert.deepEqual(REGRESSION_CHECKS.map((item) => item.id), [
   "plan12-rollback-journal",
   "plan12-model-route-contract",
   "plan12-model-route-gates",
+  "plan12-runtime-fixture-contract",
+  "plan12-default-identity-chain",
   "plan12-5-runtime-evidence-adapter",
   "plan12-5-r2-runtime-evidence-contract",
   "plan12-6-completion-guard-evidence",

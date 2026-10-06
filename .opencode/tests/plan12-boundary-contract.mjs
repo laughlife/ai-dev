@@ -122,6 +122,7 @@ const waveNode = fact({
   result_digest: null,
   error_code: null,
   session_id: "session-1",
+  model_runtime_id: "fixture-provider/fixture-model#contract",
 }, "node-1")
 
 const lock = fact({

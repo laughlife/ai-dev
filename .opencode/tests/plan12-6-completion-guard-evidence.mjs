@@ -89,7 +89,7 @@ try {
   fs.mkdirSync(positiveFixture, { recursive: true })
   const positiveDbPath = path.join(positiveFixture, "runtime", "control-plane.db")
   fs.mkdirSync(path.dirname(positiveDbPath), { recursive: true })
-  const positiveStore = initializeControlPlaneDatabase({ dbPath: positiveDbPath })
+  const positiveStore = initializeControlPlaneDatabase({ dbPath: positiveDbPath, runtimeRoot: positiveFixture, allowedRoots: [positiveFixture] })
   const modelRef = "openai/gpt-6-sol#xhigh"
   const snapshotPayload = {
     revision,
@@ -114,7 +114,7 @@ try {
   })
   assert.equal(appendModelCatalogEntry(positiveStore, catalog).ok, true)
   const binding = withDigest({
-    route_binding_id: "code_read", role: "Feature Executor", workflow_scope: "global", project_scope: "fixture", lane: "default",
+    route_binding_id: "code_read", role: "Project Reader", workflow_scope: "global", project_scope: "fixture", lane: "default",
     provider: "openai", provider_id: "openai", model_id: "gpt-6-sol", variant: "xhigh", exact_model_ref: modelRef,
     binding_state: "BOUND", config_revision: revision, source: "fixture", reason: "verified fixture route",
     created_at: observedAt, updated_at: observedAt, idempotency_key: "positive-route-key",
@@ -128,7 +128,7 @@ try {
   const node = {
     source: "plan12-6-fixture", observed_at: observedAt, config_revision: revision, run_id: runId, wave_id: "wave-0", node_id: "node-a",
     attempt: 1, task_id: "task-a", route: "code_read", resource_digest: "5".repeat(64), lock_key_json: "[]",
-    session_key: "workflow:positive:node-a", session_id: "session-a", status: "COMPLETED", event_seq: 1,
+    session_key: "workflow:positive:node-a", session_id: "session-a", model_runtime_id: modelRef, status: "COMPLETED", event_seq: 1,
     started_at: observedAt, ended_at: "2026-10-02T00:00:01.000Z", result_digest: sha256Canonical(payload), error_code: null,
   }
   const wave = {
@@ -151,11 +151,12 @@ try {
       task_id: refs.task_id ?? null, attempt: refs.attempt ?? null, event_type: eventType, status, sequence, schema_version: 1,
       config_revision: revision, source: "plan12-6-fixture", observed_at: observedAt, evidence_level: "L3", fact_type: "workflow_run_event",
       payload_digest: sha256Canonical(eventPayload), payload_ref: `inline:lifecycle-${sequence}`, occurred_at: sequence === 1 ? observedAt : "2026-10-02T00:00:01.000Z", error_code: null,
+      payload_json: JSON.stringify(eventPayload),
       idempotency_key: `lifecycle-${sequence}`,
     }
     return appendWorkflowRunEvent(positiveStore, withDigest(body))
   }
-  assert.equal(appendLifecycle("RUN_STARTED", 1, {}, "RUNNING", { workflow_id: workflowId }).ok, true)
+  assert.equal(appendLifecycle("RUN_STARTED", 1, {}, "RUNNING", { workflow_id: workflowId, runtime_root: fs.realpathSync(positiveFixture), control_plane_db: fs.realpathSync(positiveDbPath), path_envelope: positiveStore.pathEnvelope }).ok, true)
   assert.equal(appendLifecycle("WAVE_STARTED", 2, { wave_id: "wave-0" }, "RUNNING", { wave_id: "wave-0" }).ok, true)
   assert.equal(appendLifecycle("NODE_STARTED", 3, { wave_id: "wave-0", node_id: "node-a", task_id: "task-a", attempt: 1 }, "RUNNING", { node_id: "node-a" }).ok, true)
   assert.equal(appendLifecycle("NODE_FINISHED", 4, { wave_id: "wave-0", node_id: "node-a", task_id: "task-a", attempt: 1 }, "COMPLETED", payload).ok, true)
@@ -209,6 +210,24 @@ try {
     fs.mkdirSync(targetDir, { recursive: true })
     const target = path.join(targetDir, "control-plane.db")
     fs.copyFileSync(positiveDbPath, target)
+    mutate(target, (db) => {
+      const row = db.prepare("SELECT * FROM workflow_run_events WHERE event_type='RUN_STARTED'").get()
+      const payload = JSON.parse(row.payload_json)
+      payload.runtime_root = fs.realpathSync(tmp)
+      payload.control_plane_db = fs.realpathSync(target)
+      payload.path_envelope = {
+        ...payload.path_envelope,
+        runtime_root: fs.realpathSync(tmp),
+        runtime_root_real: fs.realpathSync(tmp),
+        control_plane_db: fs.realpathSync(target),
+        control_plane_db_real: fs.realpathSync(target),
+        allowed_roots: [fs.realpathSync(tmp)],
+        allowed_roots_real: [fs.realpathSync(tmp)],
+      }
+      const changed = { ...row, payload_json: JSON.stringify(payload), payload_digest: sha256Canonical(payload) }
+      delete changed.payload_sha256
+      db.prepare("UPDATE workflow_run_events SET payload_json=?,payload_digest=?,payload_sha256=? WHERE event_id=?").run(changed.payload_json, changed.payload_digest, sha256Canonical(changed), row.event_id)
+    })
     return target
   }
   const mutate = (target, sql) => {
@@ -255,6 +274,26 @@ try {
   const modelDb = copyPositive("model-unassigned")
   mutate(modelDb, "UPDATE route_bindings SET binding_state='MODEL_UNASSIGNED'")
   assert.ok(evaluateCopy(modelDb).missing.some((entry) => entry.code === "MODEL_UNASSIGNED"), "MODEL_UNASSIGNED must remain fail-closed even when the row is tampered")
+
+  const workerModelMissingDb = copyPositive("worker-model-missing")
+  mutate(workerModelMissingDb, (db) => {
+    const row = db.prepare("SELECT * FROM workflow_wave_nodes WHERE node_id='node-a'").get()
+    const changed = { ...row, model_runtime_id: null }
+    delete changed.payload_sha256
+    delete changed.model_runtime_id
+    const legacyDigest = sha256Canonical(changed)
+    db.prepare("UPDATE workflow_wave_nodes SET model_runtime_id=NULL,payload_sha256=? WHERE node_id='node-a'").run(legacyDigest)
+  })
+  assert.ok(evaluateCopy(workerModelMissingDb).missing.some((entry) => entry.code === "MODEL_RUNTIME_ID_MISSING"), "Guard must re-check missing Worker telemetry independently")
+
+  const workerModelMismatchDb = copyPositive("worker-model-mismatch")
+  mutate(workerModelMismatchDb, (db) => {
+    const row = db.prepare("SELECT * FROM workflow_wave_nodes WHERE node_id='node-a'").get()
+    const changed = { ...row, model_runtime_id: "deepseek/deepseek-flash" }
+    delete changed.payload_sha256
+    db.prepare("UPDATE workflow_wave_nodes SET model_runtime_id=?,payload_sha256=? WHERE node_id='node-a'").run(changed.model_runtime_id, sha256Canonical(changed))
+  })
+  assert.ok(evaluateCopy(workerModelMismatchDb).missing.some((entry) => entry.code === "MODEL_RUNTIME_ID_MISMATCH"), "Guard must reject Worker telemetry that differs from the admitted route")
 
   const modelTamperDb = copyPositive("model-envelope-tamper")
   mutate(modelTamperDb, "UPDATE model_catalog SET display_name='tampered-model'")

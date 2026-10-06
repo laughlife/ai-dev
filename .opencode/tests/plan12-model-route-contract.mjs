@@ -25,7 +25,7 @@ import { makeSnapshot, operationFields, transition } from "./plan12-3-fixtures.m
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plan12-4-model-route-"))
 const dbPath = path.join(dir, "control-plane.db")
-const store = initializeControlPlaneDatabase({ dbPath })
+const store = initializeControlPlaneDatabase({ dbPath, runtimeRoot: dir, allowedRoots: [dir] })
 const at = "2026-10-02T00:00:00.000Z"
 const revision = "cr-plan12-4-001"
 
@@ -194,7 +194,7 @@ try {
   assert.throws(() => store.db.prepare("UPDATE model_catalog SET display_name='mutated' WHERE catalog_entry_id='catalog-openai-high'").run(), /APPEND_ONLY_UPDATE_FORBIDDEN/)
   assert.throws(() => store.db.prepare("DELETE FROM route_bindings WHERE route_binding_id='route-planner'").run(), /APPEND_ONLY_DELETE_FORBIDDEN/)
   store.close()
-  const reopened = initializeControlPlaneDatabase({ dbPath })
+  const reopened = initializeControlPlaneDatabase({ dbPath, runtimeRoot: dir, allowedRoots: [dir] })
   try {
     assert.equal(getModelCatalog(reopened, { config_revision: revision }).length, 1)
     assert.equal(getRouteBinding(reopened, "route-planner").exact_model_ref, "openai/gpt-5.6-sol#high")

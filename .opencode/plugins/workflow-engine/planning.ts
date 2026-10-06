@@ -45,7 +45,9 @@ export function buildPlannerPrompt(input: PlannerWorkflowInput): string {
     "- acceptance_criteria: 逐字回显下方 ACCEPTANCE CRITERIA（无则省略或空数组；Reviewer 将据此验收）",
     "- project_scope: 逐字回显下方 PROJECT SCOPE（无则省略或空数组）",
     ...(input.execution_policy?.delivery === "none"
-      ? ["- execution_policy.delivery=none：这是隔离证据 Smoke。只规划真实只读 Worker 节点，禁止 documentation_update、long_term_memory_write、数据库写入和业务仓库写入；不要输出 metadata.delivery.required_routes。"]
+      ? input.execution_policy?.mode === "isolated_fixture"
+        ? ["- execution_policy.delivery=none 且 mode=isolated_fixture：这是隔离证据 Smoke。只规划真实只读 Worker 节点，禁止 documentation_update、long_term_memory_write、数据库写入和业务仓库写入；不要输出 metadata.delivery.required_routes。"]
+        : ["- execution_policy.delivery=none：仅表示不生成交付链，不等同于只读；不要输出 metadata.delivery.required_routes。在 mode=legacy 且 Task Bus explicit 授权允许框架写入时，可按目标规划 code_change 等写节点；实际写权限仍由确定性 policy guard、route/role 权限与治理规则校验。"]
       : ["- metadata.delivery.required_routes 必须包含 documentation_update 与 long_term_memory_write；metadata.delivery.required_evidence 必须包含文档 artifact 与 memory 引用。Workflow Engine 会在 Reviewer PASS 后自动补齐并执行该链。"]),
     "- nodes: 必填，非空数组（Task DAG 节点）",
     "",
@@ -76,7 +78,9 @@ export function buildPlannerPrompt(input: PlannerWorkflowInput): string {
     "6. 需要最终验收的执行链：在验证节点设置 review.required=true，review.target_node_id 指向验收不通过时应返工的实现节点；不要把 Reviewer 安排在代码变更节点与其测试节点之间。",
     "7. review.required=true 时 target_node_id 必须存在、不等于 gate 节点自身、且必须是该 gate 节点沿 depends_on 可达的祖先节点。",
     ...(input.execution_policy?.delivery === "none"
-      ? ["8. 隔离证据 Smoke 不生成交付链，不生成 long_term_memory_write 节点；必须保持两个或以上独立、只读、可观测 Worker 节点。"]
+      ? input.execution_policy?.mode === "isolated_fixture"
+        ? ["8. 隔离证据 Smoke 不生成交付链，不生成 long_term_memory_write 节点；必须保持两个或以上独立、只读、可观测 Worker 节点。"]
+        : ["8. delivery=none 不生成 documentation_update 或 long_term_memory_write 交付链，但不改变节点读写属性；按目标、约束和可用 route 规划节点，read-only route/role 仍须保持只读。"]
       : ["8. Reviewer PASS 后必须按 documentation_update → long_term_memory_write 顺序交付；这两个 route 不得依赖 Reviewer 之前的节点。"]),
     "9. 校验由 Workflow Engine 确定性执行（schema / 唯一 node_id / 已注册 project+route / 无环 / review gate 祖先规则）；任何违规都会带着 validator errors 退回给你修正。",
     "",

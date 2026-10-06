@@ -135,6 +135,8 @@ export function createRuntimeEvidenceCollector(options: {
   plan: any
   source?: string
   runId?: string
+  runtimeRoot?: string | null
+  controlPlaneDb?: string | null
 }) {
   const store = options.store
   const source = options.source ?? "workflow-engine"
@@ -148,6 +150,16 @@ export function createRuntimeEvidenceCollector(options: {
   let started = false
   let finished = false
 
+  function runtimeLocation(): AnyRecord | null {
+    const pathEnvelope = store.pathEnvelope
+    if (!pathEnvelope || typeof options.runtimeRoot !== "string" || !options.runtimeRoot.trim() || typeof options.controlPlaneDb !== "string" || !options.controlPlaneDb.trim()) return null
+    const normalize = (value: string) => value.replace(/[\\/]+/g, "/").replace(/\/$/, "").toLowerCase()
+    const rootMatches = [pathEnvelope.runtime_root, pathEnvelope.runtime_root_real].some((value) => normalize(value) === normalize(options.runtimeRoot!))
+    const dbMatches = [pathEnvelope.control_plane_db, pathEnvelope.control_plane_db_real].some((value) => normalize(value) === normalize(options.controlPlaneDb!))
+    if (!rootMatches || !dbMatches || normalize(store.dbPath) !== normalize(pathEnvelope.control_plane_db_real)) return null
+    return { runtime_root: pathEnvelope.runtime_root_real, control_plane_db: pathEnvelope.control_plane_db_real, path_envelope: pathEnvelope }
+  }
+
   function appendEvent(eventType: string, payload: any, refs: AnyRecord = {}, status = "RUNNING"): GateResult {
     const payloadDigest = sha256Canonical(payload)
     const seq = ++sequence
@@ -157,6 +169,7 @@ export function createRuntimeEvidenceCollector(options: {
       wave_id: refs.wave_id ?? null, node_id: refs.node_id ?? null, task_id: refs.task_id ?? null,
       attempt: refs.attempt ?? null, event_type: eventType, status, sequence: seq,
       payload_digest: payloadDigest, payload_ref: `inline:${key}`, occurred_at: nowUtc(), error_code: refs.error_code ?? null,
+      payload_json: JSON.stringify(payload),
     })
     try {
       runEvents.push(eventRow(store, base))
@@ -168,8 +181,10 @@ export function createRuntimeEvidenceCollector(options: {
 
   function start(): GateResult {
     if (!activeRevision(store, options.configRevision)) return failure("CONFIG_REVISION_NOT_FOUND", `config_revision '${options.configRevision}' is not an ACTIVE immutable snapshot`)
+    const location = runtimeLocation()
+    if (!location) return failure("RUNTIME_LOCATION_UNRESOLVED", "isolated runtime evidence requires the scheduler-provided runtime_root and the actual Control Plane store.dbPath", "$.runtime_location")
     if (started) return { ok: true, value: { run_id: runId } }
-    const result = appendEvent("RUN_STARTED", { workflow_id: options.workflowId, run_id: runId, plan_digest: sha256Canonical(options.plan) }, {}, "RUNNING")
+    const result = appendEvent("RUN_STARTED", { workflow_id: options.workflowId, run_id: runId, plan_digest: sha256Canonical(options.plan), ...location }, {}, "RUNNING")
     if (result.ok) started = true
     return result
   }
@@ -207,7 +222,9 @@ export function createRuntimeEvidenceCollector(options: {
   function finish(status = "COMPLETED"): GateResult {
     if (finished) return { ok: true, value: { run_id: runId } }
     const end = nowUtc()
-    const runPayload = { workflow_id: options.workflowId, run_id: runId, status, started_at: startedAt, ended_at: end, plan_digest: sha256Canonical(options.plan) }
+    const location = runtimeLocation()
+    if (!location) return failure("RUNTIME_LOCATION_UNRESOLVED", "isolated runtime evidence requires the scheduler-provided runtime_root and the actual Control Plane store.dbPath", "$.runtime_location")
+    const runPayload = { workflow_id: options.workflowId, run_id: runId, status, started_at: startedAt, ended_at: end, plan_digest: sha256Canonical(options.plan), ...location }
     const run = payloadEnvelope(runPayload, options.configRevision, source, `${runId}:run`, "workflow_run", {
       run_id: runId, workflow_id: options.workflowId, parent_run_id: null, plan_digest: sha256Canonical(options.plan), attempt: 1,
       trigger: "workflow_execute", project_id: options.projectId, status, started_at: startedAt, ended_at: end,
@@ -228,7 +245,7 @@ export function createRuntimeEvidenceCollector(options: {
       facts.push(payloadEnvelope(nodePayload, options.configRevision, source, `${runId}:node:${node.wave_id}:${node.node_id}:${node.attempt}`, "workflow_wave_node", {
         run_id: runId, wave_id: node.wave_id, node_id: node.node_id, attempt: node.attempt ?? 1, workflow_id: options.workflowId,
         task_id: node.task_id, route: node.route ?? "code_read", resource_digest: sha256Canonical(node.resources ?? {}), lock_key_json: JSON.stringify(node.lock_key ?? null),
-        session_key: node.session_key ?? null, session_id: node.session_id ?? null, status: node.status ?? "COMPLETED", event_seq: eventSeq++,
+        session_key: node.session_key ?? null, session_id: node.session_id ?? null, model_runtime_id: node.model_runtime_id ?? null, status: node.status ?? "COMPLETED", event_seq: eventSeq++,
         started_at: node.started_at ?? startedAt, ended_at: node.ended_at ?? end, result_digest: sha256Canonical(node.output ?? node.result ?? null), error_code: node.error_code ?? null,
       }))
     }
@@ -264,12 +281,14 @@ export function createRuntimeEvidenceCollector(options: {
     })
     if (!adapterResult.ok) {
       const blocked = failure("EVIDENCE_WRITE_FAILED", adapterResult.detail ?? adapterResult.code)
+      const causeCode = adapterResult.cause_code ?? adapterResult.code
+      const causeDetail = adapterResult.cause_detail ?? adapterResult.detail
       const receipt = appendEvent("EVIDENCE_WRITE_FAILED", {
         run_id: runId,
         workflow_id: options.workflowId,
-        cause_code: adapterResult.code,
-        cause_detail: adapterResult.detail,
-      }, { error_code: adapterResult.code }, "EVIDENCE_BLOCKED")
+        cause_code: causeCode,
+        cause_detail: causeDetail,
+      }, { error_code: causeCode }, "EVIDENCE_BLOCKED")
       return receipt.ok ? { ...blocked, value: { run_id: runId, failure_event: receipt.value } } : blocked
     }
     const event = appendEvent("RUN_FINISHED", { run_id: runId, status, workflow_id: options.workflowId }, {}, status)
@@ -280,4 +299,3 @@ export function createRuntimeEvidenceCollector(options: {
 
   return { runId, start, recordWaveStart, recordNodeStart, recordNodeFinish, recordWaveFinish, finish, events: () => clone(runEvents) }
 }
-

@@ -26,7 +26,7 @@ function rehash(value) {
 }
 
 function runConcurrentWriter(dbPath, facts) {
-  const worker = "import { initializeControlPlaneDatabase } from './.opencode/lib/plan12-control-plane.ts'; const facts=JSON.parse(Buffer.from(process.env.PLAN12_FACTS,'base64').toString('utf8')); const store=initializeControlPlaneDatabase({dbPath:process.env.PLAN12_DB}); const snapshot=store.appendWorkflowConfigSnapshot(facts.snapshot); const run=store.appendWorkflowRun(facts.run); console.log(JSON.stringify({snapshot:snapshot.status,run:run.status})); store.close()"
+  const worker = "import path from 'node:path'; import { initializeControlPlaneDatabase } from './.opencode/lib/plan12-control-plane.ts'; const facts=JSON.parse(Buffer.from(process.env.PLAN12_FACTS,'base64').toString('utf8')); const root=path.dirname(path.dirname(process.env.PLAN12_DB)); const store=initializeControlPlaneDatabase({dbPath:process.env.PLAN12_DB,runtimeRoot:root,allowedRoots:[root]}); const snapshot=store.appendWorkflowConfigSnapshot(facts.snapshot); const run=store.appendWorkflowRun(facts.run); console.log(JSON.stringify({snapshot:snapshot.status,run:run.status})); store.close()"
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", worker], {
       cwd: path.resolve("."),
@@ -42,7 +42,7 @@ function runConcurrentWriter(dbPath, facts) {
 }
 
 try {
-  store = initializeControlPlaneDatabase({ dbPath })
+  store = initializeControlPlaneDatabase({ dbPath, runtimeRoot: fixture, allowedRoots: [fixture] })
   const facts = makeFacts("writer")
   const inserted = [
     appendWorkflowConfigSnapshot(store, facts.snapshot),
@@ -111,7 +111,7 @@ try {
   ])
   assert.equal(concurrentResults.filter((result) => result.run === "INSERTED").length, 2)
   assert.equal(concurrentResults.filter((result) => result.run === "IDEMPOTENT").length, 2)
-  const concurrentStore = initializeControlPlaneDatabase({ dbPath: concurrentDbPath })
+  const concurrentStore = initializeControlPlaneDatabase({ dbPath: concurrentDbPath, runtimeRoot: fixture, allowedRoots: [fixture] })
   assert.equal(concurrentStore.db.prepare("SELECT COUNT(*) AS count FROM workflow_runs").get().count, 2)
   concurrentStore.close()
   console.log("PLAN12_EVIDENCE_WRITER_PASS")

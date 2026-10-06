@@ -41,3 +41,25 @@ PLAN12_COMPLETION_GUARD_EVIDENCE_PASS
 ```
 
 测试覆盖：完整 L3 fixture、canonical digest 回读、显式隔离 DB、缺失 DB fail-closed、Legacy 兼容、finalize 阻断不改状态、模型精确身份和 lifecycle gate。Plan 12.5 的真实 Live artifact 继续作为事实生产来源；本阶段不重新执行 Desktop Runtime。
+
+### 最终实时回读（2026-10-06）
+
+对 live v2 隔离 DB `C:/Users/Administrator/AppData/Local/Temp/opencode/plan12-final-v2-20261006-4c37812d/control-plane.db`
+（`config_revision=plan12-final-v2-20261006-4c37812d`）的只读复现（未调用 `completion_finalize`）：
+
+- 正例 `completion_final_report_permission(workflow_id=44940f00-…, run_id=aa97bf7f-…)`
+  返回 `evidence={verification:PASS, evidence_level:L3}`，同时 `permission=false`、
+  `status=FINAL_REPORT_BLOCKED`、`delivery=DELIVERY_PENDING`（missing 为
+  `REVIEW_PASS_REQUIRED` + `documentation_update` / `long_term_memory_write` 两个
+  `REQUIRED_DELIVERY_ROUTE` + `DELIVERY_EVIDENCE_CONTRACT_MISSING`）。
+- 负例（不存在 run_id `00000000-…`）返回 `code=EVIDENCE_RUN_NOT_FOUND`、
+  `verification=BLOCKED`、`permission=false`，未篡改 good DB。
+- legacy workflow `dd8f4242`（`delivery=none`）只读实测为 `FINAL_REPORT_BLOCKED` /
+  `DELIVERY_BLOCKED` / `EXECUTION_BLOCKED`（workflow_status `FAILED`，
+  `evidence=NOT_REQUIRED/UNVERIFIED`）→ **非 L4**。
+
+即：**live v2 L3 verification PASS，但 delivery pending，整体不是 L4 COMPLETED**。
+此前的 v1 run `4bbda1c3-…`（workflow `2d304a17-…`，revision `plan12-final-20261006-8abc6b7c`）
+作为历史保留。结构化回读见
+[`plan12-5-6-final-readback.json`](plan12-5-6-final-readback.json)，正式收口说明见
+[`plan12-5-6-final-closeout.md`](plan12-5-6-final-closeout.md)。

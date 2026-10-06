@@ -17,12 +17,103 @@ import {
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url))
 const SCHEMA_FILE = path.join(MODULE_DIR, "plan12-control-plane-schema.sql")
-const DEFAULT_DB_PATH = path.resolve(process.env.AI_DEV_ROOT ?? process.cwd(), "runtime", "control-plane.db")
 const SCHEMA_VERSION = 1
 const WORKFLOW_RUN_EVENT_TYPES = new Set(["ACQUIRE", "WAIT", "RELEASE", "CONFLICT", "EXPIRE", "RUN_STARTED", "WAVE_STARTED", "NODE_STARTED", "NODE_FINISHED", "WAVE_FINISHED", "RUN_FINISHED", "EVIDENCE_WRITE_FAILED"])
 
 type Fact = Record<string, any>
 type Result = { ok: true; status: "INSERTED" | "IDEMPOTENT"; value: any; inserted: boolean } | { ok: false; status: "REJECTED"; code: string; detail: string; path?: string }
+
+export type Plan12PathEnvelope = {
+  policy: "explicit-runtime-root-v1"
+  runtime_root: string
+  runtime_root_real: string
+  requested_db_path: string
+  control_plane_db: string
+  control_plane_db_real: string
+  existing_ancestor_real: string
+  allowed_roots: string[]
+  allowed_roots_real: string[]
+  environment_root_observed: string | null
+  environment_root_used: false
+}
+
+function within(candidate: string, allowed: string): boolean {
+  const relative = path.relative(allowed, candidate)
+  return relative === "" || (!path.isAbsolute(relative) && relative !== ".." && !relative.startsWith(`..${path.sep}`))
+}
+
+/** Resolve a possibly-not-yet-created path through the nearest existing
+ * ancestor. This catches a symlink/junction in any existing parent while
+ * still allowing fixture initialization to create the final directory/file. */
+function realpathThroughExistingAncestor(input: string): { resolved: string; ancestorReal: string } {
+  const missing: string[] = []
+  let cursor = path.resolve(input)
+  while (!fs.existsSync(cursor)) {
+    const parent = path.dirname(cursor)
+    if (parent === cursor) throw new Error("CONTROL_PLANE_DB_EXISTING_ANCESTOR_NOT_FOUND")
+    missing.unshift(path.basename(cursor))
+    cursor = parent
+  }
+  const ancestorReal = fs.realpathSync(cursor)
+  return { resolved: path.resolve(ancestorReal, ...missing), ancestorReal }
+}
+
+/** One path policy for fixture initialization, Workflow Runtime and the
+ * Completion Guard. runtimeRoot is always explicit: AI_DEV_ROOT is observed
+ * for diagnostics only and is never a fallback. Every lexical path is checked
+ * again after existing/ancestor realpath resolution so junction escapes fail
+ * closed before a DB is opened or created. */
+export function resolveControlPlanePathEnvelope(options: {
+  dbPath?: string
+  runtimeRoot?: string
+  allowedRoots?: string[]
+  requireExisting?: boolean
+  productionRoot?: string | null
+  forbidProductionDefault?: boolean
+} = {}): Plan12PathEnvelope {
+  const requested = typeof options.dbPath === "string" ? options.dbPath.trim() : ""
+  if (!requested) throw new Error("CONTROL_PLANE_DB_PATH_REQUIRED")
+  if (typeof options.runtimeRoot !== "string" || !options.runtimeRoot.trim()) throw new Error("CONTROL_PLANE_DB_RUNTIME_ROOT_REQUIRED")
+  const rootLexical = path.resolve(options.runtimeRoot)
+  if (!fs.existsSync(rootLexical)) throw new Error("CONTROL_PLANE_DB_RUNTIME_ROOT_NOT_FOUND")
+  const rootReal = fs.realpathSync(rootLexical)
+  const targetLexical = path.isAbsolute(requested) ? path.resolve(requested) : path.resolve(rootLexical, requested)
+  const configuredAllowed = Array.isArray(options.allowedRoots) && options.allowedRoots.length > 0
+    ? options.allowedRoots
+    : [rootLexical]
+  const allowedLexical = configuredAllowed.map((entry) => {
+    if (typeof entry !== "string" || !entry.trim()) throw new Error("CONTROL_PLANE_DB_ALLOWED_ROOT_INVALID")
+    return path.isAbsolute(entry) ? path.resolve(entry) : path.resolve(rootLexical, entry)
+  })
+  if (!allowedLexical.some((allowed) => within(targetLexical, allowed))) throw new Error("CONTROL_PLANE_DB_OUTSIDE_ALLOWED_ROOTS")
+  const target = realpathThroughExistingAncestor(targetLexical)
+  const allowedReal = allowedLexical.map((allowed) => realpathThroughExistingAncestor(allowed).resolved)
+  if (!allowedReal.some((allowed) => within(target.resolved, allowed))) throw new Error("CONTROL_PLANE_DB_SYMLINK_ESCAPE")
+  if (options.requireExisting === true && !fs.existsSync(targetLexical)) throw new Error("CONTROL_PLANE_DB_NOT_FOUND")
+  const targetReal = fs.existsSync(targetLexical) ? fs.realpathSync(targetLexical) : target.resolved
+  if (!allowedReal.some((allowed) => within(targetReal, allowed))) throw new Error("CONTROL_PLANE_DB_SYMLINK_ESCAPE")
+  if (options.forbidProductionDefault === true && typeof options.productionRoot === "string" && options.productionRoot.trim()) {
+    const production = realpathThroughExistingAncestor(path.resolve(options.productionRoot, "runtime", "control-plane.db")).resolved
+    if (targetReal.toLowerCase() === production.toLowerCase()) throw new Error("CONTROL_PLANE_DB_PRODUCTION_DEFAULT_FORBIDDEN")
+  }
+  return {
+    policy: "explicit-runtime-root-v1",
+    runtime_root: rootLexical,
+    runtime_root_real: rootReal,
+    requested_db_path: requested,
+    control_plane_db: targetLexical,
+    control_plane_db_real: targetReal,
+    existing_ancestor_real: target.ancestorReal,
+    allowed_roots: allowedLexical,
+    allowed_roots_real: allowedReal,
+    environment_root_observed: typeof process.env.AI_DEV_ROOT === "string" && process.env.AI_DEV_ROOT.trim() ? path.resolve(process.env.AI_DEV_ROOT) : null,
+    environment_root_used: false,
+  }
+}
+
+export function resolveControlPlaneDatabasePath(options: { dbPath?: string; runtimeRoot?: string; allowedRoots?: string[] } = {}): string {
+  return resolveControlPlanePathEnvelope(options).control_plane_db_real
+}
 
 class ControlPlaneAbort extends Error {
   result: Result
@@ -92,6 +183,13 @@ export function migrateControlPlaneDatabase(target: ControlPlaneStore | Database
   db.exec("BEGIN IMMEDIATE")
   try {
     db.exec(schema)
+    // Keep the v1 table shape compatible while allowing lifecycle envelopes
+    // to carry verified runtime location metadata. Existing databases created
+    // before this column was introduced are migrated in place.
+    const eventColumns = db.prepare("PRAGMA table_info(workflow_run_events)").all() as any[]
+    if (!eventColumns.some((column) => column.name === "payload_json")) db.exec("ALTER TABLE workflow_run_events ADD COLUMN payload_json TEXT")
+    const nodeColumns = db.prepare("PRAGMA table_info(workflow_wave_nodes)").all() as any[]
+    if (!nodeColumns.some((column) => column.name === "model_runtime_id")) db.exec("ALTER TABLE workflow_wave_nodes ADD COLUMN model_runtime_id TEXT")
     db.prepare("INSERT OR IGNORE INTO control_plane_meta(key, value) VALUES (?, ?)").run("schema_version", String(SCHEMA_VERSION))
     db.prepare("INSERT OR IGNORE INTO control_plane_meta(key, value) VALUES (?, ?)").run("created_at", nowUtc())
     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
@@ -103,13 +201,14 @@ export function migrateControlPlaneDatabase(target: ControlPlaneStore | Database
   }
 }
 
-export function initializeControlPlaneDatabase(options: { dbPath?: string } = {}): ControlPlaneStore {
-  const dbPath = path.resolve(options.dbPath ?? DEFAULT_DB_PATH)
+export function initializeControlPlaneDatabase(options: { dbPath: string; runtimeRoot: string; allowedRoots?: string[] }): ControlPlaneStore {
+  const pathEnvelope = resolveControlPlanePathEnvelope(options)
+  const dbPath = pathEnvelope.control_plane_db_real
   fs.mkdirSync(path.dirname(dbPath), { recursive: true })
   const db = new DatabaseSync(dbPath)
   try {
     migrateControlPlaneDatabase(db)
-    return new ControlPlaneStore(db, dbPath)
+    return new ControlPlaneStore(db, dbPath, pathEnvelope)
   } catch (error) {
     try { db.close() } catch {}
     throw error
@@ -231,7 +330,7 @@ function insertFact(db: DatabaseSync, fact: Fact): void {
   if (fact.fact_type === "workflow_wave_node") {
     const workflowId = deriveWorkflowId(db, fact)
     if (!workflowId) throw new Error("WORKFLOW_ID_NOT_FOUND")
-    insertRow(db, table, { ...common, run_id: fact.run_id, wave_id: fact.wave_id, node_id: fact.node_id, attempt: fact.attempt, workflow_id: workflowId, task_id: fact.task_id, route: fact.route, resource_digest: fact.resource_digest, lock_key_json: fact.lock_key_json, session_key: fact.session_key ?? null, session_id: fact.session_id, status: fact.status, event_seq: fact.event_seq, started_at: fact.started_at, ended_at: fact.ended_at, result_digest: fact.result_digest, error_code: fact.error_code })
+    insertRow(db, table, { ...common, run_id: fact.run_id, wave_id: fact.wave_id, node_id: fact.node_id, attempt: fact.attempt, workflow_id: workflowId, task_id: fact.task_id, route: fact.route, resource_digest: fact.resource_digest, lock_key_json: fact.lock_key_json, session_key: fact.session_key ?? null, session_id: fact.session_id, model_runtime_id: fact.model_runtime_id ?? null, status: fact.status, event_seq: fact.event_seq, started_at: fact.started_at, ended_at: fact.ended_at, result_digest: fact.result_digest, error_code: fact.error_code })
     return
   }
   if (fact.fact_type === "workflow_lock_event") {
@@ -258,10 +357,12 @@ function classifySqlError(error: any): { code: string; detail: string } {
 export class ControlPlaneStore {
   readonly db: DatabaseSync
   readonly dbPath: string
+  readonly pathEnvelope: Plan12PathEnvelope | null
 
-  constructor(db: DatabaseSync, dbPath: string) {
+  constructor(db: DatabaseSync, dbPath: string, pathEnvelope: Plan12PathEnvelope | null = null) {
     this.db = db
     this.dbPath = dbPath
+    this.pathEnvelope = pathEnvelope
   }
 
   close(): void { this.db.close() }
@@ -361,7 +462,7 @@ export class ControlPlaneStore {
     if (existing?.sequence !== null && existing?.sequence !== undefined && Number(fact.sequence) !== Number(existing.sequence) + 1) return failure("SEQUENCE_NONCONTIGUOUS", "lifecycle event sequence must advance by exactly one", "$.sequence")
     try {
       this.db.exec("BEGIN IMMEDIATE")
-      const columns = Object.keys(fact)
+      const columns = Object.keys(fact).filter((column) => column !== "payload_json" || fact.payload_json !== undefined)
       this.db.prepare(`INSERT INTO workflow_run_events (${columns.join(",")}) VALUES (${columns.map(() => "?").join(",")})`).run(...columns.map((column) => fact[column]))
       const row = this.db.prepare("SELECT * FROM workflow_run_events WHERE event_id = ?").get(fact.event_id) as any
       this.db.exec("COMMIT")

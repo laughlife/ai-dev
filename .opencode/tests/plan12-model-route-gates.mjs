@@ -23,7 +23,7 @@ import { canonicalizePlan12Json, sha256Canonical } from "../lib/plan12-contract.
 
 const observed = "2026-10-02T00:00:00.000Z"
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plan12-4-gates-"))
-const store = initializeControlPlaneDatabase({ dbPath: path.join(dir, "control-plane.db") })
+const store = initializeControlPlaneDatabase({ dbPath: path.join(dir, "control-plane.db"), runtimeRoot: dir, allowedRoots: [dir] })
 const digest = (value) => {
   const { payload_sha256: _ignored, ...body } = value
   return { ...body, payload_sha256: sha256Canonical(body) }

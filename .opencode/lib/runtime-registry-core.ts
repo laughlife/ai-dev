@@ -261,6 +261,18 @@ export function parseRuntimeId(runtimeId: unknown): { providerID: string; id: st
   return variant ? { providerID, id: rest.slice(0, hash), variant } : { providerID, id: rest.slice(0, hash) }
 }
 
+/** Canonical identity used only for equality gates. Desktop may report its
+ * implicit provider default as `#default`; every other variant remains part
+ * of the identity. Invalid or missing telemetry stays null and is never
+ * replaced with the configured model. */
+export function canonicalRuntimeIdentity(runtimeId: unknown): string | null {
+  if (typeof runtimeId !== "string" || !runtimeId.trim()) return null
+  const match = /^([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+)(?:#([A-Za-z0-9._-]+))?$/.exec(runtimeId.trim())
+  if (!match) return null
+  const variant = match[3] && match[3] !== "default" ? `#${match[3]}` : ""
+  return `${match[1]}/${match[2]}${variant}`
+}
+
 // =====================================================================
 // Plan 8 T6: lifecycle preflight seam contract (types only — the runtime
 // core never imports lifecycle-core; the plugin setup wires a callback
@@ -575,6 +587,15 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
 
     const latest: any = q.latest.get(key)
     if (latest && latest.status === "ACTIVE") {
+      if (typeof runtimeId !== "string" || !runtimeId.trim()) {
+        return failure("MODEL_UNASSIGNED", "runtime_id is required even when reusing a scoped session; refusing configured identity fallback", { session_key: key })
+      }
+      if (!canonicalRuntimeIdentity(latest.model_runtime_id) || canonicalRuntimeIdentity(latest.model_runtime_id) !== canonicalRuntimeIdentity(runtimeId)) {
+        return failure("SCOPED_SESSION_MODEL_MISMATCH", `active scoped session model '${latest.model_runtime_id ?? "missing"}' does not match requested '${runtimeId}'`, {
+          session_key: key,
+          session_id: latest.opencode_session_id,
+        })
+      }
       let alive = true
       try {
         await ctx.session.get({ sessionID: latest.opencode_session_id })
@@ -644,9 +665,22 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     sessionID: string,
     text: string,
   ): Promise<
-    | { code: "OK"; text: string; detail?: undefined }
+    | { code: "OK"; text: string; model_runtime_id: string | null; raw_model_runtime_id: string | null; message_id: string | null; detail?: undefined }
     | { code: "NO_ASSISTANT_TEXT" | "NO_ASSISTANT_RESULT"; text: null; detail?: string }
   > {
+    // Establish a per-session boundary before prompting. A context snapshot is
+    // preferable to array offsets because desktop compaction may reorder or
+    // remove older entries; message IDs survive that boundary. Responses with
+    // no ID can never be proven new and are therefore rejected below.
+    const beforeRes: any = await ctx.session.context({ sessionID })
+    const existingMessageIds = new Set<string>()
+    for (const raw of extractContextMessages(beforeRes)) {
+      const info = raw?.info ?? raw
+      const idValue = info?.id ?? raw?.id
+      const id = typeof idValue === "string" && idValue ? idValue : null
+      if (id) existingMessageIds.add(id)
+    }
+
     await ctx.session.prompt({ sessionID, text })
     let timer: any
     const timeout = new Promise((_, reject) => {
@@ -660,22 +694,51 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     const contextRes: any = await ctx.session.context({ sessionID })
     const messages: any[] = extractContextMessages(contextRes)
     for (let i = messages.length - 1; i >= 0; i--) {
-      const m = messages[i]
-      if (m?.type !== "assistant") continue
-      const parts: any[] = Array.isArray(m.content) ? m.content : []
+      const raw = messages[i]
+      // Desktop V2 uses { info, parts }; older adapters expose the flattened
+      // message. Normalize both without manufacturing any identity field.
+      const m = raw?.info ?? raw
+      const messageType = m?.type ?? m?.role
+      if (messageType !== "assistant") continue
+      const messageIdValue = m?.id ?? raw?.id
+      const messageId = typeof messageIdValue === "string" && messageIdValue ? messageIdValue : null
+      if (!messageId || existingMessageIds.has(messageId)) continue
+
+      // context({ sessionID }) is itself session-scoped. When desktop also
+      // supplies an explicit session identity, require it to agree; a message
+      // carrying another session's identity is never accepted.
+      const reportedSessionIds = [m?.sessionID, m?.sessionId, m?.session_id, raw?.sessionID, raw?.sessionId, raw?.session_id]
+        .filter((value: any) => typeof value === "string" && value)
+      if (reportedSessionIds.some((value: string) => value !== sessionID)) continue
+
+      const model = m?.model ?? raw?.model
+      const providerValue = model?.providerID ?? m?.providerID ?? raw?.providerID
+      const modelValue = model?.id ?? model?.modelID ?? m?.modelID ?? raw?.modelID
+      const variantValue = model?.variant ?? m?.variant ?? raw?.variant
+      const providerID = typeof providerValue === "string" ? providerValue.trim() : ""
+      const modelID = typeof modelValue === "string" ? modelValue.trim() : ""
+      const variant = typeof variantValue === "string" ? variantValue.trim() : ""
+      const rawModelRuntimeId = providerID && modelID ? `${providerID}/${modelID}${variant ? `#${variant}` : ""}` : null
+      const actualModelRuntimeId = canonicalRuntimeIdentity(rawModelRuntimeId)
+      const content = raw?.parts ?? raw?.content ?? m?.content
+      const parts: any[] = Array.isArray(content) ? content : []
       const resultText = parts
         .filter((p: any) => p?.type === "text" && typeof p.text === "string")
         .map((p: any) => p.text)
         .join("\n")
         .trim()
-      if (resultText) return { code: "OK", text: resultText }
+      if (resultText) return { code: "OK", text: resultText, model_runtime_id: actualModelRuntimeId, raw_model_runtime_id: rawModelRuntimeId, message_id: messageId }
       return {
         code: "NO_ASSISTANT_TEXT",
         text: null,
         detail: "the last assistant message contained no text part",
       }
     }
-    return { code: "NO_ASSISTANT_RESULT", text: null }
+    return {
+      code: "NO_ASSISTANT_RESULT",
+      text: null,
+      detail: "no new assistant message with a unique message ID was correlated to this session prompt",
+    }
   }
 
   // =====================================================================
@@ -816,6 +879,9 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
           session_id: sessionID,
           generation,
           reused_session: reused,
+          model_runtime_id: out.model_runtime_id,
+          raw_model_runtime_id: out.raw_model_runtime_id,
+          response_message_id: out.message_id,
           result: out.text,
           ...lifecycleFields,
         }
@@ -823,7 +889,7 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
       if (out.code === "NO_ASSISTANT_TEXT") {
         return {
           ok: false,
-          status: "NO_ASSISTANT_TEXT",
+          status: out.code,
           session_key: key,
           session_id: sessionID,
           generation,
@@ -982,9 +1048,43 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
     title: any,
     permissions: any = null,
   ) {
+    // §47 applies on reuse too: an ACTIVE row must never become an implicit
+    // configured-model fallback. Compare the explicit request canonically so
+    // only omitted variant and #default are equivalent.
+    if (typeof runtimeId !== "string" || !runtimeId.trim()) {
+      return {
+        ok: false,
+        status: "MODEL_UNASSIGNED",
+        code: "MODEL_UNASSIGNED",
+        session_key: key,
+        project_id: projectId,
+        role,
+        session_created: false,
+        detail:
+          "runtime_id is required for scoped sessions and was null/missing; " +
+          "refusing to create or reuse a session, resolve a model from config, inherit or guess one (§47)",
+      }
+    }
+    const model = parseRuntimeId(runtimeId)
+    const canonicalRequested = canonicalRuntimeIdentity(runtimeId)
+    if (!model || !canonicalRequested) {
+      return failure("RUNTIME_ID_UNPARSEABLE", `cannot parse runtime_id '${runtimeId}'`, {
+        session_key: key,
+        project_id: projectId,
+        role,
+        session_created: false,
+      })
+    }
     // reuse the latest ACTIVE generation when its OpenCode session still exists
     const latest: any = q.latest.get(key)
     if (latest && latest.status === "ACTIVE") {
+      const canonicalActive = canonicalRuntimeIdentity(latest.model_runtime_id)
+      if (!canonicalActive || canonicalActive !== canonicalRequested) {
+        return failure("SCOPED_SESSION_MODEL_MISMATCH", `active scoped session model '${latest.model_runtime_id ?? "missing"}' does not match requested '${runtimeId}'`, {
+          session_key: key,
+          session_id: latest.opencode_session_id,
+        })
+      }
       let alive = true
       try {
         await ctx.session.get({ sessionID: latest.opencode_session_id })
@@ -1002,31 +1102,6 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
       }
       // registry row exists but the OpenCode session is gone -> STALE, generation + 1
       q.markStatus.run("STALE", nowIso(), key, latest.generation)
-    }
-
-    // §47: explicit runtime_id only — refuse before creating anything
-    if (typeof runtimeId !== "string" || !runtimeId.trim()) {
-      return {
-        ok: false,
-        status: "MODEL_UNASSIGNED",
-        code: "MODEL_UNASSIGNED",
-        session_key: key,
-        project_id: projectId,
-        role,
-        session_created: false,
-        detail:
-          "runtime_id is required for scoped sessions and was null/missing; " +
-          "refusing to create a session, resolve a model from config, inherit or guess one (§47)",
-      }
-    }
-    const model = parseRuntimeId(runtimeId)
-    if (!model) {
-      return failure("RUNTIME_ID_UNPARSEABLE", `cannot parse runtime_id '${runtimeId}'`, {
-        session_key: key,
-        project_id: projectId,
-        role,
-        session_created: false,
-      })
     }
 
     // best-effort project_path for the NOT NULL column; a scoped key may
@@ -1132,6 +1207,9 @@ export function createRuntimeRegistryCore(ctx: any, options?: any) {
             session_key: key,
             session_id: sessionID,
             generation,
+            model_runtime_id: out.model_runtime_id,
+            raw_model_runtime_id: out.raw_model_runtime_id,
+            response_message_id: out.message_id,
             output_text: out.text,
           }
         }

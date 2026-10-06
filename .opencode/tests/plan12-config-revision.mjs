@@ -15,7 +15,7 @@ import { appendWorkflowRun } from "../lib/plan12-control-plane.ts"
 import { makeRun, makeSnapshot, operationFields, transition, withDigest, tasksDbHashes } from "./plan12-3-fixtures.mjs"
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "plan12-3-revision-"))
-const store = initializeControlPlaneDatabase({ dbPath: path.join(dir, "control-plane.db") })
+const store = initializeControlPlaneDatabase({ dbPath: path.join(dir, "control-plane.db"), runtimeRoot: dir, allowedRoots: [dir] })
 const hashes = tasksDbHashes()
 try {
   const first = makeSnapshot("cr-20261002-1001")

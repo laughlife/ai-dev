@@ -82,6 +82,7 @@ export function makeFacts(prefix = "fixture") {
     lock_key_json: "[]",
     session_key: `${prefix}-session-key`,
     session_id: `${prefix}-session-1`,
+    model_runtime_id: "fixture-provider/fixture-model#contract",
     status: "RUNNING",
     event_seq: 1,
     started_at: observedAt,

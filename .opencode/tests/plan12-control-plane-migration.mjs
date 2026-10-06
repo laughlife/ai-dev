@@ -18,7 +18,7 @@ const expectedTables = [
 ]
 
 try {
-  const store = initializeControlPlaneDatabase({ dbPath })
+  const store = initializeControlPlaneDatabase({ dbPath, runtimeRoot: fixture, allowedRoots: [fixture] })
   assert.equal(store.db.prepare("PRAGMA foreign_keys").get().foreign_keys, 1)
   assert.equal(store.db.prepare("PRAGMA user_version").get().user_version, 1)
   const tables = store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map((row) => row.name)
@@ -26,7 +26,7 @@ try {
   const requiredColumns = {
     workflow_runs: ["schema_version", "config_revision", "source", "observed_at", "payload_sha256", "idempotency_key", "workflow_id", "run_id", "attempt"],
     workflow_waves: ["run_id", "wave_id", "workflow_id", "wave_index", "parallelism"],
-    workflow_wave_nodes: ["run_id", "wave_id", "node_id", "task_id", "session_key", "session_id", "event_seq"],
+    workflow_wave_nodes: ["run_id", "wave_id", "node_id", "task_id", "session_key", "session_id", "model_runtime_id", "event_seq"],
     workflow_lock_events: ["event_id", "run_id", "lock_key", "event_type", "sequence"],
     execution_events: ["event_id", "run_id", "workflow_id", "wave_id", "node_id", "task_id", "sequence"],
     workflow_config_snapshots: ["config_revision", "parent_revision", "canonical_json", "state"],
@@ -39,7 +39,7 @@ try {
   assert.deepEqual(firstMigration, { ok: true, schema_version: 1 })
   store.close()
 
-  const reopened = initializeControlPlaneDatabase({ dbPath })
+  const reopened = initializeControlPlaneDatabase({ dbPath, runtimeRoot: fixture, allowedRoots: [fixture] })
   assert.equal(reopened.db.prepare("SELECT COUNT(*) AS count FROM control_plane_meta").get().count, 2)
   const secondMigration = migrateControlPlaneDatabase(reopened)
   assert.deepEqual(secondMigration, { ok: true, schema_version: 1 })

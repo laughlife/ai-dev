@@ -72,7 +72,7 @@ function assertOk(value: any, operationName: string): any {
 }
 function readYaml(file: string): any { return parseYaml(fs.readFileSync(file, "utf8")) ?? {} }
 function parseRuntimeId(runtimeId: string): { provider: string; modelId: string; variant: string | null } {
-  const match = /^([^/]+)\/([^#]+)(?:#([^#]+))?$/.exec(runtimeId)
+  const match = typeof runtimeId === "string" ? /^([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+)(?:#([A-Za-z0-9._-]+))?$/.exec(runtimeId.trim()) : null
   if (!match) throw new Error("ROLE_MODEL_RUNTIME_ID_INVALID")
   return { provider: match[1], modelId: match[2], variant: match[3] ?? null }
 }
